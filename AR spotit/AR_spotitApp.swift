@@ -6,12 +6,15 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct AR_spotitApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            WorldsView()
+                .modelContainer(for: [World.self, Anchor.self])
+                      
         }
     }
 }

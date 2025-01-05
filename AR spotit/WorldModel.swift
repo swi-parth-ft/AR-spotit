@@ -1,26 +1,26 @@
-//
-//  WorldModel.swift
-//  AR spotit
-//
-//  Created by Parth Antala on 2025-01-03.
-//
-
-
 import Foundation
 
 struct WorldModel: Identifiable, Codable {
     let id: UUID
-    let name: String // Room name (e.g., "Living Room", "Bedroom")
-    let filePath: URL // File path to the saved ARWorldMap
-    
+    let name: String
+    let filePath: URL
+
     init(name: String) {
         self.id = UUID()
         self.name = name
-        self.filePath = WorldModel.documentsDirectory.appendingPathComponent("\(name)_worldMap")
+        self.filePath = WorldModel.appSupportDirectory.appendingPathComponent("\(name)_worldMap")
     }
-    
-    // Helper to get the documents directory
-    static var documentsDirectory: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+
+    static var appSupportDirectory: URL {
+        let paths = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+        let appSupportPath = paths.first!
+        if !FileManager.default.fileExists(atPath: appSupportPath.path) {
+            do {
+                try FileManager.default.createDirectory(at: appSupportPath, withIntermediateDirectories: true, attributes: nil)
+            } catch {
+                fatalError("Unable to create Application Support directory: \(error.localizedDescription)")
+            }
+        }
+        return appSupportPath
     }
 }
