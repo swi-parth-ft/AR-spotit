@@ -12,7 +12,10 @@ class WorldManager: ObservableObject {
     @Published var savedWorlds: [WorldModel] = [] // List of saved worlds
     private let recordType = "ARWorldMapRecord"
     init() {
-        loadSavedWorlds()
+        fetchWorldNamesFromCloudKit {
+               print("World names loaded from CloudKit.")
+             //  self.loadSavedWorlds() // Optionally load any local data to merge with CloudKit
+           }
     }
     
     func saveWorldMap(for roomName: String, sceneView: ARSCNView) {
@@ -111,14 +114,24 @@ class WorldManager: ObservableObject {
         }
     }
     
+    
     private func loadSavedWorlds() {
         let fileURL = WorldModel.appSupportDirectory.appendingPathComponent("worldsList.json")
         do {
             let data = try Data(contentsOf: fileURL)
-            savedWorlds = try JSONDecoder().decode([WorldModel].self, from: data)
-            print("Saved worlds loaded: \(savedWorlds.map { $0.name })")
+            let decodedWorlds = try JSONDecoder().decode([WorldModel].self, from: data)
+            
+            // Update savedWorlds on the main thread
+            DispatchQueue.main.async {
+                self.savedWorlds = decodedWorlds
+                print("Saved worlds loaded: \(self.savedWorlds.map { $0.name })")
+            }
         } catch {
-            print("No saved world list found or failed to decode: \(error.localizedDescription)")
+            // Handle missing file gracefully
+            DispatchQueue.main.async {
+                self.savedWorlds = []
+                print("No saved world list found or failed to decode: \(error.localizedDescription)")
+            }
         }
     }
     
@@ -191,9 +204,57 @@ class WorldManager: ObservableObject {
                 print("Error uploading ARWorldMap to CloudKit: \(error.localizedDescription)")
             } else {
                 print("ARWorldMap for \(roomName) successfully uploaded to CloudKit.")
+                self.uploadWorldNameToCloudKit(roomName: roomName)
             }
             
             completion?()
+        }
+    }
+    
+    // Save world name to a separate CloudKit record
+    private func uploadWorldNameToCloudKit(roomName: String) {
+        let worldRecord = CKRecord(recordType: "WorldListRecord")
+        worldRecord["roomName"] = roomName as CKRecordValue
+        
+        let privateDB = CKContainer.default().privateCloudDatabase
+        privateDB.save(worldRecord) { record, error in
+            if let error = error {
+                print("Error uploading world name to CloudKit: \(error.localizedDescription)")
+            } else {
+                print("World name \(roomName) successfully uploaded to CloudKit.")
+            }
+        }
+    }
+    
+    func fetchWorldNamesFromCloudKit(completion: @escaping () -> Void) {
+        let privateDB = CKContainer.default().privateCloudDatabase
+        let query = CKQuery(recordType: "WorldListRecord", predicate: NSPredicate(format: "roomName != %@", "")) // Fetch all records
+        
+        privateDB.fetch(withQuery: query, inZoneWith: nil, desiredKeys: ["roomName"], resultsLimit: CKQueryOperation.maximumResults) { result in
+            switch result {
+            case .success(let (matchedResults, _)):
+                var fetchedWorlds: [WorldModel] = []
+                
+                for (_, recordResult) in matchedResults {
+                    switch recordResult {
+                    case .success(let record):
+                        let roomName = record["roomName"] as? String ?? "Unnamed"
+                        fetchedWorlds.append(WorldModel(name: roomName))
+                    case .failure(let error):
+                        print("Error fetching record: \(error.localizedDescription)")
+                    }
+                }
+                
+                DispatchQueue.main.async {
+                    self.savedWorlds = fetchedWorlds
+                    print("Fetched world names from CloudKit: \(self.savedWorlds.map { $0.name })")
+                    completion()
+                }
+                
+            case .failure(let error):
+                print("Error fetching world names from CloudKit: \(error.localizedDescription)")
+                completion()
+            }
         }
     }
     
@@ -201,12 +262,11 @@ class WorldManager: ObservableObject {
         print("Attempting to load world map from CloudKit for \(roomName).")
         
         let privateDB = CKContainer.default().privateCloudDatabase
-        
-        // Query for the record
         let predicate = NSPredicate(format: "roomName == %@", roomName)
-        let query = CKQuery(recordType: recordType, predicate: predicate)
+        print("Running query with predicate: \(predicate)")
+        let query = CKQuery(recordType: "ARWorldMapRecord", predicate: predicate)
         
-        privateDB.perform(query, inZoneWith: nil) { records, error in
+        privateDB.perform(query, inZoneWith: nil) { [weak self] records, error in
             if let error = error {
                 print("Error querying CloudKit: \(error.localizedDescription)")
                 return
@@ -217,26 +277,19 @@ class WorldManager: ObservableObject {
                 return
             }
             
-            // Retrieve the CKAsset
-            guard let asset = record["mapAsset"] as? CKAsset,
-                  let assetFileURL = asset.fileURL else {
+            guard let asset = record["mapAsset"] as? CKAsset, let assetFileURL = asset.fileURL else {
                 print("No valid mapAsset found in CloudKit record.")
                 return
             }
             
             do {
-                // Read data from the asset’s file
                 let data = try Data(contentsOf: assetFileURL)
-                // Convert data to ARWorldMap
                 if let unarchivedMap = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: data) {
-                    
-                    // Re-save locally for offline use
                     DispatchQueue.main.async {
-                        self.saveLocallyAfterCloudDownload(roomName: roomName, data: data)
+                        self?.saveLocallyAfterCloudDownload(roomName: roomName, data: data)
                         
-                        // Now run AR session
+                        // Run AR session
                         sceneView.session.pause()
-                        
                         let configuration = ARWorldTrackingConfiguration()
                         configuration.initialWorldMap = unarchivedMap
                         configuration.planeDetection = [.horizontal, .vertical]
