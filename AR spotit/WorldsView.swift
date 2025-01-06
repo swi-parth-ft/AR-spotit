@@ -5,6 +5,12 @@ struct WorldsView: View {
     @State private var selectedWorld: WorldModel? // Track which world is selected for adding anchors
     @State private var anchorsByWorld: [String: [String]] = [:] // Track anchors for each world
     
+    let columns = [
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10)
+    ] // Two flexible columns
+    @State private var isAddingNewRoom = false
+    
     var body: some View {
         NavigationView {
             ScrollView {
@@ -27,14 +33,14 @@ struct WorldsView: View {
                             .padding(.horizontal)
 
                             // Anchors Section
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 10) {
+                            ScrollView(.vertical, showsIndicators: false) {
+                                LazyVGrid(columns: columns, spacing: 10) {
                                     if let anchors = anchorsByWorld[world.name], !anchors.isEmpty {
                                         ForEach(Array(anchors.enumerated()), id: \.0) { index, anchorName in
                                             Text(anchorName)
                                                 .font(.caption)
+                                                .frame(maxWidth: .infinity)
                                                 .padding()
-                                                .frame(width: 100, height: 50)
                                                 .background(Color.blue.opacity(0.2))
                                                 .cornerRadius(8)
                                         }
@@ -42,6 +48,7 @@ struct WorldsView: View {
                                         Text("No anchors found.")
                                             .foregroundColor(.secondary)
                                             .padding()
+                                            .frame(maxWidth: .infinity)
                                     }
                                 }
                                 .padding(.horizontal)
@@ -64,11 +71,15 @@ struct WorldsView: View {
             .navigationTitle("Saved Worlds")
             .toolbar {
                 Button("Add World") {
-                    selectedWorld = WorldModel(name: "New World")
+                    isAddingNewRoom.toggle()
                 }
             }
             .sheet(item: $selectedWorld) { world in
                 ContentView(currentRoomName: world.name)
+            }
+            .sheet(isPresented: $isAddingNewRoom) {
+                AddNewRoom()
+                    .presentationDetents([.fraction(0.3)])
             }
         }
     }

@@ -51,20 +51,35 @@ struct ARViewContainer: UIViewRepresentable {
 
         func renderer(_ renderer: SCNSceneRenderer, nodeFor anchor: ARAnchor) -> SCNNode? {
             guard let anchorName = anchor.name else { return nil }
-
+            
+            let components = anchorName.split(separator: " ")
+            let name = components.first ?? ""
+            let emoji = components.last ?? ""
+            
             let parentNode = SCNNode()
+            
+            // Create a cube node
             let cube = SCNBox(width: 0.05, height: 0.05, length: 0.05, chamferRadius: 0)
             cube.firstMaterial?.diffuse.contents = UIColor.systemBlue
             let cubeNode = SCNNode(geometry: cube)
-
-            let textGeometry = SCNText(string: anchorName, extrusionDepth: 0.5)
+            
+            // Create text node for the name
+            let textGeometry = SCNText(string: String(name), extrusionDepth: 0.5)
             textGeometry.firstMaterial?.diffuse.contents = UIColor.white
             let textNode = SCNNode(geometry: textGeometry)
             textNode.scale = SCNVector3(0.0015, 0.0015, 0.0015)
             textNode.position = SCNVector3(0, 0.06, 0)
-
+            
+            // Create text node for the emoji
+            let emojiGeometry = SCNText(string: String(emoji), extrusionDepth: 0.5)
+            emojiGeometry.firstMaterial?.diffuse.contents = UIColor.yellow
+            let emojiNode = SCNNode(geometry: emojiGeometry)
+            emojiNode.scale = SCNVector3(0.0015, 0.0015, 0.0015)
+            emojiNode.position = SCNVector3(0, 0.12, 0) // Position emoji slightly above the name
+            
             parentNode.addChildNode(cubeNode)
             parentNode.addChildNode(textNode)
+            parentNode.addChildNode(emojiNode)
             return parentNode
         }
     }

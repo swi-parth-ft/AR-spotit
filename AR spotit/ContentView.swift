@@ -7,7 +7,7 @@ struct ContentView: View {
     @State private var currentAnchorName = ""
     @State private var newRoom = ""
     @State private var showWorldsView = false
-
+    
     var sceneView = ARSCNView()
 
     var body: some View {
@@ -31,8 +31,8 @@ struct ContentView: View {
 
                 HStack {
                     Button("Save Map") {
-                        guard !newRoom.isEmpty else { return }
-                        worldManager.saveWorldMap(for: newRoom, sceneView: sceneView)
+                        guard !currentRoomName.isEmpty else { return }
+                        worldManager.saveWorldMap(for: currentRoomName, sceneView: sceneView)
                     }
                     .padding()
 

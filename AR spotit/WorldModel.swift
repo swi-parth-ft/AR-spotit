@@ -3,13 +3,16 @@ import Foundation
 struct WorldModel: Identifiable, Codable {
     let id: UUID
     let name: String
-    let filePath: URL
     var lastModified: Date // Timestamp to track the last modification
+
+    // Computed property for dynamic file path
+    var filePath: URL {
+        return WorldModel.appSupportDirectory.appendingPathComponent("\(name)_worldMap")
+    }
 
     init(name: String, lastModified: Date = Date()) {
         self.id = UUID()
         self.name = name
-        self.filePath = WorldModel.appSupportDirectory.appendingPathComponent("\(name)_worldMap")
         self.lastModified = lastModified
     }
 

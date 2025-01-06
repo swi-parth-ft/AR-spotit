@@ -392,10 +392,19 @@ class WorldManager: ObservableObject {
         loadSavedWorlds() // Load local data first
         fetchWorldNamesFromCloudKit {
             print("Data synced with CloudKit.")
+            
+            // Fetch missing worlds and save them locally
+            for world in self.savedWorlds {
+                if !FileManager.default.fileExists(atPath: world.filePath.path) {
+                    print("Fetching missing data for world: \(world.name)")
+                    self.loadWorldMapDataFromCloudKitOnly(roomName: world.name) { _ in
+                        print("Fetched and saved \(world.name) locally.")
+                    }
+                }
+            }
         }
     }
     
-    // MARK: Save World Map Locally and to iCloud
     func saveWorldMap(for roomName: String, sceneView: ARSCNView) {
         sceneView.session.getCurrentWorldMap { [weak self] worldMap, error in
             guard let self = self, let map = worldMap else {
@@ -410,14 +419,16 @@ class WorldManager: ObservableObject {
                 self.savedWorlds.append(WorldModel(name: roomName, lastModified: timestamp))
             }
             
+            let world = self.savedWorlds.first { $0.name == roomName }!
+            
             do {
                 let data = try NSKeyedArchiver.archivedData(withRootObject: map, requiringSecureCoding: true)
-                let world = self.savedWorlds.first { $0.name == roomName }!
-                try data.write(to: world.filePath)
+                let filePath = world.filePath
+                try data.write(to: filePath)
                 self.saveWorldList()
-                print("World map for \(roomName) saved locally at: \(world.filePath.path)")
                 
-                // Sync to iCloud
+                print("World map for \(roomName) saved locally at: \(filePath.path)")
+                
                 self.uploadARWorldMapToCloudKit(roomName: roomName, data: data, lastModified: timestamp) {
                     print("Sync to CloudKit complete for \(roomName).")
                 }
@@ -427,7 +438,6 @@ class WorldManager: ObservableObject {
         }
     }
     
-    // MARK: Load World Map
     func loadWorldMap(for roomName: String, sceneView: ARSCNView) {
         print("Attempting to load world map for room: \(roomName)")
         
@@ -436,14 +446,15 @@ class WorldManager: ObservableObject {
             return
         }
         
-        guard FileManager.default.fileExists(atPath: world.filePath.path) else {
-            print("File not found at path: \(world.filePath.path). Trying CloudKit...")
+        let filePath = world.filePath
+        guard FileManager.default.fileExists(atPath: filePath.path) else {
+            print("File not found at path: \(filePath.path). Trying CloudKit...")
             loadFromCloudKit(roomName: roomName, sceneView: sceneView)
             return
         }
         
         do {
-            let data = try Data(contentsOf: world.filePath)
+            let data = try Data(contentsOf: filePath)
             let unarchivedMap = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: data)
             
             guard let worldMap = unarchivedMap else {
@@ -523,7 +534,6 @@ class WorldManager: ObservableObject {
         }
     }
     
-    // MARK: Fetch World Names from iCloud
     func fetchWorldNamesFromCloudKit(completion: @escaping () -> Void) {
         let privateDB = CKContainer.default().privateCloudDatabase
         let query = CKQuery(recordType: "WorldListRecord", predicate: NSPredicate(format: "roomName != %@", ""))
@@ -531,29 +541,39 @@ class WorldManager: ObservableObject {
         privateDB.fetch(withQuery: query, inZoneWith: nil, desiredKeys: ["roomName", "lastModified"], resultsLimit: CKQueryOperation.maximumResults) { result in
             switch result {
             case .success(let (matchedResults, _)):
+                var fetchedWorlds: [WorldModel] = []
+                
                 for (_, recordResult) in matchedResults {
                     switch recordResult {
                     case .success(let record):
                         let roomName = record["roomName"] as? String ?? "Unnamed"
                         let lastModified = record["lastModified"] as? Date ?? Date.distantPast
                         
-                        // Check conflicts with local data
+                        // Check if world already exists locally
                         if let localWorld = self.savedWorlds.first(where: { $0.name == roomName }) {
+                            // Update if CloudKit version is newer
                             if lastModified > localWorld.lastModified {
                                 print("Cloud data for \(roomName) is newer. Downloading...")
                                 self.loadWorldMapDataFromCloudKitOnly(roomName: roomName) { _ in }
                             }
                         } else {
+                            // Add new world from CloudKit
                             print("Adding new world \(roomName) from CloudKit.")
-                            self.loadWorldMapDataFromCloudKitOnly(roomName: roomName) { _ in }
+                            fetchedWorlds.append(WorldModel(name: roomName, lastModified: lastModified))
                         }
                     case .failure(let error):
                         print("Error fetching record: \(error.localizedDescription)")
                     }
                 }
-                DispatchQueue.main.async { completion() }
+                
+                DispatchQueue.main.async {
+                    self.savedWorlds.append(contentsOf: fetchedWorlds)
+                    self.saveWorldList() // Save the updated world list locally
+                    completion()
+                }
+                
             case .failure(let error):
-                print("Error fetching from CloudKit: \(error.localizedDescription)")
+                print("Error fetching world names from CloudKit: \(error.localizedDescription)")
                 completion()
             }
         }
@@ -608,27 +628,27 @@ class WorldManager: ObservableObject {
         }
     }
     
-    // MARK: Load World Map from iCloud
     private func loadWorldMapDataFromCloudKitOnly(roomName: String, completion: @escaping (ARWorldMap?) -> Void) {
         let privateDB = CKContainer.default().privateCloudDatabase
         let predicate = NSPredicate(format: "roomName == %@", roomName)
         let query = CKQuery(recordType: recordType, predicate: predicate)
         
         privateDB.perform(query, inZoneWith: nil) { records, error in
-            if let error = error {
-                print("Error querying CloudKit: \(error.localizedDescription)")
-                completion(nil)
+            if let error = error as? CKError {
+                print("CloudKit query error: \(error.localizedDescription)")
+                if error.code == .zoneNotFound || error.code == .partialFailure {
+                    print("Retrying CloudKit query...")
+                    self.loadWorldMapDataFromCloudKitOnly(roomName: roomName, completion: completion)
+                } else {
+                    completion(nil)
+                }
                 return
             }
             
-            guard let record = records?.first else {
-                print("No record found in CloudKit for \(roomName).")
-                completion(nil)
-                return
-            }
-            
-            guard let asset = record["mapAsset"] as? CKAsset, let assetFileURL = asset.fileURL else {
-                print("No valid mapAsset found in CloudKit record.")
+            guard let record = records?.first,
+                  let asset = record["mapAsset"] as? CKAsset,
+                  let assetFileURL = asset.fileURL else {
+                print("No record or valid mapAsset found for \(roomName).")
                 completion(nil)
                 return
             }
@@ -639,7 +659,7 @@ class WorldManager: ObservableObject {
                     self.saveLocallyAfterCloudDownload(roomName: roomName, data: data, lastModified: Date())
                     completion(unarchivedMap)
                 } else {
-                    print("Failed to unarchive ARWorldMap from CloudKit asset data.")
+                    print("Failed to unarchive ARWorldMap from CloudKit asset.")
                     completion(nil)
                 }
             } catch {
@@ -650,23 +670,31 @@ class WorldManager: ObservableObject {
     }
     
     private func saveLocallyAfterCloudDownload(roomName: String, data: Data, lastModified: Date) {
-        DispatchQueue.main.async {
-            if let index = self.savedWorlds.firstIndex(where: { $0.name == roomName }) {
-                self.savedWorlds[index].lastModified = lastModified
-            } else {
-                self.savedWorlds.append(WorldModel(name: roomName, lastModified: lastModified))
+        let filePath = WorldModel.appSupportDirectory.appendingPathComponent("\(roomName)_worldMap")
+        
+        // Ensure the directory exists
+        let directory = filePath.deletingLastPathComponent()
+        if !FileManager.default.fileExists(atPath: directory.path) {
+            do {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: nil)
+            } catch {
+                print("Error creating directory: \(error.localizedDescription)")
+                return
             }
         }
         
-        guard let world = savedWorlds.first(where: { $0.name == roomName }) else {
-            print("Error: Could not find world \(roomName) in savedWorlds.")
-            return
-        }
-        
+        // Save the data locally
         do {
-            try data.write(to: world.filePath)
-            saveWorldList()
-            print("World \(roomName) saved locally after CloudKit sync at: \(world.filePath.path)")
+            try data.write(to: filePath)
+            DispatchQueue.main.async {
+                if let index = self.savedWorlds.firstIndex(where: { $0.name == roomName }) {
+                    self.savedWorlds[index].lastModified = lastModified
+                } else {
+                    self.savedWorlds.append(WorldModel(name: roomName, lastModified: lastModified))
+                }
+            }
+            self.saveWorldList()
+            print("World \(roomName) saved locally after CloudKit sync at: \(filePath.path)")
         } catch {
             print("Error saving locally after CloudKit sync: \(error.localizedDescription)")
         }
@@ -680,30 +708,24 @@ class WorldManager: ObservableObject {
             return
         }
 
-        // 1) Check local file
         if !FileManager.default.fileExists(atPath: world.filePath.path) {
             print("File not found at path: \(world.filePath.path). Trying CloudKit...")
-
-            // 2) If local file doesn't exist, load from CloudKit
             loadWorldMapDataFromCloudKitOnly(roomName: worldName) { [weak self] cloudMap in
                 guard let cloudMap = cloudMap else {
-                    // Couldn’t load from CloudKit either
                     completion([])
                     return
                 }
-                // 3) We got the ARWorldMap from CloudKit. Extract anchors
-                let anchorNames = cloudMap.anchors.compactMap { $0.name }.filter { $0 != "unknown" }
+                let anchorNames = Set(cloudMap.anchors.compactMap { $0.name }).filter { $0 != "unknown" }
                 print("Found anchors in \(worldName) (from CloudKit): \(anchorNames)")
-                completion(anchorNames)
+                completion(Array(anchorNames))
             }
         } else {
-            // 4) If local file exists, just read it
             do {
                 let data = try Data(contentsOf: world.filePath)
                 if let unarchivedMap = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: data) {
-                    let anchorNames = unarchivedMap.anchors.compactMap { $0.name }.filter { $0 != "unknown" }
+                    let anchorNames = Set(unarchivedMap.anchors.compactMap { $0.name }).filter { $0 != "unknown" }
                     print("Found anchors in \(worldName): \(anchorNames)")
-                    completion(anchorNames)
+                    completion(Array(anchorNames))
                 } else {
                     print("Failed to unarchive ARWorldMap for \(worldName).")
                     completion([])
@@ -714,4 +736,5 @@ class WorldManager: ObservableObject {
             }
         }
     }
+   
 }
