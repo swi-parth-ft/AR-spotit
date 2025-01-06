@@ -13,8 +13,6 @@ struct AR_spotitApp: App {
     var body: some Scene {
         WindowGroup {
             WorldsView()
-                .modelContainer(for: [World.self, Anchor.self])
-                      
         }
     }
 }

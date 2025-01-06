@@ -3,7 +3,8 @@ import SwiftUI
 struct WorldsView: View {
     @ObservedObject var worldManager = WorldManager()
     @State private var selectedWorld: WorldModel? // Track which world is selected for adding anchors
-
+    @State private var anchors: [String] = []
+    @State private var anchorsByWorld: [String: [String]] = [:] // Track anchors for each world
     var body: some View {
         NavigationView {
             ScrollView {
@@ -25,16 +26,9 @@ struct WorldsView: View {
                             }
                             .padding(.horizontal)
 
-                            // Anchors
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 10) {
-                                    let anchors = worldManager.getAnchorNames(for: world.name)
-
-                                    if anchors.isEmpty {
-                                        Text("No anchors found.")
-                                            .foregroundColor(.secondary)
-                                            .padding()
-                                    } else {
+                                    if let anchors = anchorsByWorld[world.name], !anchors.isEmpty {
                                         ForEach(anchors, id: \.self) { anchorName in
                                             Text(anchorName)
                                                 .font(.caption)
@@ -43,9 +37,19 @@ struct WorldsView: View {
                                                 .background(Color.blue.opacity(0.2))
                                                 .cornerRadius(8)
                                         }
+                                    } else {
+                                        Text("No anchors found.")
+                                            .foregroundColor(.secondary)
+                                            .padding()
                                     }
                                 }
                                 .padding(.horizontal)
+                            }
+                            .onAppear {
+                                // Fetch anchors for this specific world
+                                worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
+                                    anchorsByWorld[world.name] = fetchedAnchors // Store anchors by world name
+                                }
                             }
                         }
                     }
@@ -53,6 +57,11 @@ struct WorldsView: View {
                 .padding(.top)
             }
             .navigationTitle("Saved Worlds")
+            .toolbar {
+                Button("Add World") {
+                    selectedWorld = WorldModel(name: "")
+                }
+            }
             .sheet(item: $selectedWorld) { world in
                 ContentView(currentRoomName: world.name)
             }
