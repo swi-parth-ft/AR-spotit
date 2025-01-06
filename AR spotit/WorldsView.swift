@@ -3,8 +3,8 @@ import SwiftUI
 struct WorldsView: View {
     @ObservedObject var worldManager = WorldManager()
     @State private var selectedWorld: WorldModel? // Track which world is selected for adding anchors
-    @State private var anchors: [String] = []
     @State private var anchorsByWorld: [String: [String]] = [:] // Track anchors for each world
+    
     var body: some View {
         NavigationView {
             ScrollView {
@@ -26,10 +26,11 @@ struct WorldsView: View {
                             }
                             .padding(.horizontal)
 
+                            // Anchors Section
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 10) {
                                     if let anchors = anchorsByWorld[world.name], !anchors.isEmpty {
-                                        ForEach(anchors, id: \.self) { anchorName in
+                                        ForEach(Array(anchors.enumerated()), id: \.0) { index, anchorName in
                                             Text(anchorName)
                                                 .font(.caption)
                                                 .padding()
@@ -47,8 +48,12 @@ struct WorldsView: View {
                             }
                             .onAppear {
                                 // Fetch anchors for this specific world
-                                worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
-                                    anchorsByWorld[world.name] = fetchedAnchors // Store anchors by world name
+                                if anchorsByWorld[world.name] == nil || anchorsByWorld[world.name]?.isEmpty == true {
+                                    worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
+                                        DispatchQueue.main.async {
+                                            anchorsByWorld[world.name] = fetchedAnchors
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -59,7 +64,7 @@ struct WorldsView: View {
             .navigationTitle("Saved Worlds")
             .toolbar {
                 Button("Add World") {
-                    selectedWorld = WorldModel(name: "")
+                    selectedWorld = WorldModel(name: "New World")
                 }
             }
             .sheet(item: $selectedWorld) { world in
