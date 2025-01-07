@@ -88,11 +88,43 @@ struct ARViewContainer: UIViewRepresentable {
             
             print("Visualizing anchor with name: \(anchorName)")
             
-            // 1. Create a red sphere to represent the anchor
-            let sphereGeometry = SCNSphere(radius: 0.05)
-            sphereGeometry.firstMaterial?.diffuse.contents = UIColor.red
-            let sphereNode = SCNNode(geometry: sphereGeometry)
-            node.addChildNode(sphereNode)
+            let emoji = parent.extractEmoji(from: anchorName)
+            var sphereGeometry: SCNSphere!
+            if let emoji = emoji {
+                // If an emoji is present, create a flat plane with the emoji.
+                let emojiFont = UIFont.systemFont(ofSize: 100)
+                let emojiSize = CGSize(width: 100, height: 100)
+                guard let emojiImage = parent.imageFromLabel(text: emoji, font: emojiFont, textColor: .black, backgroundColor: .clear, size: emojiSize) else {
+                    print("Failed to create emoji image.")
+                    return
+                }
+                
+                // Create a flat plane geometry for the emoji.
+                let planeSize: CGFloat = 0.1  // Adjust size as needed
+                let emojiPlane = SCNPlane(width: planeSize, height: planeSize)
+                let emojiMaterial = SCNMaterial()
+                emojiMaterial.diffuse.contents = emojiImage
+                emojiMaterial.isDoubleSided = true
+                emojiPlane.materials = [emojiMaterial]
+                
+                let emojiNode = SCNNode(geometry: emojiPlane)
+                
+                // Position the emoji plane at the anchor's position.
+                // Adjust the y-offset if you want it above the ground.
+                emojiNode.position = SCNVector3(0, 0, 0)
+                
+                // Optionally add a billboard constraint so the emoji always faces the camera.
+                let billboardConstraint = SCNBillboardConstraint()
+                billboardConstraint.freeAxes = .Y
+                emojiNode.constraints = [billboardConstraint]
+                
+                node.addChildNode(emojiNode)
+            } else {
+                sphereGeometry = SCNSphere(radius: 0.05)
+                    sphereGeometry.firstMaterial?.diffuse.contents = UIColor.red
+                    let sphereNode = SCNNode(geometry: sphereGeometry)
+                    node.addChildNode(sphereNode)
+            }
             
             // 2. Create a frosted glass-like rounded panel above the sphere
             let panelWidth: CGFloat = 0.3
@@ -114,8 +146,8 @@ struct ARViewContainer: UIViewRepresentable {
 
             // Position the panel directly above the sphere, centered horizontally
             let verticalOffset: Float = 0.15
-            panelNode.position = SCNVector3(0, Float(sphereGeometry.radius) + verticalOffset, 0)
-
+            let radius = sphereGeometry?.radius ?? 0.05  // Use sphereGeometry's radius if available, otherwise default
+            panelNode.position = SCNVector3(0, Float(radius) + verticalOffset, 0)
             let billboardConstraint = SCNBillboardConstraint()
             billboardConstraint.freeAxes = .Y
             panelNode.constraints = [billboardConstraint]
@@ -123,7 +155,9 @@ struct ARViewContainer: UIViewRepresentable {
             node.addChildNode(panelNode)
             
             // 3. Render anchor name and emoji to an image
-            let displayString = "\(anchorName) ✨"
+            let cleanAnchorName = anchorName.filter { !$0.isEmoji }
+            let displayString = "\(cleanAnchorName)"
+          //  let displayString = "\(anchorName)"
             let font = UIFont(name: "AppleColorEmoji", size: 20) ?? UIFont.systemFont(ofSize: 50)
             let textColor = UIColor.black
             let backgroundColor = UIColor.clear  // transparent background for panel overlay
@@ -295,22 +329,58 @@ struct ARViewContainer: UIViewRepresentable {
     }
     
     func imageFromLabel(text: String, font: UIFont, textColor: UIColor, backgroundColor: UIColor, size: CGSize) -> UIImage? {
+        var generatedImage: UIImage?
         
-        let label = UILabel(frame: CGRect(origin: .zero, size: size))
-        label.backgroundColor = backgroundColor
-        label.textColor = textColor
-        label.font = font
-        label.textAlignment = .center
-        label.text = text
-        label.layer.cornerRadius = 10
-        label.layer.masksToBounds = true
+        // Ensure UI operations are done on the main thread
+        DispatchQueue.main.sync {
+            let label = UILabel(frame: CGRect(origin: .zero, size: size))
+            label.backgroundColor = backgroundColor
+            label.textColor = textColor
+            label.font = font
+            label.textAlignment = .center
+            label.text = text
+            label.layer.cornerRadius = 10
+            label.layer.masksToBounds = true
 
-        UIGraphicsBeginImageContextWithOptions(size, false, 0)
-        defer { UIGraphicsEndImageContext() }
-        guard let context = UIGraphicsGetCurrentContext() else { return nil }
-        label.layer.render(in: context)
-        return UIGraphicsGetImageFromCurrentImageContext()
+            UIGraphicsBeginImageContextWithOptions(size, false, 0)
+            defer { UIGraphicsEndImageContext() }
+            guard let context = UIGraphicsGetCurrentContext() else { return }
+            label.layer.render(in: context)
+            generatedImage = UIGraphicsGetImageFromCurrentImageContext()
+        }
+        
+        return generatedImage
+    }
+   
+
+    func extractEmoji(from string: String) -> String? {
+        // Split the string into components separated by spaces.
+        let components = string.split(separator: " ")
+        // Look for a component that contains an emoji.
+        for component in components.reversed() {
+            if String(component).containsEmoji {
+                return String(component)
+            }
+        }
+        return nil
     }
     
     
+}
+
+extension String {
+    // Simple check to see if a string contains an emoji character.
+    var containsEmoji: Bool {
+        return unicodeScalars.contains { $0.properties.isEmojiPresentation }
+    }
+    
+   
+}
+
+extension Character {
+    // Check if a character is an emoji by examining its first scalar.
+    var isEmoji: Bool {
+        // If the character has at least one Unicode scalar, check its emoji property.
+        return self.unicodeScalars.first?.properties.isEmojiPresentation ?? false
+    }
 }

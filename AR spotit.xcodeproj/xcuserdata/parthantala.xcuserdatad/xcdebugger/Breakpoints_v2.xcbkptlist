@@ -14,40 +14,10 @@
             filePath = "AR spotit/ARViewContainer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "132"
-            endingLineNumber = "132"
+            startingLineNumber = "166"
+            endingLineNumber = "166"
             landmarkName = "renderer(_:didAdd:for:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "A8676E72-CA2B-4D9D-8E25-4822634CC9FE - 7824ab3465e61188"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "AR_spotit.ARViewContainer.Coordinator.renderer(_: __C.SCNSceneRenderer, didAdd: __C.SCNNode, for: __C.ARAnchor) -&gt; ()"
-                  moduleName = "AR spotit.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/parthantala/Desktop/Swift/spot%20it/AR%20spotit/AR%20spotit/ARViewContainer.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "143"
-                  endingLineNumber = "143">
-               </Location>
-               <Location
-                  uuid = "A8676E72-CA2B-4D9D-8E25-4822634CC9FE - 7824ab3465e61233"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "AR_spotit.ARViewContainer.Coordinator.renderer(_: __C.SCNSceneRenderer, didAdd: __C.SCNNode, for: __C.ARAnchor) -&gt; ()"
-                  moduleName = "AR spotit.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/parthantala/Desktop/Swift/spot%20it/AR%20spotit/AR%20spotit/ARViewContainer.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "132"
-                  endingLineNumber = "132">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>
