@@ -78,24 +78,63 @@ struct ARViewContainer: UIViewRepresentable {
             print("Placed anchor with name: \(name)")
         }
 
-        // MARK: - ARSCNViewDelegate Methods
+       
 
         func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
-            if let anchorName = anchor.name {
-                print("Visualizing anchor with name: \(anchorName)")
-                
-                // Create a simple visual representation (e.g., a red sphere)
-                let sphereGeometry = SCNSphere(radius: 0.05) // Adjust size as needed
-                sphereGeometry.firstMaterial?.diffuse.contents = UIColor.red
-                
-                let sphereNode = SCNNode(geometry: sphereGeometry)
-                sphereNode.position = SCNVector3(0, 0, 0) // Position relative to the anchor
-                
-                // Attach the sphere to the anchor's node
-                node.addChildNode(sphereNode)
-            } else {
+            guard let anchorName = anchor.name else {
                 print("No name found for anchor, skipping visualization.")
+                return
             }
+            
+            print("Visualizing anchor with name: \(anchorName)")
+            
+            // 1. Create a red sphere to represent the anchor
+            let sphereGeometry = SCNSphere(radius: 0.05)
+            sphereGeometry.firstMaterial?.diffuse.contents = UIColor.red
+            let sphereNode = SCNNode(geometry: sphereGeometry)
+            node.addChildNode(sphereNode)
+            
+            // 2. Create a frosted glass-like panel above the sphere
+            let panelWidth: CGFloat = 0.2
+            let panelHeight: CGFloat = 0.1
+            let panelGeometry = SCNPlane(width: panelWidth, height: panelHeight)
+            let panelMaterial = SCNMaterial()
+            panelMaterial.diffuse.contents = UIColor(white: 1.0, alpha: 0.5)
+            panelMaterial.isDoubleSided = true
+            panelGeometry.materials = [panelMaterial]
+            
+            let panelNode = SCNNode(geometry: panelGeometry)
+            let verticalOffset: Float = 0.15
+            panelNode.position = SCNVector3(0, Float(sphereGeometry.radius) + verticalOffset, 0)
+            
+            let billboardConstraint = SCNBillboardConstraint()
+            billboardConstraint.freeAxes = .Y
+            panelNode.constraints = [billboardConstraint]
+            node.addChildNode(panelNode)
+            
+            // 3. Render anchor name and emoji to an image
+            let displayString = "\(anchorName) ✨"
+            let font = UIFont(name: "AppleColorEmoji", size: 20) ?? UIFont.systemFont(ofSize: 50)
+            let textColor = UIColor.black
+            let backgroundColor = UIColor.clear  // transparent background for panel overlay
+            let imageSize = CGSize(width: 200, height: 100) // adjust as needed
+            guard let labelImage = parent.imageFromLabel(text: displayString, font: font, textColor: textColor, backgroundColor: backgroundColor, size: imageSize) else {
+                print("Failed to create label image")
+                return
+            }
+            
+            // 4. Create an SCNPlane for displaying the text and emoji
+            let textPlaneGeometry = SCNPlane(width: panelWidth, height: panelHeight)
+            let textMaterial = SCNMaterial()
+            textMaterial.diffuse.contents = labelImage
+            textMaterial.isDoubleSided = true
+            textPlaneGeometry.materials = [textMaterial]
+            
+            let textPlaneNode = SCNNode(geometry: textPlaneGeometry)
+            // Position it exactly over the frosted panel (same position)
+            textPlaneNode.position = SCNVector3(0, 0, 0.001) // slight z-offset to avoid z-fighting
+            
+            panelNode.addChildNode(textPlaneNode)
         }
 
         func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
@@ -108,7 +147,27 @@ struct ARViewContainer: UIViewRepresentable {
             lastUpdateTime = Date()
 
             print("Updated ARMeshAnchor with identifier: \(meshAnchor.identifier)")
-            updateMeshGeometry(from: meshAnchor)
+        //    updateMeshGeometry(from: meshAnchor)
+            
+            // Extract vertices from meshAnchor
+                let meshGeometry = meshAnchor.geometry
+                guard let vertexBuffer = meshGeometry.vertices.buffer as? MTLBuffer else { return }
+                let vertexCount = meshGeometry.vertices.count
+                let stride = meshGeometry.vertices.stride
+                let offset = meshGeometry.vertices.offset
+                
+                var vertices: [SIMD3<Float>] = []
+                let pointer = vertexBuffer.contents()
+                for i in 0..<vertexCount {
+                    let vertexPointer = pointer.advanced(by: i * stride + offset)
+                    let vertex = vertexPointer.assumingMemoryBound(to: SIMD3<Float>.self).pointee
+                    vertices.append(vertex)
+                }
+                
+                // Create or update the point cloud node
+            let pointCloudNode = parent.createPointCloudNode(from: vertices)
+                // Add point cloud to the same parent node, or manage updating existing one
+                node.addChildNode(pointCloudNode)
         }
 
         // MARK: - Mesh Handling
@@ -181,6 +240,63 @@ struct ARViewContainer: UIViewRepresentable {
 
             return geometry
         }
+    }
+    
+    func createPointCloudNode(from vertices: [SIMD3<Float>]) -> SCNNode {
+        // Create geometry source from vertex array
+        let vertexData = Data(bytes: vertices, count: vertices.count * MemoryLayout<SIMD3<Float>>.size)
+        let vertexSource = SCNGeometrySource(
+            data: vertexData,
+            semantic: .vertex,
+            vectorCount: vertices.count,
+            usesFloatComponents: true,
+            componentsPerVector: 3,
+            bytesPerComponent: MemoryLayout<Float>.size,
+            dataOffset: 0,
+            dataStride: MemoryLayout<SIMD3<Float>>.size
+        )
+        
+        // Create indices for each vertex for point drawing
+        var indices = [Int32](0..<Int32(vertices.count))
+        let indexData = Data(bytes: &indices, count: indices.count * MemoryLayout<Int32>.size)
+        
+        // Create a geometry element with .point primitive type
+        let pointElement = SCNGeometryElement(
+            data: indexData,
+            primitiveType: .point,
+            primitiveCount: vertices.count,
+            bytesPerIndex: MemoryLayout<Int32>.size
+        )
+        
+        // Create material for points
+        let pointMaterial = SCNMaterial()
+        pointMaterial.diffuse.contents = UIColor.white
+        pointMaterial.lightingModel = .constant
+      //  pointMaterial.pointSize = 3.0  // Adjust size as needed
+        pointMaterial.isDoubleSided = true
+
+        // Assemble geometry with one material
+        let geometry = SCNGeometry(sources: [vertexSource], elements: [pointElement])
+        geometry.materials = [pointMaterial]
+
+        return SCNNode(geometry: geometry)
+    }
+    
+    func imageFromLabel(text: String, font: UIFont, textColor: UIColor, backgroundColor: UIColor, size: CGSize) -> UIImage? {
+        let label = UILabel(frame: CGRect(origin: .zero, size: size))
+        label.backgroundColor = backgroundColor
+        label.textColor = textColor
+        label.font = font
+        label.textAlignment = .center
+        label.text = text
+        label.layer.cornerRadius = 10
+        label.layer.masksToBounds = true
+
+        UIGraphicsBeginImageContextWithOptions(size, false, 0)
+        defer { UIGraphicsEndImageContext() }
+        guard let context = UIGraphicsGetCurrentContext() else { return nil }
+        label.layer.render(in: context)
+        return UIGraphicsGetImageFromCurrentImageContext()
     }
     
     
