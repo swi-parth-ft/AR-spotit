@@ -94,22 +94,32 @@ struct ARViewContainer: UIViewRepresentable {
             let sphereNode = SCNNode(geometry: sphereGeometry)
             node.addChildNode(sphereNode)
             
-            // 2. Create a frosted glass-like panel above the sphere
-            let panelWidth: CGFloat = 0.2
+            // 2. Create a frosted glass-like rounded panel above the sphere
+            let panelWidth: CGFloat = 0.3
             let panelHeight: CGFloat = 0.1
-            let panelGeometry = SCNPlane(width: panelWidth, height: panelHeight)
+            let cornerRadius: CGFloat = 0.02
+            let extrusionDepth: CGFloat = 0.01
+
+            // Create a centered rounded rectangle bezier path
+            let rect = CGRect(x: -panelWidth/2, y: -panelHeight/2, width: panelWidth, height: panelHeight)
+            let roundedRectPath = UIBezierPath(roundedRect: rect, cornerRadius: cornerRadius)
+
+            let panelGeometry = SCNShape(path: roundedRectPath, extrusionDepth: extrusionDepth)
             let panelMaterial = SCNMaterial()
-            panelMaterial.diffuse.contents = UIColor(white: 1.0, alpha: 0.5)
+            panelMaterial.diffuse.contents = UIColor(white: 1.0, alpha: 0.6)
             panelMaterial.isDoubleSided = true
             panelGeometry.materials = [panelMaterial]
-            
+
             let panelNode = SCNNode(geometry: panelGeometry)
+
+            // Position the panel directly above the sphere, centered horizontally
             let verticalOffset: Float = 0.15
             panelNode.position = SCNVector3(0, Float(sphereGeometry.radius) + verticalOffset, 0)
-            
+
             let billboardConstraint = SCNBillboardConstraint()
             billboardConstraint.freeAxes = .Y
             panelNode.constraints = [billboardConstraint]
+
             node.addChildNode(panelNode)
             
             // 3. Render anchor name and emoji to an image
@@ -129,11 +139,13 @@ struct ARViewContainer: UIViewRepresentable {
             textMaterial.diffuse.contents = labelImage
             textMaterial.isDoubleSided = true
             textPlaneGeometry.materials = [textMaterial]
-            
+
             let textPlaneNode = SCNNode(geometry: textPlaneGeometry)
-            // Position it exactly over the frosted panel (same position)
-            textPlaneNode.position = SCNVector3(0, 0, 0.001) // slight z-offset to avoid z-fighting
-            
+
+            // Position it on the front edge of the frosted panel using extrusion depth
+            let frontOffset = Float(extrusionDepth) + 0.001  // tweak as needed
+            textPlaneNode.position = SCNVector3(0, 0, frontOffset)
+
             panelNode.addChildNode(textPlaneNode)
         }
 
@@ -283,6 +295,7 @@ struct ARViewContainer: UIViewRepresentable {
     }
     
     func imageFromLabel(text: String, font: UIFont, textColor: UIColor, backgroundColor: UIColor, size: CGSize) -> UIImage? {
+        
         let label = UILabel(frame: CGRect(origin: .zero, size: size))
         label.backgroundColor = backgroundColor
         label.textColor = textColor
