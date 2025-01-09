@@ -29,6 +29,15 @@ struct WorldsView: View {
                                     Image(systemName: "plus.circle")
                                         .font(.title)
                                 }
+                                
+                                Button {
+                                    worldManager.deleteWorld(roomName: world.name) {
+                                        print("Deletion process completed.")
+                                    }
+                                } label: {
+                                    Image(systemName: "trash")
+                                        .font(.title)
+                                }
                             }
                             .padding(.horizontal)
 

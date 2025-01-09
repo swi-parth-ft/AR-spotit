@@ -88,7 +88,21 @@ class WorldManager: ObservableObject {
             configuration.initialWorldMap = worldMap
             configuration.planeDetection = [.horizontal, .vertical]
             configuration.sceneReconstruction = .mesh // Ensure LiDAR reconstruction
+            
+            if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
+                coordinator.worldIsLoaded = false
+                     
+                  }
+            
             sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
+            
+            if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
+                
+//                        coordinator.placedGuideAnchors.removeAll()
+//                        coordinator.processedPlaneAnchorIDs.removeAll()  // Cl
+                coordinator.worldIsLoaded = true
+                      print("World loaded. Ready to add new guide anchors.")
+                  }
             
             print("World map for \(roomName) loaded successfully.")
         } catch {
@@ -108,15 +122,22 @@ class WorldManager: ObservableObject {
         }
     }
 
-    // MARK: - Load Saved Worlds
     private func loadSavedWorlds() {
         let fileURL = WorldModel.appSupportDirectory.appendingPathComponent("worldsList.json")
         do {
             let data = try Data(contentsOf: fileURL)
             let decodedWorlds = try JSONDecoder().decode([WorldModel].self, from: data)
             
+            // Filter duplicates based on world name by keeping the first occurrence
+            let uniqueWorldsDict = decodedWorlds.reduce(into: [String: WorldModel]()) { dict, world in
+                if dict[world.name] == nil {
+                    dict[world.name] = world
+                }
+            }
+            let uniqueWorlds = Array(uniqueWorldsDict.values)
+            
             DispatchQueue.main.async {
-                self.savedWorlds = decodedWorlds
+                self.savedWorlds = uniqueWorlds
                 print("Saved worlds loaded: \(self.savedWorlds.map { $0.name })")
             }
         } catch {
@@ -126,7 +147,6 @@ class WorldManager: ObservableObject {
             }
         }
     }
-
     // MARK: - Upload to CloudKit
     private func uploadARWorldMapToCloudKit(roomName: String, data: Data, lastModified: Date, completion: (() -> Void)? = nil) {
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(roomName)_tempWorldMap")
@@ -155,10 +175,10 @@ class WorldManager: ObservableObject {
         }
     }
 
-    // MARK: - Fetch from CloudKit
     func fetchWorldNamesFromCloudKit(completion: @escaping () -> Void) {
         let privateDB = CKContainer.default().privateCloudDatabase
-        let query = CKQuery(recordType: "WorldListRecord", predicate: NSPredicate(format: "roomName != ''"))
+        // Changed recordType to ARWorldMapRecord
+        let query = CKQuery(recordType: recordType, predicate: NSPredicate(format: "roomName != ''"))
         
         privateDB.fetch(withQuery: query, inZoneWith: nil, desiredKeys: ["roomName", "lastModified"], resultsLimit: CKQueryOperation.maximumResults) { result in
             switch result {
@@ -172,7 +192,8 @@ class WorldManager: ObservableObject {
                         let lastModified = record["lastModified"] as? Date ?? Date.distantPast
                         
                         // Check if local data is older than CloudKit data
-                        if let localWorld = self.savedWorlds.first(where: { $0.name == roomName }), lastModified > localWorld.lastModified {
+                        if let localWorld = self.savedWorlds.first(where: { $0.name == roomName }),
+                           lastModified > localWorld.lastModified {
                             print("Cloud data for \(roomName) is newer. Downloading...")
                             self.loadWorldMapDataFromCloudKitOnly(roomName: roomName) { _ in }
                         } else if !self.savedWorlds.contains(where: { $0.name == roomName }) {
@@ -332,4 +353,61 @@ class WorldManager: ObservableObject {
             }
         }
     }
+    
+    func deleteWorld(roomName: String, completion: (() -> Void)? = nil) {
+            // Find the world in the savedWorlds array
+            guard let index = savedWorlds.firstIndex(where: { $0.name == roomName }) else {
+                print("No world found with name \(roomName)")
+                completion?()
+                return
+            }
+            
+            let world = savedWorlds[index]
+            let filePath = world.filePath
+            
+            // Remove local file if it exists
+            if FileManager.default.fileExists(atPath: filePath.path) {
+                do {
+                    try FileManager.default.removeItem(at: filePath)
+                    print("Local world file for \(roomName) deleted.")
+                } catch {
+                    print("Error deleting local world file: \(error.localizedDescription)")
+                }
+            }
+            
+            // Remove world from the saved list and update JSON file
+            savedWorlds.remove(at: index)
+            saveWorldList()
+            
+            // Query CloudKit to find and delete associated records
+            let privateDB = CKContainer.default().privateCloudDatabase
+            let predicate = NSPredicate(format: "roomName == %@", roomName)
+            let query = CKQuery(recordType: recordType, predicate: predicate)
+            
+            privateDB.perform(query, inZoneWith: nil) { records, error in
+                if let error = error {
+                    print("Error querying CloudKit for deletion: \(error.localizedDescription)")
+                    completion?()
+                    return
+                }
+                
+                guard let records = records, !records.isEmpty else {
+                    print("No CloudKit records found for \(roomName).")
+                    completion?()
+                    return
+                }
+                
+                let recordIDs = records.map { $0.recordID }
+                let deleteOperation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDs)
+                deleteOperation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, error in
+                    if let error = error {
+                        print("Error deleting records: \(error.localizedDescription)")
+                    } else {
+                        print("World \(roomName) deleted from CloudKit.")
+                    }
+                    completion?()
+                }
+                privateDB.add(deleteOperation)
+            }
+        }
 }

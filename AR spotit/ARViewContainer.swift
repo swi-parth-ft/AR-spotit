@@ -47,6 +47,9 @@ struct ARViewContainer: UIViewRepresentable {
         Coordinator(self, worldManager: worldManager)
     }
 
+    
+    
+    
     // MARK: - Coordinator
 
     class Coordinator: NSObject, ARSCNViewDelegate {
@@ -54,7 +57,12 @@ struct ARViewContainer: UIViewRepresentable {
         var worldManager: WorldManager
         private var mergedMeshNode = SCNNode() // Merged mesh node for all anchors
         private var lastUpdateTime: Date = Date() // Throttle updates
+        private let maxGuideAnchors = 50  // Set maximum number of guide anchors allowed
+             var placedGuideAnchors: [(transform: simd_float4x4, anchor: ARAnchor)] = []
+        var worldIsLoaded: Bool = false
+        private var duplicateDistanceThreshold: Float = 1
 
+         var processedPlaneAnchorIDs: Set<UUID> = []
         init(_ parent: ARViewContainer, worldManager: WorldManager) {
             self.parent = parent
             self.worldManager = worldManager
@@ -81,10 +89,71 @@ struct ARViewContainer: UIViewRepresentable {
        
 
         func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+            
+//            if !worldIsLoaded, anchor is ARPlaneAnchor {
+//                   return
+//               }
+               
+               if let planeAnchor = anchor as? ARPlaneAnchor {
+                   let newTransform = planeAnchor.transform
+                   
+                   // Check if we've already processed this plane anchor
+                   if processedPlaneAnchorIDs.contains(planeAnchor.identifier) {
+                       // Skip adding a guide anchor for this plane again
+                       return
+                   }
+                   
+                   // Mark this plane anchor as processed
+                   processedPlaneAnchorIDs.insert(planeAnchor.identifier)
+                   duplicateDistanceThreshold = worldIsLoaded ? 3.0 : 1.0
+                   // Optionally check for duplicates by distance (if multiple distinct planes overlap)
+                   let alreadyPlaced = placedGuideAnchors.contains { existing in
+                       let distance = simd_distance(existing.transform.columns.3, newTransform.columns.3)
+                       return distance < duplicateDistanceThreshold
+                   }
+                   
+                   if !alreadyPlaced {
+                       // Enforce maximum guide anchors limit
+                       if placedGuideAnchors.count >= maxGuideAnchors {
+                           if let oldest = placedGuideAnchors.first {
+                               parent.sceneView.session.remove(anchor: oldest.anchor)
+                               placedGuideAnchors.removeFirst()
+                               print("Removed oldest guide anchor to maintain limit.")
+                           }
+                       }
+                       
+                       let guideAnchor = ARAnchor(name: "guide", transform: newTransform)
+                       parent.sceneView.session.add(anchor: guideAnchor)
+                       placedGuideAnchors.append((transform: newTransform, anchor: guideAnchor))
+                       print("Automatically added guide anchor at plane position: \(newTransform.columns.3)")
+                   }
+               }
+                
+                // Visualization logic for guide anchors
+                if let anchorName = anchor.name, anchorName == "guide" {
+                    // Your existing visualization code for debugging guide anchors
+                    let guideGeometry = SCNSphere(radius: 0.05)
+                    guideGeometry.firstMaterial?.diffuse.contents = UIColor.blue.withAlphaComponent(0.5)
+                    let guideNode = SCNNode(geometry: guideGeometry)
+                    node.addChildNode(guideNode)
+
+                    let textGeometry = SCNText(string: "Guide", extrusionDepth: 0.01)
+                    textGeometry.firstMaterial?.diffuse.contents = UIColor.white
+                    let textNode = SCNNode(geometry: textGeometry)
+                    textNode.scale = SCNVector3(0.005, 0.005, 0.005)
+                    textNode.position = SCNVector3(0.06, 0, 0)
+                    node.addChildNode(textNode)
+                    
+                    print("Visualizing guide anchor at position: \(anchor.transform.columns.3)")
+                    return
+                }
+            
             guard let anchorName = anchor.name else {
                 print("No name found for anchor, skipping visualization.")
                 return
             }
+            
+       
             
             print("Visualizing anchor with name: \(anchorName)")
             
