@@ -5,9 +5,8 @@ struct ContentView: View {
     @StateObject private var worldManager = WorldManager()
     var currentRoomName = ""
     @State private var currentAnchorName = ""
+    @State private var showAnchorList = false
     @State private var newRoom = ""
-    @State private var showWorldsView = false
-    
     var sceneView = ARSCNView()
 
     var body: some View {
@@ -15,15 +14,20 @@ struct ContentView: View {
             ARViewContainer(sceneView: sceneView,
                             anchorName: $currentAnchorName,
                             worldManager: worldManager)
-            .edgesIgnoringSafeArea(.all)
+                .edgesIgnoringSafeArea(.all)
 
             VStack {
-                Button("Show Worlds") {
-                    showWorldsView.toggle()
-                }
-                TextField("Anchor Name (e.g., 'Purse')", text: $currentAnchorName)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                HStack {
+                    Button("Show Anchors") {
+                        showAnchorList.toggle()
+                    }
                     .padding()
+
+                    TextField("Anchor Name (e.g., 'Purse')", text: $currentAnchorName)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .padding()
+                }
+
                 Text(currentRoomName)
                 TextField("Room Name", text: $newRoom)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -45,8 +49,8 @@ struct ContentView: View {
             }
             .background(Color(white: 0.95))
         }
-        .sheet(isPresented: $showWorldsView) {
-            WorldsView(worldManager: worldManager)
+        .sheet(isPresented: $showAnchorList) {
+            AnchorListView(sceneView: sceneView, worldManager: worldManager)
         }
     }
 }

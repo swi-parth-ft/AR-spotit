@@ -3,7 +3,10 @@ import CloudKit
 
 class WorldManager: ObservableObject {
     @Published var savedWorlds: [WorldModel] = [] // List of saved worlds
+ 
     private let recordType = "ARWorldMapRecord"
+    var anchorMapping: [String: ARAnchor] = [:]
+    @Published var cachedAnchorNames: [String: [String]] = [:]
 
     // MARK: - Initialization
     init() {
@@ -147,31 +150,30 @@ class WorldManager: ObservableObject {
             }
         }
     }
-    // MARK: - Upload to CloudKit
-    private func uploadARWorldMapToCloudKit(roomName: String, data: Data, lastModified: Date, completion: (() -> Void)? = nil) {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(roomName)_tempWorldMap")
-        do {
-            try data.write(to: tempURL)
-        } catch {
-            print("Error writing to temp file: \(error.localizedDescription)")
-            completion?()
-            return
-        }
-        
-        let record = CKRecord(recordType: recordType)
-        record["roomName"] = roomName as CKRecordValue
-        record["mapAsset"] = CKAsset(fileURL: tempURL)
-        record["lastModified"] = lastModified as CKRecordValue
-        
-        let privateDB = CKContainer.default().privateCloudDatabase
-        privateDB.save(record) { savedRecord, error in
-            try? FileManager.default.removeItem(at: tempURL)
-            if let error = error {
-                print("Error uploading to CloudKit: \(error.localizedDescription)")
-            } else {
-                print("ARWorldMap for \(roomName) successfully uploaded to CloudKit.")
+    func uploadARWorldMapToCloudKit(roomName: String, data: Data, lastModified: Date, completion: (() -> Void)? = nil) {
+        DispatchQueue.global(qos: .background).async {
+            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(roomName)_tempWorldMap")
+            do {
+                try data.write(to: tempURL)
+                let record = CKRecord(recordType: self.recordType)
+                record["roomName"] = roomName as CKRecordValue
+                record["mapAsset"] = CKAsset(fileURL: tempURL)
+                record["lastModified"] = lastModified as CKRecordValue
+
+                let privateDB = CKContainer.default().privateCloudDatabase
+                privateDB.save(record) { savedRecord, error in
+                    try? FileManager.default.removeItem(at: tempURL)
+                    if let error = error {
+                        print("Error uploading to CloudKit: \(error.localizedDescription)")
+                    } else {
+                        print("Uploaded \(roomName) to CloudKit.")
+                    }
+                    completion?()
+                }
+            } catch {
+                print("Error writing temp file: \(error.localizedDescription)")
+                completion?()
             }
-            completion?()
         }
     }
 

@@ -59,6 +59,8 @@ struct ARViewContainer: UIViewRepresentable {
         private var lastUpdateTime: Date = Date() // Throttle updates
         private let maxGuideAnchors = 50  // Set maximum number of guide anchors allowed
              var placedGuideAnchors: [(transform: simd_float4x4, anchor: ARAnchor)] = []
+        private var anchorGrid: [Int: [ARAnchor]] = [:]
+               private let gridSize: Float = 1.0
         var worldIsLoaded: Bool = false
         private var duplicateDistanceThreshold: Float = 1
 
@@ -68,81 +70,59 @@ struct ARViewContainer: UIViewRepresentable {
             self.worldManager = worldManager
         }
 
-        // MARK: - Tap to Place Anchor
-
         @objc func handleTap(_ sender: UITapGestureRecognizer) {
             let sceneView = parent.sceneView
             let location = sender.location(in: sceneView)
 
-            // Perform a hit test against feature points or an estimated horizontal plane
-            let hitTestResults = sceneView.hitTest(location, types: [.featurePoint, .estimatedHorizontalPlane])
-            guard let result = hitTestResults.first else { return }
+            // Create a raycast query
+            guard let raycastQuery = sceneView.raycastQuery(
+                from: location,
+                allowing: .estimatedPlane,
+                alignment: .horizontal
+            ) else {
+                print("Failed to create raycast query.")
+                return
+            }
 
-            // If anchorName is empty, default to "defaultAnchor"
+            // Perform the raycast
+            let results = sceneView.session.raycast(raycastQuery)
+
+            // Use the first result if available
+            guard let result = results.first else {
+                print("No raycast result found.")
+                return
+            }
+
+            // Place anchor at the raycast result's position
             let name = parent.anchorName.isEmpty ? "defaultAnchor" : parent.anchorName
             let anchor = ARAnchor(name: name, transform: result.worldTransform)
             sceneView.session.add(anchor: anchor)
-
-            print("Placed anchor with name: \(name)")
+            print("Placed anchor with name: \(name) at position: \(result.worldTransform.columns.3)")
         }
 
        
 
         func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
-            
-//            if !worldIsLoaded, anchor is ARPlaneAnchor {
-//                   return
-//               }
+
                
                if let planeAnchor = anchor as? ARPlaneAnchor {
-                   let newTransform = planeAnchor.transform
                    
-                   // Check if we've already processed this plane anchor
-                   if processedPlaneAnchorIDs.contains(planeAnchor.identifier) {
-                       // Skip adding a guide anchor for this plane again
-                       return
-                   }
                    
-                   // Mark this plane anchor as processed
-                   processedPlaneAnchorIDs.insert(planeAnchor.identifier)
-                   duplicateDistanceThreshold = worldIsLoaded ? 3.0 : 1.0
-                   // Optionally check for duplicates by distance (if multiple distinct planes overlap)
-                   let alreadyPlaced = placedGuideAnchors.contains { existing in
-                       let distance = simd_distance(existing.transform.columns.3, newTransform.columns.3)
-                       return distance < duplicateDistanceThreshold
-                   }
+                   adjustMaxGuideAnchors(basedOn: planeAnchor)
+                                   addGuideAnchorIfNeeded(newTransform: planeAnchor.transform)
                    
-                   if !alreadyPlaced {
-                       // Enforce maximum guide anchors limit
-                       if placedGuideAnchors.count >= maxGuideAnchors {
-                           if let oldest = placedGuideAnchors.first {
-                               parent.sceneView.session.remove(anchor: oldest.anchor)
-                               placedGuideAnchors.removeFirst()
-                               print("Removed oldest guide anchor to maintain limit.")
-                           }
-                       }
-                       
-                       let guideAnchor = ARAnchor(name: "guide", transform: newTransform)
-                       parent.sceneView.session.add(anchor: guideAnchor)
-                       placedGuideAnchors.append((transform: newTransform, anchor: guideAnchor))
-                       print("Automatically added guide anchor at plane position: \(newTransform.columns.3)")
-                   }
+
                }
                 
                 // Visualization logic for guide anchors
                 if let anchorName = anchor.name, anchorName == "guide" {
                     // Your existing visualization code for debugging guide anchors
-                    let guideGeometry = SCNSphere(radius: 0.05)
-                    guideGeometry.firstMaterial?.diffuse.contents = UIColor.blue.withAlphaComponent(0.5)
+                    let guideGeometry = SCNSphere(radius: 0.01)
+                    guideGeometry.firstMaterial?.diffuse.contents = UIColor.white.withAlphaComponent(1.0)
                     let guideNode = SCNNode(geometry: guideGeometry)
                     node.addChildNode(guideNode)
 
-                    let textGeometry = SCNText(string: "Guide", extrusionDepth: 0.01)
-                    textGeometry.firstMaterial?.diffuse.contents = UIColor.white
-                    let textNode = SCNNode(geometry: textGeometry)
-                    textNode.scale = SCNVector3(0.005, 0.005, 0.005)
-                    textNode.position = SCNVector3(0.06, 0, 0)
-                    node.addChildNode(textNode)
+                   
                     
                     print("Visualizing guide anchor at position: \(anchor.transform.columns.3)")
                     return
@@ -266,7 +246,7 @@ struct ARViewContainer: UIViewRepresentable {
             
             // Extract vertices from meshAnchor
                 let meshGeometry = meshAnchor.geometry
-                guard let vertexBuffer = meshGeometry.vertices.buffer as? MTLBuffer else { return }
+                let vertexBuffer = meshGeometry.vertices.buffer as MTLBuffer
                 let vertexCount = meshGeometry.vertices.count
                 let stride = meshGeometry.vertices.stride
                 let offset = meshGeometry.vertices.offset
@@ -313,10 +293,7 @@ struct ARViewContainer: UIViewRepresentable {
             let meshGeometry = meshAnchor.geometry
 
             // Vertex data
-            guard let vertexBuffer = meshGeometry.vertices.buffer as? MTLBuffer else {
-                print("Failed to get vertex buffer")
-                return SCNGeometry()
-            }
+             let vertexBuffer = meshGeometry.vertices.buffer as MTLBuffer
 
             let vertexSource = SCNGeometrySource(
                 buffer: vertexBuffer,
@@ -328,10 +305,7 @@ struct ARViewContainer: UIViewRepresentable {
             )
 
             // Face data: Sample fewer faces for better performance
-            guard let facesBuffer = meshGeometry.faces.buffer as? MTLBuffer else {
-                print("Failed to get faces buffer")
-                return SCNGeometry()
-            }
+            let facesBuffer = meshGeometry.faces.buffer as MTLBuffer
 
             let facesPointer = facesBuffer.contents()
             let totalFaceCount = meshGeometry.faces.count
@@ -355,6 +329,49 @@ struct ARViewContainer: UIViewRepresentable {
 
             return geometry
         }
+        
+        private func extractVertices(from geometry: ARMeshGeometry) -> [SIMD3<Float>] {
+                    let vertexBuffer = geometry.vertices.buffer as MTLBuffer
+                    let pointer = vertexBuffer.contents()
+                    var vertices: [SIMD3<Float>] = []
+                    for i in 0..<geometry.vertices.count {
+                        let vertexPointer = pointer.advanced(by: i * geometry.vertices.stride + geometry.vertices.offset)
+                        let vertex = vertexPointer.assumingMemoryBound(to: SIMD3<Float>.self).pointee
+                        vertices.append(vertex)
+                    }
+                    return vertices
+                }
+
+                private func gridIndex(for position: SIMD3<Float>) -> Int {
+                    let x = Int(floor(position.x / gridSize))
+                    let z = Int(floor(position.z / gridSize))
+                    return x * 10_000 + z
+                }
+
+        private func addGuideAnchorIfNeeded(newTransform: simd_float4x4) {
+            let gridIndex = gridIndex(for: SIMD3<Float>(newTransform.columns.3.x, newTransform.columns.3.y, newTransform.columns.3.z))
+            let nearbyAnchors = anchorGrid[gridIndex] ?? []
+
+            let alreadyPlaced = nearbyAnchors.contains { existing in
+                let distance = simd_distance(existing.transform.columns.3, newTransform.columns.3)
+                return distance < 1.0
+            }
+
+            if !alreadyPlaced {
+                let guideAnchor = ARAnchor(name: "guide", transform: newTransform)
+                parent.sceneView.session.add(anchor: guideAnchor)
+                anchorGrid[gridIndex, default: []].append(guideAnchor)
+                print("Added guide anchor at \(newTransform.columns.3)")
+            }
+        }
+
+                private func adjustMaxGuideAnchors(basedOn planeAnchor: ARPlaneAnchor) {
+                   
+                    
+              
+                    let area = planeAnchor.extent.x * planeAnchor.extent.z
+                    print("Adjusted max guide anchors to \(Int(area * 10)) based on plane size.")
+                }
     }
     
     func createPointCloudNode(from vertices: [SIMD3<Float>]) -> SCNNode {

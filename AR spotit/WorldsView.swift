@@ -4,6 +4,7 @@ struct WorldsView: View {
     @ObservedObject var worldManager = WorldManager()
     @State private var selectedWorld: WorldModel? // Track which world is selected for adding anchors
     @State private var anchorsByWorld: [String: [String]] = [:] // Track anchors for each world
+   
     
     let columns = [
         GridItem(.flexible(), spacing: 10),
@@ -52,6 +53,9 @@ struct WorldsView: View {
                                                 .padding()
                                                 .background(Color.blue.opacity(0.2))
                                                 .cornerRadius(8)
+                                    
+                                               
+                                                
                                         }
                                     } else {
                                         Text("No anchors found.")
