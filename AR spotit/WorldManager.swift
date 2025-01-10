@@ -8,6 +8,11 @@ class WorldManager: ObservableObject {
     var anchorMapping: [String: ARAnchor] = [:]
     @Published var cachedAnchorNames: [String: [String]] = [:]
 
+    
+    @Published var scanningZones: [String: simd_float4x4] = [:]
+        @Published var scannedZones: Set<String> = []
+    
+    
     // MARK: - Initialization
     init() {
         loadSavedWorlds() // Load local data first

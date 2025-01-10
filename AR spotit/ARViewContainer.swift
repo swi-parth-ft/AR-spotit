@@ -65,9 +65,15 @@ struct ARViewContainer: UIViewRepresentable {
         private var duplicateDistanceThreshold: Float = 1
         var isLoading = false
         var processedPlaneAnchorIDs: Set<UUID> = []
+        
+        private var zoneEntryTimes: [String: Date] = [:]
+
+        
         init(_ parent: ARViewContainer, worldManager: WorldManager) {
             self.parent = parent
             self.worldManager = worldManager
+            super.init()
+            setupScanningZones()
         }
         
         @objc func handleTap(_ sender: UITapGestureRecognizer) {
@@ -100,11 +106,57 @@ struct ARViewContainer: UIViewRepresentable {
             print("Placed anchor with name: \(name) at position: \(result.worldTransform.columns.3)")
         }
         
+        private func setupScanningZones() {
+            let origin = matrix_identity_float4x4 // Identity matrix at origin
+
+            // Define translations explicitly
+            let frontWallTranslation = simd_float4x4.translation(SIMD3<Float>(0, 0, -2))
+            let leftWallTranslation = simd_float4x4.translation(SIMD3<Float>(-2, 0, 0))
+            let rightWallTranslation = simd_float4x4.translation(SIMD3<Float>(2, 0, 0))
+            let floorTranslation = simd_float4x4.translation(SIMD3<Float>(0, -1.5, 0))
+            let ceilingTranslation = simd_float4x4.translation(SIMD3<Float>(0, 2, 0))
+
+            // Combine origin with each translation
+            DispatchQueue.main.async {
+                self.worldManager.scanningZones = [
+                    "Front Wall": simd_mul(origin, frontWallTranslation),
+                    "Left Wall": simd_mul(origin, leftWallTranslation),
+                    "Right Wall": simd_mul(origin, rightWallTranslation),
+                    "Floor": simd_mul(origin, floorTranslation),
+                    "Ceiling": simd_mul(origin, ceilingTranslation)
+                ]
+            }
+            
+            
+            
+            
+        }
         
+        
+        func checkZoneCoverage(for position: SIMD3<Float>) {
+            for (zoneName, zoneTransform) in worldManager.scanningZones {
+                let zonePosition = SIMD3<Float>(zoneTransform.columns.3.x,
+                                                zoneTransform.columns.3.y,
+                                                zoneTransform.columns.3.z)
+                if simd_distance(position, zonePosition) < 1.5 {
+             
+                                if !worldManager.scannedZones.contains(zoneName) {
+                                    DispatchQueue.main.async {
+                                        self.worldManager.scannedZones.insert(zoneName)
+                                    }
+                                    
+                                    print("\(zoneName) scanned after 2 seconds.")
+                                }
+                            }
+                        
+            }
+        }
         
         func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
-            
-            
+            let anchorPosition = SIMD3<Float>(anchor.transform.columns.3.x,
+                                                  anchor.transform.columns.3.y,
+                                                  anchor.transform.columns.3.z)
+                checkZoneCoverage(for: anchorPosition)
             if let planeAnchor = anchor as? ARPlaneAnchor {
                 
                 
@@ -487,5 +539,13 @@ extension Character {
     var isEmoji: Bool {
         // If the character has at least one Unicode scalar, check its emoji property.
         return self.unicodeScalars.first?.properties.isEmojiPresentation ?? false
+    }
+}
+
+extension matrix_float4x4 {
+    static func translation(_ t: SIMD3<Float>) -> matrix_float4x4 {
+        var result = matrix_identity_float4x4
+        result.columns.3 = SIMD4<Float>(t.x, t.y, t.z, 1.0)
+        return result
     }
 }
