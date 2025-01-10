@@ -4,14 +4,12 @@ struct WorldsView: View {
     @ObservedObject var worldManager = WorldManager()
     @State private var selectedWorld: WorldModel? // Track which world is selected for adding anchors
     @State private var anchorsByWorld: [String: [String]] = [:] // Track anchors for each world
-   
-    
     let columns = [
         GridItem(.flexible(), spacing: 10),
         GridItem(.flexible(), spacing: 10)
     ] // Two flexible columns
     @State private var isAddingNewRoom = false
-    
+
     var body: some View {
         NavigationView {
             ScrollView {
@@ -30,7 +28,7 @@ struct WorldsView: View {
                                     Image(systemName: "plus.circle")
                                         .font(.title)
                                 }
-                                
+
                                 Button {
                                     worldManager.deleteWorld(roomName: world.name) {
                                         print("Deletion process completed.")
@@ -46,16 +44,28 @@ struct WorldsView: View {
                             ScrollView(.vertical, showsIndicators: false) {
                                 LazyVGrid(columns: columns, spacing: 10) {
                                     if let anchors = anchorsByWorld[world.name], !anchors.isEmpty {
-                                        ForEach(Array(anchors.enumerated()), id: \.0) { index, anchorName in
+                                        // Filter out "guide" anchors
+                                        let nonGuideAnchors = anchors.filter { $0 != "guide" }
+                                        let guideAnchorCount = anchors.count - nonGuideAnchors.count
+                                        
+                                        // Show non-guide anchors
+                                        ForEach(Array(nonGuideAnchors.enumerated()), id: \.0) { index, anchorName in
                                             Text(anchorName)
                                                 .font(.caption)
                                                 .frame(maxWidth: .infinity)
                                                 .padding()
                                                 .background(Color.blue.opacity(0.2))
                                                 .cornerRadius(8)
-                                    
-                                               
-                                                
+                                        }
+                                        
+                                        // Show guide anchor count if any
+                                        if guideAnchorCount > 0 {
+                                            Text("Number of guide anchors: \(guideAnchorCount)")
+                                                .font(.caption)
+                                                .fontWeight(.bold)
+                                                .padding()
+                                                .background(Color.green.opacity(0.2))
+                                                .cornerRadius(8)
                                         }
                                     } else {
                                         Text("No anchors found.")

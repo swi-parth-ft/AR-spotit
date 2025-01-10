@@ -94,7 +94,7 @@ class WorldManager: ObservableObject {
             
             if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
                 coordinator.worldIsLoaded = false
-                     
+                coordinator.isLoading = true
                   }
             
             sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])

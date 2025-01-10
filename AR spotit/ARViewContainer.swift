@@ -5,13 +5,13 @@ struct ARViewContainer: UIViewRepresentable {
     let sceneView: ARSCNView
     @Binding var anchorName: String
     @ObservedObject var worldManager: WorldManager
-
+    
     func makeUIView(context: Context) -> ARSCNView {
         sceneView.delegate = context.coordinator
-
+        
         // 1. Create an ARWorldTrackingConfiguration
         let configuration = ARWorldTrackingConfiguration()
-
+        
         // 2. Enable LiDAR-based scene reconstruction if available
         if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
             configuration.sceneReconstruction = .mesh
@@ -20,60 +20,60 @@ struct ARViewContainer: UIViewRepresentable {
         } else {
             print("LiDAR-based scene reconstruction is not supported on this device.")
         }
-
+        
         // Enable plane detection for better context
         configuration.planeDetection = [.horizontal, .vertical]
-
+        
         // 3. Run the session with this configuration
         sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
         sceneView.automaticallyUpdatesLighting = true
-        sceneView.debugOptions = [.showFeaturePoints]
-
+        //  sceneView.debugOptions = [.showFeaturePoints]
+        
         // 4. Add tap gesture for placing anchors
         let tapGesture = UITapGestureRecognizer(
             target: context.coordinator,
             action: #selector(context.coordinator.handleTap(_:))
         )
         sceneView.addGestureRecognizer(tapGesture)
-
+        
         return sceneView
     }
-
+    
     func updateUIView(_ uiView: ARSCNView, context: Context) {
         // No dynamic updates needed for this example
     }
-
+    
     func makeCoordinator() -> Coordinator {
         Coordinator(self, worldManager: worldManager)
     }
-
+    
     
     
     
     // MARK: - Coordinator
-
+    
     class Coordinator: NSObject, ARSCNViewDelegate {
         var parent: ARViewContainer
         var worldManager: WorldManager
         private var mergedMeshNode = SCNNode() // Merged mesh node for all anchors
         private var lastUpdateTime: Date = Date() // Throttle updates
         private let maxGuideAnchors = 50  // Set maximum number of guide anchors allowed
-             var placedGuideAnchors: [(transform: simd_float4x4, anchor: ARAnchor)] = []
+        var placedGuideAnchors: [(transform: simd_float4x4, anchor: ARAnchor)] = []
         private var anchorGrid: [Int: [ARAnchor]] = [:]
-               private let gridSize: Float = 1.0
+        private let gridSize: Float = 1.0
         var worldIsLoaded: Bool = false
         private var duplicateDistanceThreshold: Float = 1
-
-         var processedPlaneAnchorIDs: Set<UUID> = []
+        var isLoading = false
+        var processedPlaneAnchorIDs: Set<UUID> = []
         init(_ parent: ARViewContainer, worldManager: WorldManager) {
             self.parent = parent
             self.worldManager = worldManager
         }
-
+        
         @objc func handleTap(_ sender: UITapGestureRecognizer) {
             let sceneView = parent.sceneView
             let location = sender.location(in: sceneView)
-
+            
             // Create a raycast query
             guard let raycastQuery = sceneView.raycastQuery(
                 from: location,
@@ -83,57 +83,57 @@ struct ARViewContainer: UIViewRepresentable {
                 print("Failed to create raycast query.")
                 return
             }
-
+            
             // Perform the raycast
             let results = sceneView.session.raycast(raycastQuery)
-
+            
             // Use the first result if available
             guard let result = results.first else {
                 print("No raycast result found.")
                 return
             }
-
+            
             // Place anchor at the raycast result's position
             let name = parent.anchorName.isEmpty ? "defaultAnchor" : parent.anchorName
             let anchor = ARAnchor(name: name, transform: result.worldTransform)
             sceneView.session.add(anchor: anchor)
             print("Placed anchor with name: \(name) at position: \(result.worldTransform.columns.3)")
         }
-
-       
-
+        
+        
+        
         func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
-
-               
-               if let planeAnchor = anchor as? ARPlaneAnchor {
-                   
-                   
-                   adjustMaxGuideAnchors(basedOn: planeAnchor)
-                                   addGuideAnchorIfNeeded(newTransform: planeAnchor.transform)
-                   
-
-               }
+            
+            
+            if let planeAnchor = anchor as? ARPlaneAnchor {
                 
-                // Visualization logic for guide anchors
-                if let anchorName = anchor.name, anchorName == "guide" {
-                    // Your existing visualization code for debugging guide anchors
-                    let guideGeometry = SCNSphere(radius: 0.01)
-                    guideGeometry.firstMaterial?.diffuse.contents = UIColor.white.withAlphaComponent(1.0)
-                    let guideNode = SCNNode(geometry: guideGeometry)
-                    node.addChildNode(guideNode)
-
-                   
-                    
-                    print("Visualizing guide anchor at position: \(anchor.transform.columns.3)")
-                    return
-                }
+                
+                adjustMaxGuideAnchors(basedOn: planeAnchor)
+                addGuideAnchorIfNeeded(newTransform: planeAnchor.transform)
+                
+                
+            }
+            
+            // Visualization logic for guide anchors
+            if let anchorName = anchor.name, anchorName == "guide" {
+                // Your existing visualization code for debugging guide anchors
+                let guideGeometry = SCNSphere(radius: 0.001)
+                guideGeometry.firstMaterial?.diffuse.contents = UIColor.white.withAlphaComponent(1.0)
+                let guideNode = SCNNode(geometry: guideGeometry)
+                node.addChildNode(guideNode)
+                
+                
+                
+                print("Visualizing guide anchor at position: \(anchor.transform.columns.3)")
+                return
+            }
             
             guard let anchorName = anchor.name else {
                 print("No name found for anchor, skipping visualization.")
                 return
             }
             
-       
+            
             
             print("Visualizing anchor with name: \(anchorName)")
             
@@ -170,9 +170,9 @@ struct ARViewContainer: UIViewRepresentable {
                 node.addChildNode(emojiNode)
             } else {
                 sphereGeometry = SCNSphere(radius: 0.05)
-                    sphereGeometry.firstMaterial?.diffuse.contents = UIColor.red
-                    let sphereNode = SCNNode(geometry: sphereGeometry)
-                    node.addChildNode(sphereNode)
+                sphereGeometry.firstMaterial?.diffuse.contents = UIColor.red
+                let sphereNode = SCNNode(geometry: sphereGeometry)
+                node.addChildNode(sphereNode)
             }
             
             // 2. Create a frosted glass-like rounded panel above the sphere
@@ -180,19 +180,19 @@ struct ARViewContainer: UIViewRepresentable {
             let panelHeight: CGFloat = 0.1
             let cornerRadius: CGFloat = 0.02
             let extrusionDepth: CGFloat = 0.01
-
+            
             // Create a centered rounded rectangle bezier path
             let rect = CGRect(x: -panelWidth/2, y: -panelHeight/2, width: panelWidth, height: panelHeight)
             let roundedRectPath = UIBezierPath(roundedRect: rect, cornerRadius: cornerRadius)
-
+            
             let panelGeometry = SCNShape(path: roundedRectPath, extrusionDepth: extrusionDepth)
             let panelMaterial = SCNMaterial()
             panelMaterial.diffuse.contents = UIColor(white: 1.0, alpha: 0.6)
             panelMaterial.isDoubleSided = true
             panelGeometry.materials = [panelMaterial]
-
+            
             let panelNode = SCNNode(geometry: panelGeometry)
-
+            
             // Position the panel directly above the sphere, centered horizontally
             let verticalOffset: Float = 0.15
             let radius = sphereGeometry?.radius ?? 0.05  // Use sphereGeometry's radius if available, otherwise default
@@ -200,13 +200,13 @@ struct ARViewContainer: UIViewRepresentable {
             let billboardConstraint = SCNBillboardConstraint()
             billboardConstraint.freeAxes = .Y
             panelNode.constraints = [billboardConstraint]
-
+            
             node.addChildNode(panelNode)
             
             // 3. Render anchor name and emoji to an image
             let cleanAnchorName = anchorName.filter { !$0.isEmoji }
             let displayString = "\(cleanAnchorName)"
-          //  let displayString = "\(anchorName)"
+            //  let displayString = "\(anchorName)"
             let font = UIFont(name: "AppleColorEmoji", size: 20) ?? UIFont.systemFont(ofSize: 50)
             let textColor = UIColor.black
             let backgroundColor = UIColor.clear  // transparent background for panel overlay
@@ -222,63 +222,65 @@ struct ARViewContainer: UIViewRepresentable {
             textMaterial.diffuse.contents = labelImage
             textMaterial.isDoubleSided = true
             textPlaneGeometry.materials = [textMaterial]
-
+            
             let textPlaneNode = SCNNode(geometry: textPlaneGeometry)
-
+            
             // Position it on the front edge of the frosted panel using extrusion depth
             let frontOffset = Float(extrusionDepth) + 0.001  // tweak as needed
             textPlaneNode.position = SCNVector3(0, 0, frontOffset)
-
+            
             panelNode.addChildNode(textPlaneNode)
         }
-
+        
         func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
             guard let meshAnchor = anchor as? ARMeshAnchor else { return }
-
+            
             // Throttle updates to once every 0.5 seconds
             if Date().timeIntervalSince(lastUpdateTime) < 0.5 {
                 return
             }
             lastUpdateTime = Date()
-
+            
             print("Updated ARMeshAnchor with identifier: \(meshAnchor.identifier)")
-        //    updateMeshGeometry(from: meshAnchor)
+            //    updateMeshGeometry(from: meshAnchor)
             
             // Extract vertices from meshAnchor
-                let meshGeometry = meshAnchor.geometry
-                let vertexBuffer = meshGeometry.vertices.buffer as MTLBuffer
-                let vertexCount = meshGeometry.vertices.count
-                let stride = meshGeometry.vertices.stride
-                let offset = meshGeometry.vertices.offset
-                
-                var vertices: [SIMD3<Float>] = []
-                let pointer = vertexBuffer.contents()
-                for i in 0..<vertexCount {
-                    let vertexPointer = pointer.advanced(by: i * stride + offset)
-                    let vertex = vertexPointer.assumingMemoryBound(to: SIMD3<Float>.self).pointee
-                    vertices.append(vertex)
-                }
-                
+            let meshGeometry = meshAnchor.geometry
+            let vertexBuffer = meshGeometry.vertices.buffer as MTLBuffer
+            let vertexCount = meshGeometry.vertices.count
+            let stride = meshGeometry.vertices.stride
+            let offset = meshGeometry.vertices.offset
+            
+            var vertices: [SIMD3<Float>] = []
+            let pointer = vertexBuffer.contents()
+            for i in 0..<vertexCount {
+                let vertexPointer = pointer.advanced(by: i * stride + offset)
+                let vertex = vertexPointer.assumingMemoryBound(to: SIMD3<Float>.self).pointee
+                vertices.append(vertex)
+            }
+            
+            if !isLoading {
                 // Create or update the point cloud node
-            let pointCloudNode = parent.createPointCloudNode(from: vertices)
+                let pointCloudNode = parent.createPointCloudNode(from: vertices)
                 // Add point cloud to the same parent node, or manage updating existing one
                 node.addChildNode(pointCloudNode)
+            }
         }
-
+        
         // MARK: - Mesh Handling
-
+        
         func addMeshGeometry(from meshAnchor: ARMeshAnchor) {
             let meshGeometry = createSimplifiedMeshGeometry(from: meshAnchor)
             let newNode = SCNNode(geometry: meshGeometry)
             newNode.name = meshAnchor.identifier.uuidString
             mergedMeshNode.addChildNode(newNode)
-
+            
             // Add merged node to scene if not already added
             if mergedMeshNode.parent == nil {
                 parent.sceneView.scene.rootNode.addChildNode(mergedMeshNode)
             }
         }
-
+        
         func updateMeshGeometry(from meshAnchor: ARMeshAnchor) {
             let updatedGeometry = createSimplifiedMeshGeometry(from: meshAnchor)
             if let childNode = mergedMeshNode.childNodes.first(where: { $0.name == meshAnchor.identifier.uuidString }) {
@@ -288,13 +290,13 @@ struct ARViewContainer: UIViewRepresentable {
                 addMeshGeometry(from: meshAnchor)
             }
         }
-
+        
         func createSimplifiedMeshGeometry(from meshAnchor: ARMeshAnchor) -> SCNGeometry {
             let meshGeometry = meshAnchor.geometry
-
+            
             // Vertex data
-             let vertexBuffer = meshGeometry.vertices.buffer as MTLBuffer
-
+            let vertexBuffer = meshGeometry.vertices.buffer as MTLBuffer
+            
             let vertexSource = SCNGeometrySource(
                 buffer: vertexBuffer,
                 vertexFormat: .float3,
@@ -303,15 +305,15 @@ struct ARViewContainer: UIViewRepresentable {
                 dataOffset: meshGeometry.vertices.offset,
                 dataStride: meshGeometry.vertices.stride
             )
-
+            
             // Face data: Sample fewer faces for better performance
             let facesBuffer = meshGeometry.faces.buffer as MTLBuffer
-
+            
             let facesPointer = facesBuffer.contents()
             let totalFaceCount = meshGeometry.faces.count
             let sampledFaceCount = min(totalFaceCount, 5000) // Limit to 5000 faces
             let indexBufferLength = sampledFaceCount * 3 * MemoryLayout<UInt16>.size
-
+            
             let indexData = Data(bytes: facesPointer, count: indexBufferLength)
             let geometryElement = SCNGeometryElement(
                 data: indexData,
@@ -319,59 +321,76 @@ struct ARViewContainer: UIViewRepresentable {
                 primitiveCount: sampledFaceCount,
                 bytesPerIndex: MemoryLayout<UInt16>.size
             )
-
+            
             // Create SCNGeometry
             let geometry = SCNGeometry(sources: [vertexSource], elements: [geometryElement])
             let material = SCNMaterial()
             material.diffuse.contents = UIColor.green.withAlphaComponent(0.5)
             material.isDoubleSided = true
             geometry.materials = [material]
-
+            
             return geometry
         }
         
         private func extractVertices(from geometry: ARMeshGeometry) -> [SIMD3<Float>] {
-                    let vertexBuffer = geometry.vertices.buffer as MTLBuffer
-                    let pointer = vertexBuffer.contents()
-                    var vertices: [SIMD3<Float>] = []
-                    for i in 0..<geometry.vertices.count {
-                        let vertexPointer = pointer.advanced(by: i * geometry.vertices.stride + geometry.vertices.offset)
-                        let vertex = vertexPointer.assumingMemoryBound(to: SIMD3<Float>.self).pointee
-                        vertices.append(vertex)
-                    }
-                    return vertices
-                }
-
-                private func gridIndex(for position: SIMD3<Float>) -> Int {
-                    let x = Int(floor(position.x / gridSize))
-                    let z = Int(floor(position.z / gridSize))
-                    return x * 10_000 + z
-                }
-
-        private func addGuideAnchorIfNeeded(newTransform: simd_float4x4) {
-            let gridIndex = gridIndex(for: SIMD3<Float>(newTransform.columns.3.x, newTransform.columns.3.y, newTransform.columns.3.z))
-            let nearbyAnchors = anchorGrid[gridIndex] ?? []
-
-            let alreadyPlaced = nearbyAnchors.contains { existing in
-                let distance = simd_distance(existing.transform.columns.3, newTransform.columns.3)
-                return distance < 1.0
+            let vertexBuffer = geometry.vertices.buffer as MTLBuffer
+            let pointer = vertexBuffer.contents()
+            var vertices: [SIMD3<Float>] = []
+            for i in 0..<geometry.vertices.count {
+                let vertexPointer = pointer.advanced(by: i * geometry.vertices.stride + geometry.vertices.offset)
+                let vertex = vertexPointer.assumingMemoryBound(to: SIMD3<Float>.self).pointee
+                vertices.append(vertex)
             }
-
-            if !alreadyPlaced {
-                let guideAnchor = ARAnchor(name: "guide", transform: newTransform)
-                parent.sceneView.session.add(anchor: guideAnchor)
-                anchorGrid[gridIndex, default: []].append(guideAnchor)
-                print("Added guide anchor at \(newTransform.columns.3)")
+            return vertices
+        }
+        
+        private func gridIndex(for position: SIMD3<Float>) -> Int {
+            let x = Int(floor(position.x / gridSize))
+            let z = Int(floor(position.z / gridSize))
+            return x * 10_000 + z
+        }
+        
+        func session(_ session: ARSession, cameraDidChangeTrackingState camera: ARCamera) {
+            switch camera.trackingState {
+            case .normal:
+                print("Relocalization complete. Ready to add guide anchors.")
+                worldIsLoaded = true
+            case .limited(.relocalizing):
+                print("Relocalizing...")
+                worldIsLoaded = false
+            default:
+                break
             }
         }
-
-                private func adjustMaxGuideAnchors(basedOn planeAnchor: ARPlaneAnchor) {
-                   
-                    
-              
-                    let area = planeAnchor.extent.x * planeAnchor.extent.z
-                    print("Adjusted max guide anchors to \(Int(area * 10)) based on plane size.")
-                }
+        
+        private func addGuideAnchorIfNeeded(newTransform: simd_float4x4) {
+            
+            guard worldIsLoaded else {
+                print("Skipping guide anchor placement. Relocalization not complete.")
+                return
+            }
+            
+            let position = SIMD3<Float>(newTransform.columns.3.x, newTransform.columns.3.y, newTransform.columns.3.z)
+            
+            // Check for nearby guide anchors to avoid duplication
+            let isDuplicate = parent.sceneView.session.currentFrame?.anchors.contains(where: { anchor in
+                anchor.name == "guide" && simd_distance(anchor.transform.columns.3, newTransform.columns.3) < 1.0
+            }) ?? false
+            
+            if !isDuplicate {
+                let guideAnchor = ARAnchor(name: "guide", transform: newTransform)
+                parent.sceneView.session.add(anchor: guideAnchor)
+                print("Added new guide anchor at \(position) in newly exposed area.")
+            }
+        }
+        
+        private func adjustMaxGuideAnchors(basedOn planeAnchor: ARPlaneAnchor) {
+            
+            
+            
+            let area = planeAnchor.extent.x * planeAnchor.extent.z
+            print("Adjusted max guide anchors to \(Int(area * 10)) based on plane size.")
+        }
     }
     
     func createPointCloudNode(from vertices: [SIMD3<Float>]) -> SCNNode {
@@ -404,13 +423,13 @@ struct ARViewContainer: UIViewRepresentable {
         let pointMaterial = SCNMaterial()
         pointMaterial.diffuse.contents = UIColor.white
         pointMaterial.lightingModel = .constant
-      //  pointMaterial.pointSize = 3.0  // Adjust size as needed
+        //  pointMaterial.pointSize = 3.0  // Adjust size as needed
         pointMaterial.isDoubleSided = true
-
+        
         // Assemble geometry with one material
         let geometry = SCNGeometry(sources: [vertexSource], elements: [pointElement])
         geometry.materials = [pointMaterial]
-
+        
         return SCNNode(geometry: geometry)
     }
     
@@ -427,7 +446,7 @@ struct ARViewContainer: UIViewRepresentable {
             label.text = text
             label.layer.cornerRadius = 10
             label.layer.masksToBounds = true
-
+            
             UIGraphicsBeginImageContextWithOptions(size, false, 0)
             defer { UIGraphicsEndImageContext() }
             guard let context = UIGraphicsGetCurrentContext() else { return }
@@ -437,8 +456,8 @@ struct ARViewContainer: UIViewRepresentable {
         
         return generatedImage
     }
-   
-
+    
+    
     func extractEmoji(from string: String) -> String? {
         // Split the string into components separated by spaces.
         let components = string.split(separator: " ")
@@ -460,7 +479,7 @@ extension String {
         return unicodeScalars.contains { $0.properties.isEmojiPresentation }
     }
     
-   
+    
 }
 
 extension Character {
