@@ -12,6 +12,7 @@ struct CircleView: View {
             
             VStack {
                 Text("Finding,")
+                    .foregroundStyle(.white)
                     .font(.system(.title2, design: .rounded))
                     .bold()
                     .shadow(radius: 5)

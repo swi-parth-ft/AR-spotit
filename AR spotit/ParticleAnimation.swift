@@ -29,7 +29,7 @@ struct ParticleTextAnimation: View {
             
             for particle in particles {
                 let path = Path(ellipseIn: CGRect(x: particle.x, y: particle.y, width: 2, height: 2))
-                context.fill(path, with: .color(.primary.opacity(0.7)))
+                context.fill(path, with: .color(.white.opacity(0.7)))
             }
         }
         
@@ -75,7 +75,7 @@ struct ParticleTextAnimation: View {
     private func createParticles() {
         
         let renderer = ImageRenderer(content: Text(text)
-            .font(.system(size: 100, design: .rounded))
+            .font(.system(size: 60, design: .rounded))
             .bold())
         
         renderer.scale = 1.0

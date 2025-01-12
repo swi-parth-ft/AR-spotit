@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct WorldsView: View {
+    
+    
+    
     @ObservedObject var worldManager = WorldManager()
     @State private var selectedWorld: WorldModel? // Track which world is selected for adding anchors
     @State private var anchorsByWorld: [String: [String]] = [:] // Track anchors for each world
@@ -87,12 +90,14 @@ struct WorldsView: View {
                                                        
                                                 }
                                                 .frame(maxWidth: .infinity)
-                                                .padding()
+                                                
                                                 .frame(height: 110)
+                                                .padding()
                                                 .background(
-                                                    Color(getDominantColor(for: extractEmoji(from: anchorName) ?? "📍")).opacity(0.75) // Use extracted color
+                                                    Color(getDominantColor(for: extractEmoji(from: anchorName) ?? "📍")).opacity(0.9) // Use extracted color
                                                 )
                                                 .cornerRadius(22)
+                                                .shadow(color: Color(getDominantColor(for: extractEmoji(from: anchorName) ?? "📍")).opacity(0.7), radius: 7)
                                                 .onTapGesture {
                                                     isFindingAnchor = true
                                                     findingAnchorName = anchorName
@@ -145,10 +150,16 @@ struct WorldsView: View {
                     directLoading: true,
                     findAnchor: $findingAnchorName
                 )
+                .interactiveDismissDisabled()
+
             }
             .sheet(isPresented: $isAddingNewRoom) {
-                AddNewRoom()
-                    .presentationDetents([.fraction(0.3)])
+                
+//                    RoomScanGuideView()
+//                } else {
+                    AddNewRoom()
+                        .presentationDetents([.fraction(0.4)])
+              //  }
             }
          
         }

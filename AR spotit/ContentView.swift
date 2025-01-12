@@ -1,6 +1,6 @@
 import SwiftUI
 import ARKit
-
+import AVFoundation
 struct ContentView: View {
     
     @Environment(\.dismiss) var dismiss
@@ -19,7 +19,55 @@ struct ContentView: View {
     @State private var hasLoadedWorldMap = false
     @Binding var findAnchor: String
     @State private var animate = false
+    @State private var isFlashlightOn = false
     
+   
+    
+    private func configureNavigationBarAppearance(for titleColor: UIColor) {
+            let appearance = UINavigationBarAppearance()
+            appearance.configureWithOpaqueBackground()
+            appearance.titleTextAttributes = [.foregroundColor: titleColor]
+            appearance.largeTitleTextAttributes = [.foregroundColor: titleColor]
+            appearance.backgroundColor = .clear // Adjust as needed
+        appearance.shadowColor = .clear
+
+            UINavigationBar.appearance().standardAppearance = appearance
+            UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        
+        var titleFont = UIFont.preferredFont(forTextStyle: .largeTitle) /// the default large title font
+        titleFont = UIFont(
+            descriptor:
+                titleFont.fontDescriptor
+                .withDesign(.rounded)? /// make rounded
+                .withSymbolicTraits(.traitBold) /// make bold
+                ??
+                titleFont.fontDescriptor, /// return the normal title if customization failed
+            size: titleFont.pointSize
+        )
+        
+        /// set the rounded font
+        UINavigationBar.appearance().largeTitleTextAttributes = [.font: titleFont]
+        }
+       // Function to toggle flashlight
+       private func toggleFlashlight() {
+           guard let device = AVCaptureDevice.default(for: .video), device.hasTorch else {
+               print("Flashlight not available on this device")
+               return
+           }
+           
+           do {
+               try device.lockForConfiguration()
+               if isFlashlightOn {
+                   device.torchMode = .off
+               } else {
+                   try device.setTorchModeOn(level: 1.0) // Maximum brightness
+               }
+               isFlashlightOn.toggle()
+               device.unlockForConfiguration()
+           } catch {
+               print("Failed to toggle flashlight: \(error)")
+           }
+       }
     func extractEmoji(from string: String) -> String? {
         for char in string {
                 if char.isEmoji {
@@ -47,21 +95,36 @@ struct ContentView: View {
                     
                     
                     if !worldManager.isRelocalizationComplete {
-//                        VisualEffectBlur(blurStyle: .systemThinMaterial)
-//                            .opacity(0.5)
-//                            .edgesIgnoringSafeArea(.all)
+                        
                         VStack {
                             
                             CircleView(text: !findAnchor.isEmpty ? findAnchor.filter { !$0.isEmoji } : currentRoomName, emoji: extractEmoji(from: findAnchor) ?? "🔍")
-                                .frame(width: UIScreen.main.bounds.width * 0.9, height: UIScreen.main.bounds.width * 0.9)
+                                .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width)
                             
                             Text("Move around slowly...")
+                                .foregroundStyle(.white)
                                 .font(.system(.title2, design: .rounded))
                                 .bold()
                                 .shadow(radius: 5)
                             
                             Spacer()
                                 .frame(height: 200)
+                            
+                            Button {
+                                toggleFlashlight()
+                            } label: {
+                                
+                                   
+                                    Image(systemName: isFlashlightOn ? "flashlight.on.fill" : "flashlight.off.fill")
+                                        .foregroundStyle(.black)
+                                        .frame(width: 50, height: 50)
+                                        .background(Color.white)
+                                        .cornerRadius(25)
+                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                        
+                                
+                                   
+                            }
                         }
                          
                     } else {
@@ -104,7 +167,19 @@ struct ContentView: View {
                                 
                                 
                                 HStack {
-                                    
+                                    Button {
+                                        toggleFlashlight()
+                                    } label: {
+                                        
+                                            Image(systemName: isFlashlightOn ? "flashlight.on.fill" : "flashlight.off.fill")
+                                            .foregroundStyle(.black)
+                                            .frame(width: 50, height: 50)
+                                            .background(Color.white)
+                                            .cornerRadius(25)
+                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                           
+                                           
+                                    }
                                     Button {
                                         guard !currentRoomName.isEmpty else { return }
                                         worldManager.saveWorldMap(for: currentRoomName, sceneView: sceneView)
@@ -113,11 +188,11 @@ struct ContentView: View {
                                         dismiss()
                                     } label: {
                                         Text("Done")
-                                            .foregroundStyle(.white)
+                                            .foregroundStyle(.black)
                                             .frame(width: 100, height: 50)
-                                            .background(Color.blue)
+                                            .background(Color.white)
                                             .cornerRadius(25)
-                                            .shadow(color: Color.blue.opacity(0.5), radius: 10)
+                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
                                             
                                     }
                                     .onAppear {
@@ -131,11 +206,11 @@ struct ContentView: View {
                                         worldManager.isAddingAnchor = true
                                     } label: {
                                         Image(systemName: "plus")
-                                            .foregroundStyle(.white)
+                                            .foregroundStyle(.black)
                                             .frame(width: 50, height: 50)
-                                            .background(Color.blue)
+                                            .background(Color.white)
                                             .cornerRadius(25)
-                                            .shadow(color: Color.blue.opacity(0.5), radius: 10)
+                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
                                            
                                     }
                                     
@@ -156,9 +231,8 @@ struct ContentView: View {
                 AnchorListView(sceneView: sceneView, worldManager: worldManager)
             }
             .onDisappear {
-                // Automatically save the world whenever this sheet/view goes away
-                guard !currentRoomName.isEmpty else { return }
-                worldManager.saveWorldMap(for: currentRoomName, sceneView: sceneView)
+                configureNavigationBarAppearance(for: .black) // Restore default
+
             }
             .navigationTitle(currentRoomName)
             .toolbar {
@@ -177,7 +251,7 @@ struct ContentView: View {
                 }
             }
             .onAppear {
-                print(findAnchor)
+                configureNavigationBarAppearance(for: .white)
             }
             
         }

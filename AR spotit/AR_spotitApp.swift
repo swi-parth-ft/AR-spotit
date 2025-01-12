@@ -10,6 +10,8 @@ import SwiftData
 
 @main
 struct AR_spotitApp: App {
+    
+
     var body: some Scene {
         WindowGroup {
             WorldsView()
