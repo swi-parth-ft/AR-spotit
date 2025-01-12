@@ -8,10 +8,10 @@ class WorldManager: ObservableObject {
     var anchorMapping: [String: ARAnchor] = [:]
     @Published var cachedAnchorNames: [String: [String]] = [:]
 
-    
+    @Published var isRelocalizationComplete: Bool = false
     @Published var scanningZones: [String: simd_float4x4] = [:]
         @Published var scannedZones: Set<String> = []
-    
+    @Published var isAddingAnchor = false
     
     // MARK: - Initialization
     init() {
@@ -67,6 +67,8 @@ class WorldManager: ObservableObject {
 
     // MARK: - Load ARWorldMap
     func loadWorldMap(for roomName: String, sceneView: ARSCNView) {
+        
+       // isRelocalizationComplete = false
         print("Attempting to load world map for room: \(roomName)")
         
         guard let world = savedWorlds.first(where: { $0.name == roomName }) else {

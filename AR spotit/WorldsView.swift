@@ -6,10 +6,39 @@ struct WorldsView: View {
     @State private var anchorsByWorld: [String: [String]] = [:] // Track anchors for each world
     let columns = [
         GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10),
         GridItem(.flexible(), spacing: 10)
     ] // Two flexible columns
     @State private var isAddingNewRoom = false
-
+    @Environment(\.colorScheme) var colorScheme
+    @State private var isFindingAnchor = false
+    @State private var findingAnchorName: String = ""
+    func extractEmoji(from string: String) -> String? {
+        for char in string {
+                if char.isEmoji {
+                    return String(char)
+                }
+            }
+            return nil
+    }
+    
+    init() {
+            var titleFont = UIFont.preferredFont(forTextStyle: .largeTitle) /// the default large title font
+            titleFont = UIFont(
+                descriptor:
+                    titleFont.fontDescriptor
+                    .withDesign(.rounded)? /// make rounded
+                    .withSymbolicTraits(.traitBold) /// make bold
+                    ??
+                    titleFont.fontDescriptor, /// return the normal title if customization failed
+                size: titleFont.pointSize
+            )
+            
+            /// set the rounded font
+            UINavigationBar.appearance().largeTitleTextAttributes = [.font: titleFont]
+        }
+    
+    
     var body: some View {
         NavigationView {
             ScrollView {
@@ -19,24 +48,18 @@ struct WorldsView: View {
                             // Room Title
                             HStack {
                                 Text(world.name)
-                                    .font(.title2)
+                                    .font(.system(.title2, design: .rounded))
                                     .bold()
+                                   
                                 Spacer()
                                 Button(action: {
                                     selectedWorld = world // Set the selected world
                                 }) {
-                                    Image(systemName: "plus.circle")
+                                    Image(systemName: "arrow.up.left.and.arrow.down.right")
                                         .font(.title)
+                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 }
 
-                                Button {
-                                    worldManager.deleteWorld(roomName: world.name) {
-                                        print("Deletion process completed.")
-                                    }
-                                } label: {
-                                    Image(systemName: "trash")
-                                        .font(.title)
-                                }
                             }
                             .padding(.horizontal)
 
@@ -46,27 +69,40 @@ struct WorldsView: View {
                                     if let anchors = anchorsByWorld[world.name], !anchors.isEmpty {
                                         // Filter out "guide" anchors
                                         let nonGuideAnchors = anchors.filter { $0 != "guide" }
-                                        let guideAnchorCount = anchors.count - nonGuideAnchors.count
+                                   
                                         
                                         // Show non-guide anchors
                                         ForEach(Array(nonGuideAnchors.enumerated()), id: \.0) { index, anchorName in
-                                            Text(anchorName)
-                                                .font(.caption)
+                                            VStack {
+                                                    // Extract and display the emoji if present
+                                                let emoji = extractEmoji(from: anchorName)
+                                                    Text(emoji ?? "📍")
+                                                    .font(.system(size: 50))
+                                                    // Display the anchor name without the emoji
+                                                let cleanAnchorName = anchorName.filter { !$0.isEmoji }
+                                                    Text(cleanAnchorName)
+                                                    .font(.system(.headline, design: .rounded))
+                                                    .bold()
+                                                        .foregroundStyle(.white)
+                                                       
+                                                }
                                                 .frame(maxWidth: .infinity)
                                                 .padding()
-                                                .background(Color.blue.opacity(0.2))
-                                                .cornerRadius(8)
+                                                .frame(height: 110)
+                                                .background(
+                                                    Color(getDominantColor(for: extractEmoji(from: anchorName) ?? "📍")).opacity(0.75) // Use extracted color
+                                                )
+                                                .cornerRadius(22)
+                                                .onTapGesture {
+                                                    isFindingAnchor = true
+                                                    findingAnchorName = anchorName
+                                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                                        selectedWorld = world
+                                                    }
+                                                  
+                                                }
                                         }
                                         
-                                        // Show guide anchor count if any
-                                        if guideAnchorCount > 0 {
-                                            Text("Number of guide anchors: \(guideAnchorCount)")
-                                                .font(.caption)
-                                                .fontWeight(.bold)
-                                                .padding()
-                                                .background(Color.green.opacity(0.2))
-                                                .cornerRadius(8)
-                                        }
                                     } else {
                                         Text("No anchors found.")
                                             .foregroundColor(.secondary)
@@ -75,6 +111,8 @@ struct WorldsView: View {
                                     }
                                 }
                                 .padding(.horizontal)
+                                
+                         
                             }
                             .onAppear {
                                 // Fetch anchors for this specific world
@@ -91,19 +129,63 @@ struct WorldsView: View {
                 }
                 .padding(.top)
             }
-            .navigationTitle("Saved Worlds")
+            .navigationTitle("My Things")
             .toolbar {
-                Button("Add World") {
+                Button {
                     isAddingNewRoom.toggle()
+                } label: {
+                    Image(systemName: "plus.circle")
+                        .font(.title2)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
             }
             .sheet(item: $selectedWorld) { world in
-                ContentView(currentRoomName: world.name)
+                ContentView(
+                    currentRoomName: world.name,
+                    directLoading: true,
+                    findAnchor: $findingAnchorName
+                )
             }
             .sheet(isPresented: $isAddingNewRoom) {
                 AddNewRoom()
                     .presentationDetents([.fraction(0.3)])
             }
+         
         }
     }
+    
+    
+}
+
+import UIKit
+
+
+func getDominantColor(for emoji: String) -> UIColor {
+    let size = CGSize(width: 50, height: 50)
+    let label = UILabel(frame: CGRect(origin: .zero, size: size))
+    label.text = emoji
+    label.font = UIFont.systemFont(ofSize: 50)
+    label.textAlignment = .center
+    
+    UIGraphicsBeginImageContextWithOptions(size, false, 0)
+    label.layer.render(in: UIGraphicsGetCurrentContext()!)
+    let image = UIGraphicsGetImageFromCurrentImageContext()
+    UIGraphicsEndImageContext()
+    
+    guard let cgImage = image?.cgImage else { return .gray }
+    let ciImage = CIImage(cgImage: cgImage)
+    
+    let filter = CIFilter(name: "CIAreaAverage")!
+    filter.setValue(ciImage, forKey: kCIInputImageKey)
+    filter.setValue(CIVector(cgRect: ciImage.extent), forKey: "inputExtent")
+    
+    guard let outputImage = filter.outputImage else { return .gray }
+    var bitmap = [UInt8](repeating: 0, count: 4)
+    let context = CIContext()
+    context.render(outputImage, toBitmap: &bitmap, rowBytes: 4, bounds: CGRect(x: 0, y: 0, width: 1, height: 1), format: .RGBA8, colorSpace: nil)
+    
+    return UIColor(red: CGFloat(bitmap[0]) / 255.0,
+                   green: CGFloat(bitmap[1]) / 255.0,
+                   blue: CGFloat(bitmap[2]) / 255.0,
+                   alpha: CGFloat(bitmap[3]) / 255.0)
 }

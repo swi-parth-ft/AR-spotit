@@ -33,7 +33,7 @@ struct AddNewRoom: View {
             }
             .navigationTitle("Add Room")
             .sheet(item: $selectedWorld) { world in
-                ContentView(currentRoomName: world.name)
+                ContentView(currentRoomName: world.name, directLoading: false, findAnchor: .constant(""))
             }
         }
     }

@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		08A76E7A2D333C7B001AB55F /* Vortex in Frameworks */ = {isa = PBXBuildFile; productRef = 08A76E792D333C7B001AB55F /* Vortex */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		0815EBFE2D287B4F00F23F12 /* AR spotit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "AR spotit.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				08A76E7A2D333C7B001AB55F /* Vortex in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = "AR spotit";
 			packageProductDependencies = (
+				08A76E792D333C7B001AB55F /* Vortex */,
 			);
 			productName = "AR spotit";
 			productReference = 0815EBFE2D287B4F00F23F12 /* AR spotit.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = 0815EBF52D287B4F00F23F12;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				08A76E782D333C7B001AB55F /* XCRemoteSwiftPackageReference "Vortex" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0815EBFF2D287B4F00F23F12 /* Products */;
 			projectDirPath = "";
@@ -345,6 +354,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		08A76E782D333C7B001AB55F /* XCRemoteSwiftPackageReference "Vortex" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/twostraws/Vortex";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		08A76E792D333C7B001AB55F /* Vortex */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 08A76E782D333C7B001AB55F /* XCRemoteSwiftPackageReference "Vortex" */;
+			productName = Vortex;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 0815EBF62D287B4F00F23F12 /* Project object */;
 }
