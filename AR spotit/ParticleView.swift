@@ -4,8 +4,26 @@ import SwiftUI
 import Vortex
 
 struct CircleView: View {
+    var text: String = "Hello!"
+    var emoji: String = "🐮"
+    
     var body: some View {
         ZStack {
+            
+            VStack {
+                Text("Finding,")
+                    .font(.system(.title2, design: .rounded))
+                    .bold()
+                    .shadow(radius: 5)
+                
+                ParticleTextAnimation(text: emoji)
+                    .frame(width: 300, height: 80)
+                   
+                
+                ParticleTextAnimation(text: text)
+                    .frame(width: 300, height: 80)
+               
+            }
             VortexView(createRing()) {
                 Circle()
                     .fill(.white)
@@ -13,13 +31,9 @@ struct CircleView: View {
                     .frame(width: 32)
                     .tag("circle")
             }
-           
-           
+                
             
-            Text("Move around slowly...")
-                .font(.system(.title2, design: .rounded))
-                .bold()
-                .shadow(radius: 5)
+            
                 
         }
     }

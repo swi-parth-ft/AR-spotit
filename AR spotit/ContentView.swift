@@ -19,6 +19,16 @@ struct ContentView: View {
     @State private var hasLoadedWorldMap = false
     @Binding var findAnchor: String
     @State private var animate = false
+    
+    func extractEmoji(from string: String) -> String? {
+        for char in string {
+                if char.isEmoji {
+                    return String(char)
+                }
+            }
+            return nil
+    }
+    
     var body: some View {
         NavigationStack {
             
@@ -40,7 +50,19 @@ struct ContentView: View {
 //                        VisualEffectBlur(blurStyle: .systemThinMaterial)
 //                            .opacity(0.5)
 //                            .edgesIgnoringSafeArea(.all)
-                        CircleView()
+                        VStack {
+                            
+                            CircleView(text: !findAnchor.isEmpty ? findAnchor.filter { !$0.isEmoji } : currentRoomName, emoji: extractEmoji(from: findAnchor) ?? "🔍")
+                                .frame(width: UIScreen.main.bounds.width * 0.9, height: UIScreen.main.bounds.width * 0.9)
+                            
+                            Text("Move around slowly...")
+                                .font(.system(.title2, design: .rounded))
+                                .bold()
+                                .shadow(radius: 5)
+                            
+                            Spacer()
+                                .frame(height: 200)
+                        }
                          
                     } else {
                         VStack {
