@@ -8,7 +8,8 @@ struct ARViewContainer: UIViewRepresentable {
    
     @ObservedObject var worldManager: WorldManager
     var findAnchor: String
-    
+    @State private var tempAnchor: ARAnchor? // For moving the anchor
+
     @Binding var showFocusedAnchor: Bool
     func makeUIView(context: Context) -> ARSCNView {
         sceneView.delegate = context.coordinator
@@ -188,6 +189,41 @@ struct ARViewContainer: UIViewRepresentable {
                 sceneView.session.add(anchor: anchor)
                 print("Placed anchor with name: \(name) at position: \(result.worldTransform.columns.3)")
                 worldManager.isAddingAnchor = false
+            } else {
+                if parent.tempAnchor != nil {
+                    let sceneView = parent.sceneView
+                    let location = sender.location(in: sceneView)
+                    
+                    // Create a raycast query
+                    guard let raycastQuery = sceneView.raycastQuery(
+                        from: location,
+                        allowing: .estimatedPlane,
+                        alignment: .horizontal
+                    ) else {
+                        print("Failed to create raycast query.")
+                        return
+                    }
+                    
+                    // Perform the raycast
+                    let results = sceneView.session.raycast(raycastQuery)
+                    
+                    // Use the first result if available
+                    guard let result = results.first else {
+                        print("No raycast result found.")
+                        return
+                    }
+                    
+                   
+                    if let tempAnchor = parent.tempAnchor {
+                            // Place the saved anchor at a new position
+                            let newAnchor = ARAnchor(name: tempAnchor.name ?? "defaultAnchor", transform: result.worldTransform)
+                            sceneView.session.add(anchor: newAnchor)
+                            parent.tempAnchor = nil
+                            print("Anchor moved to new position.")
+                        } else {
+                            print("No anchor to move.")
+                        }
+                }
             }
         }
         
@@ -212,7 +248,7 @@ struct ARViewContainer: UIViewRepresentable {
             while let node = currentNode {
                 if let name = node.name {
                     print("Found anchor with name: \(name)")
-                    confirmAnchorDeletion(anchorName: name, node: node)
+                    presentAnchorOptions(anchorName: name, node: node)
                     return
                 }
                 currentNode = node.parent
@@ -220,16 +256,57 @@ struct ARViewContainer: UIViewRepresentable {
 
             print("No anchor hit detected in node hierarchy.")
         }
-        func confirmAnchorDeletion(anchorName: String, node: SCNNode) {
-            let alert = UIAlertController(
-                title: "Delete Anchor",
-                message: "Are you sure you want to delete the anchor '\(anchorName)'?",
-                preferredStyle: .alert
-            )
+        func presentAnchorOptions(anchorName: String, node: SCNNode) {
+            let alert = UIAlertController(title: "Anchor Options", message: "Choose an action for the anchor '\(anchorName)'", preferredStyle: .alert)
+            
+            alert.addAction(UIAlertAction(title: "Rename", style: .default, handler: { _ in
+                self.promptForNewName(oldName: anchorName)
+            }))
+            
+            alert.addAction(UIAlertAction(title: "Delete", style: .destructive, handler: { _ in
+                self.deleteAnchor(anchorName: anchorName)
+            }))
+            
+            alert.addAction(UIAlertAction(title: "Move", style: .default, handler: { _ in
+                self.prepareToMoveAnchor(anchorName: anchorName)
+            }))
             
             alert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
-            alert.addAction(UIAlertAction(title: "Delete", style: .destructive, handler: { _ in
-                self.deleteAnchor(anchorName: anchorName, node: node)
+            
+            DispatchQueue.main.async {
+                if let windowScene = UIApplication.shared.connectedScenes
+                    .filter({ $0.activationState == .foregroundActive })
+                    .first as? UIWindowScene,
+                   let rootViewController = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController {
+                    
+                    // Find the top-most view controller
+                    var topController = rootViewController
+                    while let presentedController = topController.presentedViewController {
+                        topController = presentedController
+                    }
+                    
+                    topController.present(alert, animated: true, completion: nil)
+                } else {
+                    print("No active window to present the alert.")
+                }
+            }
+        }
+        
+        func promptForNewName(oldName: String) {
+            let alert = UIAlertController(title: "Rename Anchor", message: "Enter a new name for the anchor.", preferredStyle: .alert)
+            
+            alert.addTextField { textField in
+                textField.placeholder = "New anchor name"
+            }
+            
+            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
+            
+            alert.addAction(UIAlertAction(title: "Rename", style: .default, handler: { _ in
+                if let newName = alert.textFields?.first?.text, !newName.isEmpty {
+                    self.renameAnchor(oldName: oldName, newName: newName)
+                } else {
+                    print("Invalid name. Rename aborted.")
+                }
             }))
             
             DispatchQueue.main.async {
@@ -267,6 +344,42 @@ struct ARViewContainer: UIViewRepresentable {
                 self.worldManager.deletedAnchors.append(anchor)
             }
         }
+        
+        func deleteAnchor(anchorName: String) {
+            guard let anchor = parent.sceneView.session.currentFrame?.anchors.first(where: { $0.name == anchorName }) else {
+                print("Anchor with name \(anchorName) not found.")
+                return
+            }
+
+            parent.sceneView.session.remove(anchor: anchor)
+            print("Anchor '\(anchorName)' deleted.")
+        }
+        func renameAnchor(oldName: String, newName: String) {
+            guard let anchor = parent.sceneView.session.currentFrame?.anchors.first(where: { $0.name == oldName }) else {
+                print("Anchor with name \(oldName) not found.")
+                return
+            }
+
+            // Create a new anchor with the updated name
+            let newAnchor = ARAnchor(name: newName, transform: anchor.transform)
+            parent.sceneView.session.remove(anchor: anchor)
+            parent.sceneView.session.add(anchor: newAnchor)
+            
+            print("Anchor renamed from \(oldName) to \(newName).")
+        }
+        
+        func prepareToMoveAnchor(anchorName: String) {
+            guard let anchor = parent.sceneView.session.currentFrame?.anchors.first(where: { $0.name == anchorName }) else {
+                print("Anchor with name \(anchorName) not found.")
+                return
+            }
+
+            // Store the anchor temporarily
+            parent.tempAnchor = anchor
+            parent.sceneView.session.remove(anchor: anchor)
+            print("Anchor '\(anchorName)' prepared for moving.")
+        }
+        
         
         private func setupScanningZones() {
             let origin = matrix_identity_float4x4 // Identity at origin
