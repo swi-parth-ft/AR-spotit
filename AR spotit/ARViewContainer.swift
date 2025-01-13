@@ -2,7 +2,6 @@ import SwiftUI
 import ARKit
 import CoreHaptics
 
-
 struct ARViewContainer: UIViewRepresentable {
     let sceneView: ARSCNView
     @Binding var anchorName: String
@@ -14,10 +13,8 @@ struct ARViewContainer: UIViewRepresentable {
     func makeUIView(context: Context) -> ARSCNView {
         sceneView.delegate = context.coordinator
         
-        // 1. Create an ARWorldTrackingConfiguration
         let configuration = ARWorldTrackingConfiguration()
         
-        // 2. Enable LiDAR-based scene reconstruction if available
         if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
             configuration.sceneReconstruction = .mesh
             configuration.frameSemantics.insert(.sceneDepth)
@@ -26,42 +23,42 @@ struct ARViewContainer: UIViewRepresentable {
             print("LiDAR-based scene reconstruction is not supported on this device.")
         }
         
-        // Enable plane detection for better context
         configuration.planeDetection = [.horizontal, .vertical]
         
-        // 3. Run the session with this configuration
         sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
         sceneView.automaticallyUpdatesLighting = true
         sceneView.session.delegate = context.coordinator as? any ARSessionDelegate
-        // 4. Add tap gesture for placing anchors
+   
         let tapGesture = UITapGestureRecognizer(
             target: context.coordinator,
             action: #selector(context.coordinator.handleTap(_:))
         )
+        
+        let longPressGesture = UILongPressGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(context.coordinator.handleLongPress(_:))
+        )
+        sceneView.addGestureRecognizer(longPressGesture)
+        
         sceneView.addGestureRecognizer(tapGesture)
         
         return sceneView
     }
     
     func updateUIView(_ uiView: ARSCNView, context: Context) {
-//        context.coordinator.updateNodeVisibility(in: uiView)
     }
     
     func makeCoordinator() -> Coordinator {
         Coordinator(self, worldManager: worldManager)
     }
     
-    // MARK: - Coordinator
-    
     class Coordinator: NSObject, ARSCNViewDelegate, ARSessionDelegate, Sendable {
         
         private var hapticEngine: CHHapticEngine?
-           private var lastHapticTriggerTime: Date = Date()
+        private var lastHapticTriggerTime: Date = Date()
         private var nextPulseTime: Date = .distantPast
-
         var parent: ARViewContainer
         var worldManager: WorldManager
-        
         private var mergedMeshNode = SCNNode() // Merged mesh node for all anchors
         private var lastUpdateTime: Date = Date() // Throttle updates
         private let maxGuideAnchors = 50  // Example maximum number of guide anchors
@@ -72,12 +69,8 @@ struct ARViewContainer: UIViewRepresentable {
         private var duplicateDistanceThreshold: Float = 1
         var isLoading = false
         var processedPlaneAnchorIDs: Set<UUID> = []
-        
-        // For scanning coverage logic
         private var relocalizationTask: Task<Void, Never>?
         private var zoneEntryTimes: [String: Date] = [:]
-        
-        // Arrow references
         private var currentArrowNode: SCNNode?
         
         init(_ parent: ARViewContainer, worldManager: WorldManager) {
@@ -87,7 +80,13 @@ struct ARViewContainer: UIViewRepresentable {
             setupHaptics()
 
             setupScanningZones()
+            
+            
+            if parent.findAnchor != "" {
+                worldManager.isShowingAll = false
+            }
         }
+        
         func updateNodeVisibility(in sceneView: ARSCNView) {
                     let allNodes = sceneView.scene.rootNode.childNodes
                     for node in allNodes {
@@ -95,8 +94,7 @@ struct ARViewContainer: UIViewRepresentable {
                     }
                 }
                 
-                /// Recursively check node names and show/hide them based on `isShowingAll` & `findAnchor`.
-                private func refreshVisibilityRecursive(node: SCNNode) {
+        private func refreshVisibilityRecursive(node: SCNNode) {
                     // If the ARKit anchor's name is stored in `node.name`, we can rely on it here.
                     guard let nodeName = node.name else {
                         // Recur into children anyway, in case sub-nodes have meaningful names
@@ -115,6 +113,7 @@ struct ARViewContainer: UIViewRepresentable {
                            refreshVisibilityRecursive(node: child)
                        }
                 }
+        
         private func setupHaptics() {
                guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else {
                    print("Haptics not supported on this device.")
@@ -127,6 +126,7 @@ struct ARViewContainer: UIViewRepresentable {
                    print("Failed to start haptic engine: \(error)")
                }
            }
+        
         func provideHapticFeedback(for distance: Float) {
                 guard let hapticEngine = hapticEngine, Date().timeIntervalSince(lastHapticTriggerTime) > 0.1 else {
                     return
@@ -156,7 +156,6 @@ struct ARViewContainer: UIViewRepresentable {
                     print("Failed to play haptic pattern: \(error)")
                 }
             }
-        // MARK: - Tap for anchors
         
         @objc func handleTap(_ sender: UITapGestureRecognizer) {
             
@@ -192,7 +191,82 @@ struct ARViewContainer: UIViewRepresentable {
             }
         }
         
-        // MARK: - Define scanning “zones”
+        @objc func handleLongPress(_ sender: UILongPressGestureRecognizer) {
+            guard sender.state == .began else { return } // Only handle on gesture start
+
+            let location = sender.location(in: parent.sceneView)
+            let hitResults = parent.sceneView.hitTest(location)
+
+            print("Hit test results:")
+            for result in hitResults {
+                print("Node name: \(result.node.name ?? "nil")")
+            }
+
+            guard let hitResult = hitResults.first else {
+                print("No hit results found.")
+                return
+            }
+
+            // Traverse the node hierarchy to find the named node
+            var currentNode: SCNNode? = hitResult.node
+            while let node = currentNode {
+                if let name = node.name {
+                    print("Found anchor with name: \(name)")
+                    confirmAnchorDeletion(anchorName: name, node: node)
+                    return
+                }
+                currentNode = node.parent
+            }
+
+            print("No anchor hit detected in node hierarchy.")
+        }
+        func confirmAnchorDeletion(anchorName: String, node: SCNNode) {
+            let alert = UIAlertController(
+                title: "Delete Anchor",
+                message: "Are you sure you want to delete the anchor '\(anchorName)'?",
+                preferredStyle: .alert
+            )
+            
+            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
+            alert.addAction(UIAlertAction(title: "Delete", style: .destructive, handler: { _ in
+                self.deleteAnchor(anchorName: anchorName, node: node)
+            }))
+            
+            DispatchQueue.main.async {
+                if let windowScene = UIApplication.shared.connectedScenes
+                    .filter({ $0.activationState == .foregroundActive })
+                    .first as? UIWindowScene,
+                   let rootViewController = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController {
+                    
+                    // Find the top-most view controller
+                    var topController = rootViewController
+                    while let presentedController = topController.presentedViewController {
+                        topController = presentedController
+                    }
+                    
+                    topController.present(alert, animated: true, completion: nil)
+                } else {
+                    print("No active window to present the alert.")
+                }
+            }
+        }
+        
+        func deleteAnchor(anchorName: String, node: SCNNode) {
+            guard let anchor = parent.sceneView.session.currentFrame?.anchors.first(where: { $0.name == anchorName }) else {
+                print("Anchor not found in session.")
+                return
+            }
+            
+            // Remove the anchor
+            parent.sceneView.session.remove(anchor: anchor)
+            node.removeFromParentNode()
+            print("Anchor '\(anchorName)' deleted.")
+            
+            // Optionally, update WorldManager state
+            DispatchQueue.main.async {
+                self.worldManager.deletedAnchors.append(anchor)
+            }
+        }
         
         private func setupScanningZones() {
             let origin = matrix_identity_float4x4 // Identity at origin
@@ -240,8 +314,6 @@ struct ARViewContainer: UIViewRepresentable {
             }
         }
         
-        // MARK: - ARSCNViewDelegate
-        
         func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
             node.name = anchor.name
             let anchorPosition = SIMD3<Float>(anchor.transform.columns.3.x,
@@ -253,14 +325,6 @@ struct ARViewContainer: UIViewRepresentable {
                 adjustMaxGuideAnchors(basedOn: planeAnchor)
                 addGuideAnchorIfNeeded(newTransform: planeAnchor.transform)
             }
-//            
-//            if !parent.worldManager.isShowingAll {
-//                  // If isShowingAll == false, skip everything unless anchor.name matches `findAnchor`.
-//                  guard let anchorName = anchor.name, anchorName == parent.findAnchor else {
-//                      print("Skipping anchor \(anchor.name ?? "nil") since isShowingAll == false and it's not findAnchor.")
-//                      return
-//                  }
-//              }
             
             // Visualization logic for “guide” anchor
             if let anchorName = anchor.name, anchorName == "guide" {
@@ -376,30 +440,13 @@ struct ARViewContainer: UIViewRepresentable {
                     }
             
            
-            let shouldHide = parent.showFocusedAnchor && anchorName != parent.findAnchor
+            
+            let shouldHide = !worldManager.isShowingAll && (anchorName != parent.findAnchor)
+      
                 node.isHidden = shouldHide
             
         }
-        
-//        func session(_ session: ARSession, didUpdate frame: ARFrame) {
-//                guard let anchor = parent.sceneView.session.currentFrame?.anchors.first(where: { $0.name == parent.findAnchor }) else {
-//                    print("Anchor not found.")
-//                    return
-//                }
-//                
-//                // Get the camera and anchor positions
-//                let cameraTransform = frame.camera.transform
-//                let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
-//                let anchorPosition = SIMD3<Float>(anchor.transform.columns.3.x, anchor.transform.columns.3.y, anchor.transform.columns.3.z)
-//                
-//                // Calculate the distance
-//                let distance = simd_distance(cameraPosition, anchorPosition)
-//                print("Distance to anchor: \(distance)")
-//                
-//                // Trigger haptic feedback based on distance
-//                provideHapticFeedback(for: distance)
-//            }
-        
+
         private func pulseInterval(for distance: Float) -> TimeInterval {
                     let maxDistance: Float = 3.0
                     let minInterval: TimeInterval = 0.1
@@ -410,70 +457,64 @@ struct ARViewContainer: UIViewRepresentable {
                     // fraction = 0.0 (very close) -> 1.0 (very far)
                     let fraction = clampedDist / maxDistance
                     
-                    // Lerp interval between 0.1s and 1.0s
-                    // fraction=1 => interval=1.0  (far)
-                    // fraction=0 => interval=0.1  (close)
             let interval = minInterval + (maxInterval - minInterval) * Double(fraction)
                     return interval
                 }
                 
-                private func playDub() {
-                    guard let hapticEngine = hapticEngine else { return }
-                    
-                    // Use a short transient “thump”
-                    // If you like, you can vary intensity as well
-                    let intensity: Float = 1.0
-                    let sharpness: Float = 0.5
-                    
-                    let event = CHHapticEvent(
-                        eventType: .hapticTransient,
-                        parameters: [
-                            CHHapticEventParameter(parameterID: .hapticIntensity,  value: intensity),
-                            CHHapticEventParameter(parameterID: .hapticSharpness, value: sharpness),
-                        ],
-                        relativeTime: 0
-                    )
-                    
-                    do {
-                        let pattern = try CHHapticPattern(events: [event], parameters: [])
-                        let player = try hapticEngine.makePlayer(with: pattern)
-                        try player.start(atTime: 0)
-                    } catch {
-                        print("Failed to play haptic pattern: \(error)")
-                    }
+        private func playDub() {
+                guard let hapticEngine = hapticEngine else { return }
+                
+                let intensity: Float = 1.0
+                let sharpness: Float = 0.5
+                
+                let event = CHHapticEvent(
+                    eventType: .hapticTransient,
+                    parameters: [
+                        CHHapticEventParameter(parameterID: .hapticIntensity,  value: intensity),
+                        CHHapticEventParameter(parameterID: .hapticSharpness, value: sharpness),
+                    ],
+                    relativeTime: 0
+                )
+                
+                do {
+                    let pattern = try CHHapticPattern(events: [event], parameters: [])
+                    let player = try hapticEngine.makePlayer(with: pattern)
+                    try player.start(atTime: 0)
+                } catch {
+                    print("Failed to play haptic pattern: \(error)")
+                }
+            }
+            
+        func session(_ session: ARSession, didUpdate frame: ARFrame) {
+                
+                // Look for the anchor you want to track
+                guard let anchor = session.currentFrame?.anchors.first(where: {
+                    $0.name == parent.findAnchor
+                }) else {
+                    // If you never find the anchor, no dubs
+                   // print("Anchor not found.")
+                    return
                 }
                 
-                // MARK: - ARSessionDelegate: Called every frame
-                func session(_ session: ARSession, didUpdate frame: ARFrame) {
-                    
-                    // Look for the anchor you want to track
-                    guard let anchor = session.currentFrame?.anchors.first(where: {
-                        $0.name == parent.findAnchor
-                    }) else {
-                        // If you never find the anchor, no dubs
-                        print("Anchor not found.")
-                        return
-                    }
-                    
-                    // Get distance from camera
-                    let cameraTransform = frame.camera.transform
-                    let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x,
-                                                      cameraTransform.columns.3.y,
-                                                      cameraTransform.columns.3.z)
-                    let anchorPosition = SIMD3<Float>(anchor.transform.columns.3.x,
-                                                      anchor.transform.columns.3.y,
-                                                      anchor.transform.columns.3.z)
-                    let distance = simd_distance(cameraPosition, anchorPosition)
-                    
-                    // Turn distance into a pulsing interval
-                    let interval = pulseInterval(for: distance)
-                    
-                    // If it's time to do the next "dub," do it and set the next time
-                    if Date() >= nextPulseTime {
-                        playDub()
-                        nextPulseTime = Date().addingTimeInterval(interval)
-                    }
+                // Get distance from camera
+                let cameraTransform = frame.camera.transform
+                let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x,
+                                                    cameraTransform.columns.3.y,
+                                                    cameraTransform.columns.3.z)
+                let anchorPosition = SIMD3<Float>(anchor.transform.columns.3.x,
+                                                    anchor.transform.columns.3.y,
+                                                    anchor.transform.columns.3.z)
+                let distance = simd_distance(cameraPosition, anchorPosition)
+                
+                // Turn distance into a pulsing interval
+                let interval = pulseInterval(for: distance)
+                
+                // If it's time to do the next "dub," do it and set the next time
+                if Date() >= nextPulseTime {
+                    playDub()
+                    nextPulseTime = Date().addingTimeInterval(interval)
                 }
+            }
         
         func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
             guard let meshAnchor = anchor as? ARMeshAnchor else { return }
@@ -484,7 +525,7 @@ struct ARViewContainer: UIViewRepresentable {
             }
             lastUpdateTime = Date()
            
-            print("Updated ARMeshAnchor with identifier: \(meshAnchor.identifier)")
+          //  print("Updated ARMeshAnchor with identifier: \(meshAnchor.identifier)")
             
             // Optionally, you can update or merge the mesh geometry here if you wish.
             // We'll just demonstrate extracting the vertices into a point cloud.
@@ -508,8 +549,6 @@ struct ARViewContainer: UIViewRepresentable {
                 node.addChildNode(pointCloudNode)
             }
         }
-        
-        // MARK: - Mesh Handling
         
         func addMeshGeometry(from meshAnchor: ARMeshAnchor) {
             let meshGeometry = createSimplifiedMeshGeometry(from: meshAnchor)
@@ -570,8 +609,6 @@ struct ARViewContainer: UIViewRepresentable {
             return geometry
         }
         
-        // MARK: - Plane Anchors & “Guide” anchors
-        
         private func addGuideAnchorIfNeeded(newTransform: simd_float4x4) {
             guard worldIsLoaded else {
                 print("Skipping guide anchor placement. Relocalization not complete.")
@@ -598,8 +635,6 @@ struct ARViewContainer: UIViewRepresentable {
             let newMax = Int(area * 10)
             print("Adjusted max guide anchors to \(newMax) based on plane size.")
         }
-        
-        // MARK: - Camera tracking
         
         func session(_ session: ARSession, cameraDidChangeTrackingState camera: ARCamera) {
             relocalizationTask?.cancel()
@@ -628,8 +663,6 @@ struct ARViewContainer: UIViewRepresentable {
                 }
             }
         }
-        
-        // MARK: - The arrow logic
         
         func createArrowNode() -> SCNNode {
             // Shaft
@@ -724,16 +757,16 @@ struct ARViewContainer: UIViewRepresentable {
             print("Arrow removed.")
         }
         
-         func addJumpingAnimation(to node: SCNNode) {
-                // Create a jumping animation
-                let moveUp = SCNAction.moveBy(x: 0, y: 0.2, z: 0, duration: 0.5)
-                let moveDown = SCNAction.moveBy(x: 0, y: -0.2, z: 0, duration: 0.5)
-                let jump = SCNAction.sequence([moveUp, moveDown])
-                let repeatJump = SCNAction.repeatForever(jump)
-                
-                // Run the animation on the node
-                node.runAction(repeatJump)
-            }
+        func addJumpingAnimation(to node: SCNNode) {
+            // Create a jumping animation
+            let moveUp = SCNAction.moveBy(x: 0, y: 0.2, z: 0, duration: 0.5)
+            let moveDown = SCNAction.moveBy(x: 0, y: -0.2, z: 0, duration: 0.5)
+            let jump = SCNAction.sequence([moveUp, moveDown])
+            let repeatJump = SCNAction.repeatForever(jump)
+            
+            // Run the animation on the node
+            node.runAction(repeatJump)
+        }
     }
 }
 

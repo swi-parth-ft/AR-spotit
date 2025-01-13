@@ -59,7 +59,7 @@ struct WorldsView: View {
                                    
                                 Spacer()
                                 Button(action: {
-                                    worldManager.isShowingAll = false
+                                    worldManager.isShowingAll = true
                                     selectedWorld = world // Set the selected world
                                 }) {
                                     Image(systemName: "arrow.up.left.and.arrow.down.right")
@@ -103,8 +103,10 @@ struct WorldsView: View {
                                                 .cornerRadius(22)
                                                 .shadow(color: Color(getDominantColor(for: extractEmoji(from: anchorName) ?? "📍")).opacity(0.7), radius: 7)
                                                 .onTapGesture {
+                                                    worldManager.isShowingAll = false
                                                     isFindingAnchor = true
                                                     findingAnchorName = anchorName
+                                                    
                                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                                         selectedWorld = world
                                                     }

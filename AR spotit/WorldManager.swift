@@ -12,7 +12,8 @@ class WorldManager: ObservableObject {
     @Published var scanningZones: [String: simd_float4x4] = [:]
         @Published var scannedZones: Set<String> = []
     @Published var isAddingAnchor = false
-    
+    @Published var deletedAnchors: [ARAnchor] = []
+
     // MARK: - Initialization
     init() {
         loadSavedWorlds() // Load local data first

@@ -220,7 +220,7 @@ struct ContentView: View {
                                     }
                                     
                                     Button {
-                                        isShowingFocusedAnchor.toggle()
+                                      //  isShowingFocusedAnchor.toggle()
                                         worldManager.isShowingAll.toggle()
                                     } label: {
                                         Image(systemName: "circle.hexagongrid.fill")
