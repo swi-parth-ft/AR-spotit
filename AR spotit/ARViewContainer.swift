@@ -1,5 +1,7 @@
 import SwiftUI
 import ARKit
+import CoreHaptics
+
 
 struct ARViewContainer: UIViewRepresentable {
     let sceneView: ARSCNView
@@ -27,7 +29,7 @@ struct ARViewContainer: UIViewRepresentable {
         // 3. Run the session with this configuration
         sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
         sceneView.automaticallyUpdatesLighting = true
-        
+        sceneView.session.delegate = context.coordinator as? any ARSessionDelegate
         // 4. Add tap gesture for placing anchors
         let tapGesture = UITapGestureRecognizer(
             target: context.coordinator,
@@ -48,7 +50,12 @@ struct ARViewContainer: UIViewRepresentable {
     
     // MARK: - Coordinator
     
-    class Coordinator: NSObject, ARSCNViewDelegate, Sendable {
+    class Coordinator: NSObject, ARSCNViewDelegate, ARSessionDelegate, Sendable {
+        
+        private var hapticEngine: CHHapticEngine?
+           private var lastHapticTriggerTime: Date = Date()
+        private var nextPulseTime: Date = .distantPast
+
         var parent: ARViewContainer
         var worldManager: WorldManager
         
@@ -74,9 +81,52 @@ struct ARViewContainer: UIViewRepresentable {
             self.parent = parent
             self.worldManager = worldManager
             super.init()
+            setupHaptics()
+
             setupScanningZones()
         }
         
+        private func setupHaptics() {
+               guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else {
+                   print("Haptics not supported on this device.")
+                   return
+               }
+               do {
+                   hapticEngine = try CHHapticEngine()
+                   try hapticEngine?.start()
+               } catch {
+                   print("Failed to start haptic engine: \(error)")
+               }
+           }
+        func provideHapticFeedback(for distance: Float) {
+                guard let hapticEngine = hapticEngine, Date().timeIntervalSince(lastHapticTriggerTime) > 0.1 else {
+                    return
+                }
+                lastHapticTriggerTime = Date()
+                
+                let intensity = min(1.0, max(0.1, 1.0 - distance / 3.0)) // Closer = higher intensity
+                let sharpness = intensity
+                
+                let events = [
+                    CHHapticEvent(
+                        eventType: .hapticContinuous,
+                        parameters: [
+                            CHHapticEventParameter(parameterID: .hapticIntensity, value: intensity),
+                            CHHapticEventParameter(parameterID: .hapticSharpness, value: sharpness)
+                        ],
+                        relativeTime: 0,
+                        duration: 0.1
+                    )
+                ]
+                
+                do {
+                    let pattern = try CHHapticPattern(events: events, parameters: [])
+                    let player = try hapticEngine.makePlayer(with: pattern)
+                    try player.start(atTime: CHHapticTimeImmediate)
+                } catch {
+                    print("Failed to play haptic pattern: \(error)")
+                }
+            }
         // MARK: - Tap for anchors
         
         @objc func handleTap(_ sender: UITapGestureRecognizer) {
@@ -288,6 +338,100 @@ struct ARViewContainer: UIViewRepresentable {
                     }
         }
         
+//        func session(_ session: ARSession, didUpdate frame: ARFrame) {
+//                guard let anchor = parent.sceneView.session.currentFrame?.anchors.first(where: { $0.name == parent.findAnchor }) else {
+//                    print("Anchor not found.")
+//                    return
+//                }
+//                
+//                // Get the camera and anchor positions
+//                let cameraTransform = frame.camera.transform
+//                let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
+//                let anchorPosition = SIMD3<Float>(anchor.transform.columns.3.x, anchor.transform.columns.3.y, anchor.transform.columns.3.z)
+//                
+//                // Calculate the distance
+//                let distance = simd_distance(cameraPosition, anchorPosition)
+//                print("Distance to anchor: \(distance)")
+//                
+//                // Trigger haptic feedback based on distance
+//                provideHapticFeedback(for: distance)
+//            }
+        
+        private func pulseInterval(for distance: Float) -> TimeInterval {
+                    let maxDistance: Float = 3.0
+                    let minInterval: TimeInterval = 0.1
+                    let maxInterval: TimeInterval = 1.0
+                    
+                    // Clamp distance to [0, maxDistance]
+                    let clampedDist = max(0, min(distance, maxDistance))
+                    // fraction = 0.0 (very close) -> 1.0 (very far)
+                    let fraction = clampedDist / maxDistance
+                    
+                    // Lerp interval between 0.1s and 1.0s
+                    // fraction=1 => interval=1.0  (far)
+                    // fraction=0 => interval=0.1  (close)
+            let interval = minInterval + (maxInterval - minInterval) * Double(fraction)
+                    return interval
+                }
+                
+                private func playDub() {
+                    guard let hapticEngine = hapticEngine else { return }
+                    
+                    // Use a short transient “thump”
+                    // If you like, you can vary intensity as well
+                    let intensity: Float = 1.0
+                    let sharpness: Float = 0.5
+                    
+                    let event = CHHapticEvent(
+                        eventType: .hapticTransient,
+                        parameters: [
+                            CHHapticEventParameter(parameterID: .hapticIntensity,  value: intensity),
+                            CHHapticEventParameter(parameterID: .hapticSharpness, value: sharpness),
+                        ],
+                        relativeTime: 0
+                    )
+                    
+                    do {
+                        let pattern = try CHHapticPattern(events: [event], parameters: [])
+                        let player = try hapticEngine.makePlayer(with: pattern)
+                        try player.start(atTime: 0)
+                    } catch {
+                        print("Failed to play haptic pattern: \(error)")
+                    }
+                }
+                
+                // MARK: - ARSessionDelegate: Called every frame
+                func session(_ session: ARSession, didUpdate frame: ARFrame) {
+                    
+                    // Look for the anchor you want to track
+                    guard let anchor = session.currentFrame?.anchors.first(where: {
+                        $0.name == parent.findAnchor
+                    }) else {
+                        // If you never find the anchor, no dubs
+                        print("Anchor not found.")
+                        return
+                    }
+                    
+                    // Get distance from camera
+                    let cameraTransform = frame.camera.transform
+                    let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x,
+                                                      cameraTransform.columns.3.y,
+                                                      cameraTransform.columns.3.z)
+                    let anchorPosition = SIMD3<Float>(anchor.transform.columns.3.x,
+                                                      anchor.transform.columns.3.y,
+                                                      anchor.transform.columns.3.z)
+                    let distance = simd_distance(cameraPosition, anchorPosition)
+                    
+                    // Turn distance into a pulsing interval
+                    let interval = pulseInterval(for: distance)
+                    
+                    // If it's time to do the next "dub," do it and set the next time
+                    if Date() >= nextPulseTime {
+                        playDub()
+                        nextPulseTime = Date().addingTimeInterval(interval)
+                    }
+                }
+        
         func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
             guard let meshAnchor = anchor as? ARMeshAnchor else { return }
             
@@ -296,7 +440,7 @@ struct ARViewContainer: UIViewRepresentable {
                 return
             }
             lastUpdateTime = Date()
-            
+           
             print("Updated ARMeshAnchor with identifier: \(meshAnchor.identifier)")
             
             // Optionally, you can update or merge the mesh geometry here if you wish.
