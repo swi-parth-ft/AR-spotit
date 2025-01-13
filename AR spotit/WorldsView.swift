@@ -16,6 +16,9 @@ struct WorldsView: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var isFindingAnchor = false
     @State private var findingAnchorName: String = ""
+    @State private var showFocusedAnchor: Bool = false
+    
+    
     func extractEmoji(from string: String) -> String? {
         for char in string {
                 if char.isEmoji {
@@ -149,7 +152,8 @@ struct WorldsView: View {
                 ContentView(
                     currentRoomName: world.name,
                     directLoading: true,
-                    findAnchor: $findingAnchorName
+                    findAnchor: $findingAnchorName,
+                    isShowingFocusedAnchor: $showFocusedAnchor
                 )
                 .interactiveDismissDisabled()
 

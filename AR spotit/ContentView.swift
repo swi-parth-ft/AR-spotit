@@ -20,7 +20,7 @@ struct ContentView: View {
     @Binding var findAnchor: String
     @State private var animate = false
     @State private var isFlashlightOn = false
-    
+    @Binding var isShowingFocusedAnchor: Bool
    
     
     private func configureNavigationBarAppearance(for titleColor: UIColor) {
@@ -88,7 +88,8 @@ struct ContentView: View {
                     ARViewContainer(sceneView: sceneView,
                                     anchorName: $currentAnchorName,
                                     worldManager: worldManager,
-                                    findAnchor: findAnchor)
+                                    findAnchor: findAnchor,
+                                    showFocusedAnchor: $isShowingFocusedAnchor)
                     .edgesIgnoringSafeArea(.all)
                     
                    
@@ -219,6 +220,7 @@ struct ContentView: View {
                                     }
                                     
                                     Button {
+                                        isShowingFocusedAnchor.toggle()
                                         worldManager.isShowingAll.toggle()
                                     } label: {
                                         Image(systemName: "circle.hexagongrid.fill")
@@ -243,6 +245,12 @@ struct ContentView: View {
             }
             .onChange(of: worldManager.scannedZones) {
                 updateScanningProgress()
+            }
+            .onChange(of: worldManager.isShowingAll) { newValue in
+                // We can access the coordinator if needed:
+                if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
+                    coordinator.updateNodeVisibility(in: sceneView)
+                }
             }
             .sheet(isPresented: $showAnchorList) {
                 AnchorListView(sceneView: sceneView, worldManager: worldManager)

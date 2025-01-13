@@ -6,8 +6,11 @@ import CoreHaptics
 struct ARViewContainer: UIViewRepresentable {
     let sceneView: ARSCNView
     @Binding var anchorName: String
+   
     @ObservedObject var worldManager: WorldManager
     var findAnchor: String
+    
+    @Binding var showFocusedAnchor: Bool
     func makeUIView(context: Context) -> ARSCNView {
         sceneView.delegate = context.coordinator
         
@@ -41,7 +44,7 @@ struct ARViewContainer: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: ARSCNView, context: Context) {
-        context.coordinator.updateNodeVisibility(in: uiView)
+//        context.coordinator.updateNodeVisibility(in: uiView)
     }
     
     func makeCoordinator() -> Coordinator {
@@ -103,16 +106,14 @@ struct ARViewContainer: UIViewRepresentable {
                         return
                     }
                     
-                    // Decide if hidden or not:
-                    // - If isShowingAll == true => always show
-                    // - If isShowingAll == false => only show if nodeName == findAnchor
-                    let shouldHide = !worldManager.isShowingAll && nodeName != parent.findAnchor
-                    node.isHidden = shouldHide
-                    
-                    // Also apply recursively to children
-                    for child in node.childNodes {
-                        refreshVisibilityRecursive(node: child)
-                    }
+                    // If isShowingAll => show everything => node.isHidden = false
+                       // If !isShowingAll => only show findAnchor => hide node if it’s not findAnchor
+                    let shouldHide = !worldManager.isShowingAll && (nodeName != parent.findAnchor)
+                       node.isHidden = shouldHide
+
+                       for child in node.childNodes {
+                           refreshVisibilityRecursive(node: child)
+                       }
                 }
         private func setupHaptics() {
                guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else {
@@ -242,6 +243,7 @@ struct ARViewContainer: UIViewRepresentable {
         // MARK: - ARSCNViewDelegate
         
         func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+            node.name = anchor.name
             let anchorPosition = SIMD3<Float>(anchor.transform.columns.3.x,
                                               anchor.transform.columns.3.y,
                                               anchor.transform.columns.3.z)
@@ -373,10 +375,10 @@ struct ARViewContainer: UIViewRepresentable {
                         addJumpingAnimation(to: node)
                     }
             
-            if !worldManager.isShowingAll {
-                let shouldHide = !worldManager.isShowingAll && anchorName != parent.findAnchor
+           
+            let shouldHide = parent.showFocusedAnchor && anchorName != parent.findAnchor
                 node.isHidden = shouldHide
-            }
+            
         }
         
 //        func session(_ session: ARSession, didUpdate frame: ARFrame) {

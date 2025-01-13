@@ -59,7 +59,7 @@ struct AddNewRoom: View {
             }
             .navigationTitle("New Area")
             .sheet(item: $selectedWorld) { world in
-                ContentView(currentRoomName: world.name, directLoading: false, findAnchor: .constant(""))
+                ContentView(currentRoomName: world.name, directLoading: false, findAnchor: .constant(""), isShowingFocusedAnchor: .constant(false))
             }
             .sheet(isPresented: $isShowingGuide) {
                 RoomScanGuideView()
