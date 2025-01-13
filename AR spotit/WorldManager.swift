@@ -7,7 +7,7 @@ class WorldManager: ObservableObject {
     private let recordType = "ARWorldMapRecord"
     var anchorMapping: [String: ARAnchor] = [:]
     @Published var cachedAnchorNames: [String: [String]] = [:]
-
+    @Published var isShowingAll = true
     @Published var isRelocalizationComplete: Bool = false
     @Published var scanningZones: [String: simd_float4x4] = [:]
         @Published var scannedZones: Set<String> = []

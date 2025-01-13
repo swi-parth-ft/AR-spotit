@@ -41,7 +41,7 @@ struct ARViewContainer: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: ARSCNView, context: Context) {
-     
+        context.coordinator.updateNodeVisibility(in: uiView)
     }
     
     func makeCoordinator() -> Coordinator {
@@ -85,7 +85,35 @@ struct ARViewContainer: UIViewRepresentable {
 
             setupScanningZones()
         }
-        
+        func updateNodeVisibility(in sceneView: ARSCNView) {
+                    let allNodes = sceneView.scene.rootNode.childNodes
+                    for node in allNodes {
+                        refreshVisibilityRecursive(node: node)
+                    }
+                }
+                
+                /// Recursively check node names and show/hide them based on `isShowingAll` & `findAnchor`.
+                private func refreshVisibilityRecursive(node: SCNNode) {
+                    // If the ARKit anchor's name is stored in `node.name`, we can rely on it here.
+                    guard let nodeName = node.name else {
+                        // Recur into children anyway, in case sub-nodes have meaningful names
+                        for child in node.childNodes {
+                            refreshVisibilityRecursive(node: child)
+                        }
+                        return
+                    }
+                    
+                    // Decide if hidden or not:
+                    // - If isShowingAll == true => always show
+                    // - If isShowingAll == false => only show if nodeName == findAnchor
+                    let shouldHide = !worldManager.isShowingAll && nodeName != parent.findAnchor
+                    node.isHidden = shouldHide
+                    
+                    // Also apply recursively to children
+                    for child in node.childNodes {
+                        refreshVisibilityRecursive(node: child)
+                    }
+                }
         private func setupHaptics() {
                guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else {
                    print("Haptics not supported on this device.")
@@ -223,6 +251,14 @@ struct ARViewContainer: UIViewRepresentable {
                 adjustMaxGuideAnchors(basedOn: planeAnchor)
                 addGuideAnchorIfNeeded(newTransform: planeAnchor.transform)
             }
+//            
+//            if !parent.worldManager.isShowingAll {
+//                  // If isShowingAll == false, skip everything unless anchor.name matches `findAnchor`.
+//                  guard let anchorName = anchor.name, anchorName == parent.findAnchor else {
+//                      print("Skipping anchor \(anchor.name ?? "nil") since isShowingAll == false and it's not findAnchor.")
+//                      return
+//                  }
+//              }
             
             // Visualization logic for “guide” anchor
             if let anchorName = anchor.name, anchorName == "guide" {
@@ -336,6 +372,11 @@ struct ARViewContainer: UIViewRepresentable {
             if anchorName == parent.findAnchor {
                         addJumpingAnimation(to: node)
                     }
+            
+            if !worldManager.isShowingAll {
+                let shouldHide = !worldManager.isShowingAll && anchorName != parent.findAnchor
+                node.isHidden = shouldHide
+            }
         }
         
 //        func session(_ session: ARSession, didUpdate frame: ARFrame) {

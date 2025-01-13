@@ -181,6 +181,10 @@ struct ContentView: View {
                                            
                                     }
                                     Button {
+                                        
+                                        findAnchor = ""
+                                        
+                                        
                                         guard !currentRoomName.isEmpty else { return }
                                         worldManager.saveWorldMap(for: currentRoomName, sceneView: sceneView)
                                         
@@ -203,7 +207,7 @@ struct ContentView: View {
                                     }
                                     
                                     Button {
-                                        worldManager.isAddingAnchor = true
+                                        worldManager.isAddingAnchor.toggle()
                                     } label: {
                                         Image(systemName: "plus")
                                             .foregroundStyle(.black)
@@ -213,6 +217,19 @@ struct ContentView: View {
                                             .shadow(color: Color.white.opacity(0.5), radius: 10)
                                            
                                     }
+                                    
+                                    Button {
+                                        worldManager.isShowingAll.toggle()
+                                    } label: {
+                                        Image(systemName: "circle.hexagongrid.fill")
+                                            .foregroundStyle(.black)
+                                            .frame(width: 50, height: 50)
+                                            .background(Color.white)
+                                            .cornerRadius(25)
+                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                           
+                                    }
+                                    
                                     
                                     
                                 }

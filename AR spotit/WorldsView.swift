@@ -56,6 +56,7 @@ struct WorldsView: View {
                                    
                                 Spacer()
                                 Button(action: {
+                                    worldManager.isShowingAll = false
                                     selectedWorld = world // Set the selected world
                                 }) {
                                     Image(systemName: "arrow.up.left.and.arrow.down.right")
