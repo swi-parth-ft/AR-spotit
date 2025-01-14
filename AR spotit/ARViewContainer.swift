@@ -15,7 +15,7 @@ struct ARViewContainer: UIViewRepresentable {
         sceneView.delegate = context.coordinator
         
         let configuration = ARWorldTrackingConfiguration()
-        
+        configuration.isLightEstimationEnabled = true
         if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
             configuration.sceneReconstruction = .mesh
             configuration.frameSemantics.insert(.sceneDepth)
@@ -25,7 +25,7 @@ struct ARViewContainer: UIViewRepresentable {
         }
         
         configuration.planeDetection = [.horizontal, .vertical]
-        
+        configuration.environmentTexturing = .automatic
         sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
         sceneView.automaticallyUpdatesLighting = true
         sceneView.session.delegate = context.coordinator as? any ARSessionDelegate
@@ -54,7 +54,7 @@ struct ARViewContainer: UIViewRepresentable {
     }
     
     class Coordinator: NSObject, ARSCNViewDelegate, ARSessionDelegate, Sendable {
-        
+        private var lastAnimationUpdateTime: Date = Date()
         private var hapticEngine: CHHapticEngine?
         private var lastHapticTriggerTime: Date = Date()
         private var nextPulseTime: Date = .distantPast
@@ -73,6 +73,11 @@ struct ARViewContainer: UIViewRepresentable {
         private var relocalizationTask: Task<Void, Never>?
         private var zoneEntryTimes: [String: Date] = [:]
         private var currentArrowNode: SCNNode?
+        private var anchorNodes: [String: SCNNode] = [:]
+        private var lastJumpHeight: Float = 0.0
+
+        private var nodeBasePositions = [String: SCNVector3]()
+        private var nodeJumpHeights = [String: Float]()
         
         init(_ parent: ARViewContainer, worldManager: WorldManager) {
             self.parent = parent
@@ -83,9 +88,7 @@ struct ARViewContainer: UIViewRepresentable {
             setupScanningZones()
             
             
-            if parent.findAnchor != "" {
-                worldManager.isShowingAll = false
-            }
+            
         }
         
         func updateNodeVisibility(in sceneView: ARSCNView) {
@@ -429,6 +432,8 @@ struct ARViewContainer: UIViewRepresentable {
         
         func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
             node.name = anchor.name
+            anchorNodes[anchor.name ?? ""] = node
+
             let anchorPosition = SIMD3<Float>(anchor.transform.columns.3.x,
                                               anchor.transform.columns.3.y,
                                               anchor.transform.columns.3.z)
@@ -548,11 +553,7 @@ struct ARViewContainer: UIViewRepresentable {
             panelNode.addChildNode(textPlaneNode)
             
             print(parent.findAnchor)
-            if anchorName == parent.findAnchor {
-                        addJumpingAnimation(to: node)
-                    }
-            
-           
+
             
             let shouldHide = !worldManager.isShowingAll && (anchorName != parent.findAnchor)
       
@@ -597,37 +598,71 @@ struct ARViewContainer: UIViewRepresentable {
                     print("Failed to play haptic pattern: \(error)")
                 }
             }
-            
-        func session(_ session: ARSession, didUpdate frame: ARFrame) {
-                
-                // Look for the anchor you want to track
-                guard let anchor = session.currentFrame?.anchors.first(where: {
-                    $0.name == parent.findAnchor
-                }) else {
-                    // If you never find the anchor, no dubs
-                   // print("Anchor not found.")
-                    return
+        func updateAnchorLighting(intensity: CGFloat, temperature: CGFloat) {
+            let normalizedIntensity = min(max(intensity / 1000.0, 0.2), 2.0) // Normalize between 0.2 and 2.0
+
+            for (_, node) in anchorNodes {
+                // Adjust emission glow
+                if let material = node.geometry?.firstMaterial {
+                    material.emission.contents = UIColor(hue: 0.1, saturation: 0.8, brightness: normalizedIntensity, alpha: 1.0)
                 }
-                
-                // Get distance from camera
-                let cameraTransform = frame.camera.transform
-                let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x,
-                                                    cameraTransform.columns.3.y,
-                                                    cameraTransform.columns.3.z)
-                let anchorPosition = SIMD3<Float>(anchor.transform.columns.3.x,
-                                                    anchor.transform.columns.3.y,
-                                                    anchor.transform.columns.3.z)
-                let distance = simd_distance(cameraPosition, anchorPosition)
-                
-                // Turn distance into a pulsing interval
-                let interval = pulseInterval(for: distance)
-                
-                // If it's time to do the next "dub," do it and set the next time
-                if Date() >= nextPulseTime {
-                    playDub()
-                    nextPulseTime = Date().addingTimeInterval(interval)
-                }
+
+                // Adjust light temperature
+                node.light?.temperature = temperature
+                node.light?.intensity = normalizedIntensity * 1000
             }
+        }
+        func session(_ session: ARSession, didUpdate frame: ARFrame) {
+            // Throttle updates to avoid excessive computation
+               let currentTime = Date()
+               guard currentTime.timeIntervalSince(lastAnimationUpdateTime) > 0.2 else { return } // Update every 0.2 seconds
+               lastAnimationUpdateTime = currentTime
+            // Retrieve light estimation
+              if let lightEstimate = frame.lightEstimate {
+                  let ambientIntensity = lightEstimate.ambientIntensity // Brightness
+                  let ambientColorTemperature = lightEstimate.ambientColorTemperature // Kelvin
+                  updateAnchorLighting(intensity: ambientIntensity, temperature: ambientColorTemperature)
+              }
+            
+            // Look for the anchor to track
+            guard let anchor = session.currentFrame?.anchors.first(where: { $0.name == parent.findAnchor }) else {
+                return
+            }
+
+            // Get distance from camera
+            let cameraTransform = frame.camera.transform
+            let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x,
+                                              cameraTransform.columns.3.y,
+                                              cameraTransform.columns.3.z)
+            let anchorPosition = SIMD3<Float>(anchor.transform.columns.3.x,
+                                              anchor.transform.columns.3.y,
+                                              anchor.transform.columns.3.z)
+            let distance = simd_distance(cameraPosition, anchorPosition)
+            let clampedDistance = max(0.1, min(distance, 5.0)) // Clamp distance
+
+            // Turn distance into a pulsing interval
+            let interval = pulseInterval(for: clampedDistance)
+            print("Distance: \(clampedDistance) meters, Pulse Interval: \(interval) seconds")
+
+            // Trigger haptic feedback if it's time
+            if Date() >= nextPulseTime {
+                playDub()
+                nextPulseTime = Date().addingTimeInterval(interval)
+            }
+
+            guard let node = anchorNodes[anchor.name ?? ""] else {
+                return
+            }
+            DispatchQueue.main.async {
+                self.addJumpingAnimation(to: node, basedOn: clampedDistance)
+            }
+          //
+//            // Add jumping animation
+//            guard let node = parent.sceneView.scene.rootNode.childNode(withName: anchor.name ?? "", recursively: true) else {
+//                return
+//            }
+//            addJumpingAnimation(to: node, basedOn: clampedDistance)
+        }
         
         func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
             guard let meshAnchor = anchor as? ARMeshAnchor else { return }
@@ -733,7 +768,7 @@ struct ARViewContainer: UIViewRepresentable {
             // Check for nearby guide anchors to avoid duplicates
             let isDuplicate = parent.sceneView.session.currentFrame?.anchors.contains(where: { anchor in
                 anchor.name == "guide"
-                && simd_distance(anchor.transform.columns.3, newTransform.columns.3) < 1.0
+                && simd_distance(anchor.transform.columns.3, newTransform.columns.3) < 0.7
             }) ?? false
             
             if !isDuplicate {
@@ -745,7 +780,7 @@ struct ARViewContainer: UIViewRepresentable {
         
         private func adjustMaxGuideAnchors(basedOn planeAnchor: ARPlaneAnchor) {
             let area = planeAnchor.extent.x * planeAnchor.extent.z
-            let newMax = Int(area * 10)
+            let newMax = Int(area * 15)
             print("Adjusted max guide anchors to \(newMax) based on plane size.")
         }
         
@@ -870,15 +905,63 @@ struct ARViewContainer: UIViewRepresentable {
             print("Arrow removed.")
         }
         
-        func addJumpingAnimation(to node: SCNNode) {
-            // Create a jumping animation
-            let moveUp = SCNAction.moveBy(x: 0, y: 0.2, z: 0, duration: 0.5)
-            let moveDown = SCNAction.moveBy(x: 0, y: -0.2, z: 0, duration: 0.5)
-            let jump = SCNAction.sequence([moveUp, moveDown])
-            let repeatJump = SCNAction.repeatForever(jump)
+        func addJumpingAnimation(to node: SCNNode, basedOn distance: Float) {
+            // We need the node's name to track it in our dictionaries
+            guard let anchorName = node.name else { return }
+
+            if distance < 1.0 {
+                   node.removeAction(forKey: "jumping")
+                if let basePos = nodeBasePositions[anchorName] {
+                    let moveToOriginal = SCNAction.move(to: basePos, duration: 0.3) // Smooth reset in 0.3 seconds
+                    node.runAction(moveToOriginal)
+                }
+                
+                   return
+               }
             
-            // Run the animation on the node
-            node.runAction(repeatJump)
+            // 1) Figure out the base (original) position in world coordinates
+            //    so the node always returns to exactly that spot.
+            let basePos: SCNVector3
+            if let storedPos = nodeBasePositions[anchorName] {
+                // We already stored a base position
+                basePos = storedPos
+            } else {
+                // First time we see this node, record its current *rendered* position
+                basePos = node.presentation.position
+                nodeBasePositions[anchorName] = basePos
+            }
+
+            // 2) Compute the new jump height: far anchor => bigger jump, near => smaller
+            let maxJump: Float = 0.9 // max 0.5m up
+            let clampedDist = max(0.1, min(distance, 3.0)) // keep distance in [0.1 ... 3.0]
+            let newJump = maxJump * (clampedDist / 3.0) // range ~0..0.5
+            // (Optional) you can clamp if you want to absolutely ensure 0 <= newJump <= 0.5:
+            // let newJump = max(0.0, min(tempJump, maxJump))
+
+            // 3) Check if this jump height is significantly different from last time.
+            let oldJump = nodeJumpHeights[anchorName] ?? 0.0
+            let delta = abs(newJump - oldJump)
+            // If too small a difference, skip re-starting the animation.
+            if delta < 0.05 {
+                return
+            }
+            // Update the recorded jump height.
+            nodeJumpHeights[anchorName] = newJump
+
+            // 4) Remove any existing jump, so we don't overlap animations.
+            node.removeAction(forKey: "jumping")
+
+            // 5) Create an absolute “move(to:)” up, then down. This guarantees no drift.
+            let upPosition   = SCNVector3(basePos.x, basePos.y + newJump, basePos.z)
+            let downPosition = basePos
+
+            let moveUp   = SCNAction.move(to: upPosition,   duration: 0.5)
+            let moveDown = SCNAction.move(to: downPosition, duration: 0.5)
+            let jumpCycle = SCNAction.sequence([moveUp, moveDown])
+            let repeatJump = SCNAction.repeatForever(jumpCycle)
+
+            // 6) Run the repeatForever
+            node.runAction(repeatJump, forKey: "jumping")
         }
     }
 }

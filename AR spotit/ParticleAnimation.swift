@@ -75,7 +75,7 @@ struct ParticleTextAnimation: View {
     private func createParticles() {
         
         let renderer = ImageRenderer(content: Text(text)
-            .font(.system(size: 60, design: .rounded))
+            .font(.system(size: 50, design: .rounded))
             .bold())
         
         renderer.scale = 1.0

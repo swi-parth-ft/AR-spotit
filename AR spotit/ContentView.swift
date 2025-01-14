@@ -21,33 +21,9 @@ struct ContentView: View {
     @State private var animate = false
     @State private var isFlashlightOn = false
     @Binding var isShowingFocusedAnchor: Bool
-   
+   @State private var isAddingNewAnchor: Bool = false
     
-    private func configureNavigationBarAppearance(for titleColor: UIColor) {
-            let appearance = UINavigationBarAppearance()
-            appearance.configureWithOpaqueBackground()
-            appearance.titleTextAttributes = [.foregroundColor: titleColor]
-            appearance.largeTitleTextAttributes = [.foregroundColor: titleColor]
-            appearance.backgroundColor = .clear // Adjust as needed
-        appearance.shadowColor = .clear
-
-            UINavigationBar.appearance().standardAppearance = appearance
-            UINavigationBar.appearance().scrollEdgeAppearance = appearance
-        
-        var titleFont = UIFont.preferredFont(forTextStyle: .largeTitle) /// the default large title font
-        titleFont = UIFont(
-            descriptor:
-                titleFont.fontDescriptor
-                .withDesign(.rounded)? /// make rounded
-                .withSymbolicTraits(.traitBold) /// make bold
-                ??
-                titleFont.fontDescriptor, /// return the normal title if customization failed
-            size: titleFont.pointSize
-        )
-        
-        /// set the rounded font
-        UINavigationBar.appearance().largeTitleTextAttributes = [.font: titleFont]
-        }
+  
        // Function to toggle flashlight
        private func toggleFlashlight() {
            guard let device = AVCaptureDevice.default(for: .video), device.hasTorch else {
@@ -90,6 +66,11 @@ struct ContentView: View {
                                     worldManager: worldManager,
                                     findAnchor: findAnchor,
                                     showFocusedAnchor: $isShowingFocusedAnchor)
+                    .onAppear {
+                        if findAnchor != "" {
+                            worldManager.isShowingAll = false
+                        }
+                    }
                     .edgesIgnoringSafeArea(.all)
                     
                    
@@ -143,31 +124,11 @@ struct ContentView: View {
                                     .padding(.bottom, 20)
                             }
                             
-                            Spacer()
+                         
                             
-                            VStack {
-                                
-                                
-                                
-                                HStack {
-                                    Button("Show Anchors") {
-                                        showAnchorList.toggle()
-                                    }
-                                    .padding()
-                                    
-                                    if worldManager.isAddingAnchor {
-                                        TextField("Anchor Name (e.g., 'Purse')", text: $currentAnchorName)
-                                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                                            .padding()
-                                    }
-                                    
-                                }
-                                
-                                //  Text(currentRoomName)
-                                
-                                
-                                
-                                HStack {
+                            Spacer()
+                            HStack {
+                                VStack {
                                     Button {
                                         toggleFlashlight()
                                     } label: {
@@ -181,6 +142,44 @@ struct ContentView: View {
                                            
                                            
                                     }
+                                    
+                                    Button {
+                                     //   worldManager.isAddingAnchor.toggle()
+                                        isAddingNewAnchor.toggle()
+                                    } label: {
+                                        Image(systemName: "plus")
+                                            .foregroundStyle(.black)
+                                            .frame(width: 50, height: 50)
+                                            .background(Color.white)
+                                            .cornerRadius(25)
+                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                           
+                                    }
+                                    
+                                    Button {
+                                      //  isShowingFocusedAnchor.toggle()
+                                        worldManager.isShowingAll.toggle()
+                                    } label: {
+                                        Image(systemName: "circle.hexagongrid.fill")
+                                            .foregroundStyle(.black)
+                                            .frame(width: 50, height: 50)
+                                            .background(Color.white)
+                                            .cornerRadius(25)
+                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                           
+                                    }
+                                }
+                                .padding()
+                                Spacer()
+                            }
+                            Spacer()
+                            
+                            VStack {
+                                
+                                
+                                
+                                HStack {
+                         
                                     Button {
                                         
                                         findAnchor = ""
@@ -206,31 +205,7 @@ struct ContentView: View {
                                         
                                         worldManager.loadWorldMap(for: currentRoomName, sceneView: sceneView)
                                     }
-                                    
-                                    Button {
-                                        worldManager.isAddingAnchor.toggle()
-                                    } label: {
-                                        Image(systemName: "plus")
-                                            .foregroundStyle(.black)
-                                            .frame(width: 50, height: 50)
-                                            .background(Color.white)
-                                            .cornerRadius(25)
-                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                           
-                                    }
-                                    
-                                    Button {
-                                      //  isShowingFocusedAnchor.toggle()
-                                        worldManager.isShowingAll.toggle()
-                                    } label: {
-                                        Image(systemName: "circle.hexagongrid.fill")
-                                            .foregroundStyle(.black)
-                                            .frame(width: 50, height: 50)
-                                            .background(Color.white)
-                                            .cornerRadius(25)
-                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                           
-                                    }
+                       
                                     
                                     
                                     
@@ -246,7 +221,7 @@ struct ContentView: View {
             .onChange(of: worldManager.scannedZones) {
                 updateScanningProgress()
             }
-            .onChange(of: worldManager.isShowingAll) { newValue in
+            .onChange(of: worldManager.isShowingAll) {
                 // We can access the coordinator if needed:
                 if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
                     coordinator.updateNodeVisibility(in: sceneView)
@@ -255,28 +230,45 @@ struct ContentView: View {
             .sheet(isPresented: $showAnchorList) {
                 AnchorListView(sceneView: sceneView, worldManager: worldManager)
             }
-            .onDisappear {
-                configureNavigationBarAppearance(for: .black) // Restore default
+            .sheet(isPresented: $isAddingNewAnchor) {
+                AddAnchorView(anchorName: $currentAnchorName, worldManager: worldManager)
+                    .presentationDetents([.fraction(0.6)])
 
             }
-            .navigationTitle(currentRoomName)
+        //    .navigationTitle(currentRoomName)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                Menu {
+                ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        worldManager.deleteWorld(roomName: currentRoomName) {
-                            print("Deletion process completed.")
-                        }
+                        dismiss()
                     } label: {
-                        Label("Delete World", systemImage: "trash")
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.white)
                     }
-                } label: {
-                    Image(systemName: "ellipsis.circle.fill")
-                        .font(.title2)
+                }
+                
+                ToolbarItem(placement: .automatic) {
+                    Text(currentRoomName)
+                        .font(.system(.headline, design: .rounded))
                         .foregroundStyle(.white)
                 }
-            }
-            .onAppear {
-                configureNavigationBarAppearance(for: .white)
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button {
+                            worldManager.deleteWorld(roomName: currentRoomName) {
+                                print("Deletion process completed.")
+                            }
+                        } label: {
+                            Label("Delete World", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.white)
+                    }
+                }
+             
             }
             
         }
