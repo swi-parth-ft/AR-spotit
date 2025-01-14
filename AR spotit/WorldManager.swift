@@ -13,7 +13,11 @@ class WorldManager: ObservableObject {
         @Published var scannedZones: Set<String> = []
     @Published var isAddingAnchor = false
     @Published var deletedAnchors: [ARAnchor] = []
-
+    
+    @Published var isImportingWorld: Bool = false
+     @Published var importWorldURL: URL?
+    @Published var tempWorldName = ""
+    
     // MARK: - Initialization
     init() {
         loadSavedWorlds() // Load local data first
@@ -122,7 +126,7 @@ class WorldManager: ObservableObject {
     }
 
     // MARK: - Save World List Locally
-    private func saveWorldList() {
+    func saveWorldList() {
         let fileURL = WorldModel.appSupportDirectory.appendingPathComponent("worldsList.json")
         do {
             let data = try JSONEncoder().encode(savedWorlds)
@@ -420,4 +424,102 @@ class WorldManager: ObservableObject {
                 privateDB.add(deleteOperation)
             }
         }
+}
+extension WorldManager {
+    
+    func importWorldFromURL(_ url: URL) {
+        // Store the URL and show the sheet for naming
+        self.importWorldURL = url
+        self.tempWorldName = url.deletingPathExtension().lastPathComponent // Default name
+        self.isImportingWorld = true
+    }
+    
+    func saveImportedWorld(data: Data, worldName: String) {
+            let timestamp = Date()
+
+            // Check if the world already exists
+            if let index = self.savedWorlds.firstIndex(where: { $0.name == worldName }) {
+                self.savedWorlds[index].lastModified = timestamp
+            } else {
+                self.savedWorlds.append(WorldModel(name: worldName, lastModified: timestamp))
+            }
+
+            // Save to local file
+            guard let newWorld = self.savedWorlds.first(where: { $0.name == worldName }) else {
+                print("Failed to find the newly created world.")
+                return
+            }
+
+            do {
+                try data.write(to: newWorld.filePath)
+                self.saveWorldList()
+                print("✅ Imported world saved as \(worldName).")
+            } catch {
+                print("❌ Error saving imported world: \(error.localizedDescription)")
+            }
+
+            // Optionally sync to CloudKit
+            self.uploadARWorldMapToCloudKit(roomName: worldName, data: data, lastModified: timestamp) {
+                print("☁️ Synced \(worldName) to CloudKit.")
+            }
+        }
+    
+    /// Import a .arworld or .worldmap file from the given URL
+    /// and save it into the local + CloudKit system.
+//    func importWorldFromURL(_ url: URL, completion: @escaping () -> Void) {
+//        do {
+//            let data = try Data(contentsOf: url)
+//            
+//            // OPTIONAL: Validate it by unarchiving an ARWorldMap
+//            // If you want to confirm the data is truly an ARWorldMap
+//            if let _ = try? NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: data) {
+//                // Good, it’s valid.
+//            } else {
+//                print("⚠️ File data is not a valid ARWorldMap.")
+//                completion()
+//                return
+//            }
+//            
+//            // Decide on a name.
+//            // - You might want to parse a name from the file name or let user rename.
+//            let baseFilename = url.deletingPathExtension().lastPathComponent
+//            let importName = baseFilename.isEmpty ? "ImportedWorld" : baseFilename
+//            
+//            let timestamp = Date()
+//            
+//            // Check if this worldName already exists in savedWorlds
+//            if let index = self.savedWorlds.firstIndex(where: { $0.name == importName }) {
+//                // If yes, you could prompt user to rename or override.
+//                // For simplicity, let's just override lastModified & data
+//                self.savedWorlds[index].lastModified = timestamp
+//            } else {
+//                // Create new
+//                self.savedWorlds.append(WorldModel(name: importName, lastModified: timestamp))
+//            }
+//            
+//            guard let newWorld = self.savedWorlds.first(where: { $0.name == importName }) else {
+//                print("⚠️ Could not locate new world after import.")
+//                completion()
+//                return
+//            }
+//            
+//            // Save the data to the same local path your code uses
+//            // so that `loadWorldMap(for:roomName:)` can find it later:
+//            try data.write(to: newWorld.filePath)
+//            self.saveWorldList()
+//            
+//            print("✅ Imported \(importName) from external file, saved locally.")
+//            
+//            // OPTIONAL: Sync to CloudKit
+//            self.uploadARWorldMapToCloudKit(roomName: importName,
+//                                            data: data,
+//                                            lastModified: timestamp) {
+//                print("☁️ Synced \(importName) to CloudKit after import.")
+//                completion()
+//            }
+//        } catch {
+//            print("Error importing .arworld file: \(error.localizedDescription)")
+//            completion()
+//        }
+//    }
 }

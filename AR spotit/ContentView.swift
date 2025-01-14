@@ -53,6 +53,50 @@ struct ContentView: View {
             return nil
     }
     
+    func shareWorld() {
+        guard let world = worldManager.savedWorlds.first(where: { $0.name == currentRoomName }) else {
+            print("No world found with name \(currentRoomName).")
+            return
+        }
+
+        let sourceFilePath = world.filePath
+        guard FileManager.default.fileExists(atPath: sourceFilePath.path) else {
+            print("World map file not found.")
+            return
+        }
+
+        // Move file to a shareable location
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let destinationURL = documentsURL.appendingPathComponent("\(currentRoomName)_worldMap.worldmap")
+
+        do {
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                try FileManager.default.removeItem(at: destinationURL)
+            }
+            try FileManager.default.copyItem(at: sourceFilePath, to: destinationURL)
+            print("File ready for sharing at: \(destinationURL)")
+
+            // Present the share sheet
+            let activityController = UIActivityViewController(activityItems: [destinationURL], applicationActivities: nil)
+            
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let rootViewController = windowScene.windows.first?.rootViewController {
+                DispatchQueue.main.async {
+                    if let presentedVC = rootViewController.presentedViewController {
+                        presentedVC.dismiss(animated: false) {
+                            rootViewController.present(activityController, animated: true, completion: nil)
+                        }
+                    } else {
+                        rootViewController.present(activityController, animated: true, completion: nil)
+                    }
+                }
+            }
+        } catch {
+            print("Error preparing file for sharing: \(error.localizedDescription)")
+        }
+    }
+    
+    
     var body: some View {
         NavigationStack {
             
@@ -258,9 +302,16 @@ struct ContentView: View {
                         Button {
                             worldManager.deleteWorld(roomName: currentRoomName) {
                                 print("Deletion process completed.")
+                                dismiss()
                             }
                         } label: {
                             Label("Delete World", systemImage: "trash")
+                        }
+                        
+                        Button {
+                                    shareWorld()
+                        } label: {
+                            Label("Share World", systemImage: "square.and.arrow.up")
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle.fill")

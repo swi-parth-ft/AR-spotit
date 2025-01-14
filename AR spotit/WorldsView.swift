@@ -2,7 +2,7 @@ import SwiftUI
 
 struct WorldsView: View {
     
-    
+  
     
     @ObservedObject var worldManager = WorldManager()
     @State private var selectedWorld: WorldModel? // Track which world is selected for adding anchors
@@ -17,7 +17,7 @@ struct WorldsView: View {
     @State private var isFindingAnchor = false
     @State private var findingAnchorName: String = ""
     @State private var showFocusedAnchor: Bool = false
-    
+
     
     func extractEmoji(from string: String) -> String? {
         for char in string {
@@ -42,6 +42,9 @@ struct WorldsView: View {
             
             /// set the rounded font
             UINavigationBar.appearance().largeTitleTextAttributes = [.font: titleFont]
+        
+       
+           
         }
     
     
@@ -140,6 +143,7 @@ struct WorldsView: View {
                 }
                 .padding(.top)
             }
+     
             .navigationTitle("My Things")
             .toolbar {
                 Button {
@@ -168,6 +172,7 @@ struct WorldsView: View {
                         .presentationDetents([.fraction(0.4)])
               //  }
             }
+            
          
         }
     }

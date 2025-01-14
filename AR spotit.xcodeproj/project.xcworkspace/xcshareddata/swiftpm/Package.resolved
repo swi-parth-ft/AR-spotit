@@ -1,6 +1,15 @@
 {
-  "originHash" : "0e844115085a29c3fe2066b46b8b0b09e696f718ae4b9efc9e5d1c127ae09559",
+  "originHash" : "1a48328d2be7ea841dff8dddfeecc420dfb7127f13808c440a95e0ba1fbb2bac",
   "pins" : [
+    {
+      "identity" : "drops",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/omaralbeik/Drops.git",
+      "state" : {
+        "revision" : "a183ee6f79f21c940092a19c2cba756555422371",
+        "version" : "1.7.0"
+      }
+    },
     {
       "identity" : "vortex",
       "kind" : "remoteSourceControl",

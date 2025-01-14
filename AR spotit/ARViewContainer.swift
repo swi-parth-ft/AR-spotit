@@ -1,6 +1,7 @@
 import SwiftUI
 import ARKit
 import CoreHaptics
+import Drops
 
 struct ARViewContainer: UIViewRepresentable {
     let sceneView: ARSCNView
@@ -613,6 +614,14 @@ struct ARViewContainer: UIViewRepresentable {
             }
         }
         func session(_ session: ARSession, didUpdate frame: ARFrame) {
+            
+            if let lightEstimate = frame.lightEstimate {
+                   if lightEstimate.ambientIntensity < 500.0 { // Example threshold for low light
+                       Drops.show("Low light detected. Turn on flash.")
+                   }
+               }
+            
+            
             // Throttle updates to avoid excessive computation
                let currentTime = Date()
                guard currentTime.timeIntervalSince(lastAnimationUpdateTime) > 0.2 else { return } // Update every 0.2 seconds
@@ -642,7 +651,6 @@ struct ARViewContainer: UIViewRepresentable {
 
             // Turn distance into a pulsing interval
             let interval = pulseInterval(for: clampedDistance)
-            print("Distance: \(clampedDistance) meters, Pulse Interval: \(interval) seconds")
 
             // Trigger haptic feedback if it's time
             if Date() >= nextPulseTime {
