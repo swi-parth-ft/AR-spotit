@@ -2,7 +2,7 @@ import Foundation
 
 struct WorldModel: Identifiable, Codable {
     let id: UUID
-    let name: String
+    var name: String
     var lastModified: Date // Timestamp to track the last modification
 
     // Computed property for dynamic file path

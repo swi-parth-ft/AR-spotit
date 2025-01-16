@@ -26,9 +26,6 @@ struct AR_spotitApp: App {
                                 .presentationDetents([.fraction(0.4)])
 
                         }
-                // If you prefer to share the same WorldManager
-                // with the entire app, pass it in as environmentObject:
-                // .environmentObject(worldManager)
         }
        
     }

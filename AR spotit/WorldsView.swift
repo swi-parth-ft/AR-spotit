@@ -17,8 +17,8 @@ struct WorldsView: View {
     @State private var isFindingAnchor = false
     @State private var findingAnchorName: String = ""
     @State private var showFocusedAnchor: Bool = false
-
-    
+    @State private var isRenaming = false
+    @State private var currentName = ""
     func extractEmoji(from string: String) -> String? {
         for char in string {
                 if char.isEmoji {
@@ -56,10 +56,11 @@ struct WorldsView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             // Room Title
                             HStack {
-                                Text(world.name)
-                                    .font(.system(.title2, design: .rounded))
-                                    .bold()
-                                   
+                              
+                                    Text(world.name)
+                                        .font(.system(.title2, design: .rounded))
+                                        .bold()
+                                
                                 Spacer()
                                 Button(action: {
                                     worldManager.isShowingAll = true
@@ -69,6 +70,49 @@ struct WorldsView: View {
                                         .font(.title)
                                         .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 }
+                                
+                                Menu {
+                                    Button {
+                                        
+                                        isRenaming.toggle()
+                                    } label: {
+                                        HStack {
+                                            Text("Rename")
+                                            Image(systemName: "character.cursor.ibeam")
+                                                .font(.title)
+                                                .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                        }
+                                    }
+                                    
+                                    Button(role: .destructive) {
+                                        worldManager.deleteWorld(roomName: world.name) {
+                                            print("Deletion process completed.")
+                                        }
+                                    } label: {
+                                        HStack {
+                                            Text("Delete")
+                                                .foregroundColor(.red) // Use this for text
+                                            Image(systemName: "trash.fill")
+                                                .foregroundStyle(.red)
+                                                
+                                        }
+                                        .font(.title)
+                                        
+                                    }
+                                    
+                                    .onAppear {
+                                        currentName = world.name
+                                    }
+                                    
+                                    
+                                    
+                                    
+                                } label: {
+                                    Image(systemName: "pencil.and.scribble")
+                                        .font(.title)
+                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                }
+                                
 
                             }
                             .padding(.horizontal)
@@ -139,11 +183,19 @@ struct WorldsView: View {
                                 }
                             }
                         }
+              
                     }
                 }
                 .padding(.top)
+                .sheet(isPresented: $isRenaming) {
+                    
+                    renameWorldView(worldName: $currentName, worldManager: worldManager)
+                        .presentationDetents([.fraction(0.4)])
+
+                        
+                }
             }
-     
+         
             .navigationTitle("My Things")
             .toolbar {
                 Button {
@@ -171,6 +223,9 @@ struct WorldsView: View {
                     AddNewRoom()
                         .presentationDetents([.fraction(0.4)])
               //  }
+            }
+            .onChange(of: worldManager.reload) {
+                print("reloaded")
             }
             
          

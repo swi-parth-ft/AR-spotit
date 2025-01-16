@@ -354,6 +354,7 @@ struct ARViewContainer: UIViewRepresentable {
                 print("Anchor with name \(anchorName) not found.")
                 return
             }
+            
 
             parent.sceneView.session.remove(anchor: anchor)
             print("Anchor '\(anchorName)' deleted.")
@@ -616,7 +617,7 @@ struct ARViewContainer: UIViewRepresentable {
         func session(_ session: ARSession, didUpdate frame: ARFrame) {
             
             if let lightEstimate = frame.lightEstimate {
-                   if lightEstimate.ambientIntensity < 500.0 { // Example threshold for low light
+                   if lightEstimate.ambientIntensity < 200.0 { // Example threshold for low light
                        Drops.show("Low light detected. Turn on flash.")
                    }
                }
