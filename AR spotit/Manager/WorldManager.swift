@@ -2,8 +2,10 @@ import ARKit
 import CloudKit
 
 class WorldManager: ObservableObject {
-    @Published var savedWorlds: [WorldModel] = [] // List of saved worlds
-    
+    private lazy var iCloudManager: iCloudManager = {
+        return AR_spotit.iCloudManager(worldManager: self)
+        }()
+    @Published var savedWorlds: [WorldModel] = []
     private let recordType = "ARWorldMapRecord"
     var anchorMapping: [String: ARAnchor] = [:]
     @Published var cachedAnchorNames: [String: [String]] = [:]
@@ -20,13 +22,7 @@ class WorldManager: ObservableObject {
     @Published var reload = false
     
     init() {
-        //        deleteAllRecords { error in
-        //            if let error = error {
-        //                print("Error deleting all records: \(error.localizedDescription)")
-        //            } else {
-        //                print("Successfully deleted all records from CloudKit.")
-        //            }
-        //        }
+        
         loadSavedWorlds()
         
         fetchWorldNamesFromCloudKit {
@@ -41,77 +37,12 @@ class WorldManager: ObservableObject {
                 
                 if !FileManager.default.fileExists(atPath: world.filePath.path) {
                     print("Fetching missing data for world: \(world.name)")
-                    self.loadWorldMapDataFromCloudKitOnly(roomName: world.name) { _ in
+                    
+                    self.iCloudManager.loadWorldMap(roomName: world.name) { _ in
                         print("Fetched and saved \(world.name) locally.")
                     }
                 }
             }
-        }
-    }
-    
-    
-
-    
-    func deleteAllRecords(completion: @escaping (Error?) -> Void) {
-        let privateDB = CKContainer.default().privateCloudDatabase
-        let recordTypes = ["ARWorldMapRecord", "WorldListRecord"] // Add all your record types here
-        
-        let dispatchGroup = DispatchGroup()
-        var finalError: Error?
-        
-        for recordType in recordTypes {
-            dispatchGroup.enter()
-            let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
-            
-            privateDB.fetch(
-                withQuery: query,
-                inZoneWith: nil,
-                desiredKeys: nil,
-                resultsLimit: CKQueryOperation.maximumResults
-            ) { (result: Result<(matchResults: [(CKRecord.ID, Result<CKRecord, Error>)], queryCursor: CKQueryOperation.Cursor?), Error>) in
-                
-                switch result {
-                case .success(let (matchResults, _)):
-                    let recordIDs = matchResults.compactMap { (recordID, result) -> CKRecord.ID? in
-                        switch result {
-                        case .success:
-                            return recordID
-                        case .failure(let error):
-                            print("Error fetching record \(recordID): \(error.localizedDescription)")
-                            return nil
-                        }
-                    }
-                    
-                    guard !recordIDs.isEmpty else {
-                        print("No records found for \(recordType).")
-                        dispatchGroup.leave()
-                        return
-                    }
-                    
-                    let deleteOperation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDs)
-                    deleteOperation.modifyRecordsResultBlock = { result in
-                        switch result {
-                        case .success:
-                            print("Successfully deleted all records of type \(recordType).")
-                        case .failure(let error):
-                            print("Error deleting records for \(recordType): \(error.localizedDescription)")
-                            finalError = error
-                        }
-                        dispatchGroup.leave()
-                    }
-                    
-                    privateDB.add(deleteOperation)
-                    
-                case .failure(let error):
-                    print("Error fetching records for \(recordType): \(error.localizedDescription)")
-                    finalError = error
-                    dispatchGroup.leave()
-                }
-            }
-        }
-        
-        dispatchGroup.notify(queue: .main) {
-            completion(finalError)
         }
     }
     
@@ -138,8 +69,7 @@ class WorldManager: ObservableObject {
                 self.saveWorldList()
                 
                 print("World map for \(roomName) saved locally at: \(filePath.path)")
-                
-                self.uploadARWorldMapToCloudKit(roomName: roomName, data: data, lastModified: timestamp) {
+                iCloudManager.uploadWorldMap(roomName: roomName, data: data, lastModified: timestamp) {
                     print("Sync to CloudKit complete for \(roomName).")
                 }
             } catch {
@@ -162,6 +92,9 @@ class WorldManager: ObservableObject {
         guard FileManager.default.fileExists(atPath: filePath.path) else {
             print("File not found at path: \(filePath.path). Trying CloudKit...")
             loadFromCloudKit(roomName: roomName, sceneView: sceneView)
+//            iCloudManager.loadWorldMap(roomName: roomName, data: data, lastModified: timestamp) {
+//                print("Sync to CloudKit complete for \(roomName).")
+//            }
             return
         }
         
@@ -238,15 +171,7 @@ class WorldManager: ObservableObject {
     }
     
     func getAnchorNames(for worldName: String, completion: @escaping ([String]) -> Void) {
-        
-        if worldName == "Bedroom" {
-            print("Deleting 'Bedroom' world.")
-            deleteWorld(roomName: worldName) {
-                print("'Bedroom' world deleted successfully.")
-                completion([]) // Return an empty array since the world was deleted
-            }
-            return
-        }
+
         
         guard let world = savedWorlds.first(where: { $0.name == worldName }) else {
             print("No saved world found with the name: \(worldName)")
@@ -256,7 +181,7 @@ class WorldManager: ObservableObject {
         
         if !FileManager.default.fileExists(atPath: world.filePath.path) {
             print("File not found for \(worldName). Trying CloudKit...")
-            loadWorldMapDataFromCloudKitOnly(roomName: worldName) { cloudMap in
+            iCloudManager.loadWorldMap(roomName: worldName) { cloudMap in
                 guard let cloudMap = cloudMap else {
                     completion([])
                     return
@@ -309,11 +234,35 @@ class WorldManager: ObservableObject {
         // Remove world from the saved list and update JSON file
         savedWorlds.remove(at: index)
         saveWorldList()
-        deleteWorldFromCloudKit(roomName: roomName) {_ in }
+      //  deleteWorldFromCloudKit(roomName: roomName) {_ in }
+        iCloudManager.deleteWorld(roomName: roomName) { error in
+            if let error = error {
+                print("Error deleting world from CloudKit: \(error.localizedDescription)")
+            } else {
+                print("Deleted world \(roomName) from CloudKit.")
+            }
+        }
         
         
     }
     
+    func saveLocallyAfterCloudDownload(roomName: String, data: Data, lastModified: Date) {
+        let filePath = WorldModel.appSupportDirectory.appendingPathComponent("\(roomName)_worldMap")
+        do {
+            try data.write(to: filePath)
+            DispatchQueue.main.async {
+                if let index = self.savedWorlds.firstIndex(where: { $0.name == roomName }) {
+                    self.savedWorlds[index].lastModified = lastModified
+                } else {
+                    self.savedWorlds.append(WorldModel(name: roomName, lastModified: lastModified))
+                }
+                self.saveWorldList()
+                print("World \(roomName) saved locally after CloudKit sync.")
+            }
+        } catch {
+            print("Error saving locally after CloudKit sync: \(error.localizedDescription)")
+        }
+    }
 }
 
 //MARK: Rename and Import
@@ -345,7 +294,7 @@ extension WorldManager {
             print("⚠️ Local file not found for \(currentName). Trying to fetch from iCloud...")
             
             // Fetch from iCloud if local data is unavailable
-            loadWorldMapDataFromCloudKitOnly(roomName: currentName) { [weak self] map in
+            iCloudManager.loadWorldMap(roomName: currentName) { [weak self] map in
                 guard let self = self, let map = map else {
                     print("❌ Failed to fetch \(currentName) from iCloud.")
                     completion?()
@@ -411,41 +360,15 @@ extension WorldManager {
             print("❌ Error saving imported world: \(error.localizedDescription)")
         }
         
-        // Optionally sync to CloudKit
-        self.uploadARWorldMapToCloudKit(roomName: worldName, data: data, lastModified: timestamp) {
-            print("☁️ Synced \(worldName) to CloudKit.")
+        iCloudManager.uploadWorldMap(roomName: worldName, data: data, lastModified: timestamp) {
+            print("Sync to CloudKit complete for \(worldName).")
         }
     }
 }
 
 //MARK: iCloud CRUD
 extension WorldManager {
-    func uploadARWorldMapToCloudKit(roomName: String, data: Data, lastModified: Date, completion: (() -> Void)? = nil) {
-        DispatchQueue.global(qos: .background).async {
-            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(roomName)_tempWorldMap")
-            do {
-                try data.write(to: tempURL)
-                let record = CKRecord(recordType: self.recordType)
-                record["roomName"] = roomName as CKRecordValue
-                record["mapAsset"] = CKAsset(fileURL: tempURL)
-                record["lastModified"] = lastModified as CKRecordValue
-                
-                let privateDB = CKContainer.default().privateCloudDatabase
-                privateDB.save(record) { savedRecord, error in
-                    try? FileManager.default.removeItem(at: tempURL)
-                    if let error = error {
-                        print("Error uploading to CloudKit: \(error.localizedDescription)")
-                    } else {
-                        print("Uploaded \(roomName) to CloudKit.")
-                    }
-                    completion?()
-                }
-            } catch {
-                print("Error writing temp file: \(error.localizedDescription)")
-                completion?()
-            }
-        }
-    }
+
     
     func fetchWorldNamesFromCloudKit(completion: @escaping () -> Void) {
         let privateDB = CKContainer.default().privateCloudDatabase
@@ -469,7 +392,7 @@ extension WorldManager {
                         if let localWorld = self.savedWorlds.first(where: { $0.name == roomName }),
                            lastModified > localWorld.lastModified {
                             print("Cloud data for \(roomName) is newer. Downloading...")
-                            self.loadWorldMapDataFromCloudKitOnly(roomName: roomName) { _ in }
+                            self.iCloudManager.loadWorldMap(roomName: roomName) { _ in }
                         } else if !self.savedWorlds.contains(where: { $0.name == roomName }) {
                             // Add new world from CloudKit if it doesn't exist locally
                             fetchedWorlds.append(WorldModel(name: roomName, lastModified: lastModified))
@@ -542,59 +465,9 @@ extension WorldManager {
         }
     }
     
-    private func loadWorldMapDataFromCloudKitOnly(roomName: String, completion: @escaping (ARWorldMap?) -> Void) {
-        let privateDB = CKContainer.default().privateCloudDatabase
-        let predicate = NSPredicate(format: "roomName == %@", roomName)
-        let query = CKQuery(recordType: recordType, predicate: predicate)
-        
-        privateDB.perform(query, inZoneWith: nil) { records, error in
-            if let error = error as? CKError {
-                print("CloudKit query error: \(error.localizedDescription)")
-                completion(nil)
-                return
-            }
-            
-            guard let record = records?.first,
-                  let asset = record["mapAsset"] as? CKAsset,
-                  let assetFileURL = asset.fileURL else {
-                print("No valid record or asset for \(roomName).")
-                completion(nil)
-                return
-            }
-            
-            do {
-                let data = try Data(contentsOf: assetFileURL)
-                if let unarchivedMap = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: data) {
-                    self.saveLocallyAfterCloudDownload(roomName: roomName, data: data, lastModified: Date())
-                    completion(unarchivedMap)
-                } else {
-                    print("Failed to unarchive ARWorldMap from CloudKit data.")
-                    completion(nil)
-                }
-            } catch {
-                print("Error loading CloudKit asset: \(error.localizedDescription)")
-                completion(nil)
-            }
-        }
-    }
+
     
-    private func saveLocallyAfterCloudDownload(roomName: String, data: Data, lastModified: Date) {
-        let filePath = WorldModel.appSupportDirectory.appendingPathComponent("\(roomName)_worldMap")
-        do {
-            try data.write(to: filePath)
-            DispatchQueue.main.async {
-                if let index = self.savedWorlds.firstIndex(where: { $0.name == roomName }) {
-                    self.savedWorlds[index].lastModified = lastModified
-                } else {
-                    self.savedWorlds.append(WorldModel(name: roomName, lastModified: lastModified))
-                }
-                self.saveWorldList()
-                print("World \(roomName) saved locally after CloudKit sync.")
-            }
-        } catch {
-            print("Error saving locally after CloudKit sync: \(error.localizedDescription)")
-        }
-    }
+
     
     func deleteWorldFromCloudKit(roomName: String, completion: @escaping (Error?) -> Void) {
         let privateDB = CKContainer.default().privateCloudDatabase
@@ -664,3 +537,10 @@ extension WorldManager {
     }
 
 }
+
+
+//MARK: Deprecated iCloud Functions
+#if false
+
+#endif
+

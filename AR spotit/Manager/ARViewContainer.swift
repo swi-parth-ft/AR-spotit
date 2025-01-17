@@ -29,7 +29,7 @@ struct ARViewContainer: UIViewRepresentable {
         configuration.environmentTexturing = .automatic
         sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
         sceneView.automaticallyUpdatesLighting = true
-        sceneView.session.delegate = context.coordinator as? any ARSessionDelegate
+        sceneView.session.delegate = context.coordinator as any ARSessionDelegate
    
         let tapGesture = UITapGestureRecognizer(
             target: context.coordinator,
@@ -85,11 +85,7 @@ struct ARViewContainer: UIViewRepresentable {
             self.worldManager = worldManager
             super.init()
             setupHaptics()
-
             setupScanningZones()
-            
-            
-            
         }
         
         func updateNodeVisibility(in sceneView: ARSCNView) {
@@ -260,6 +256,7 @@ struct ARViewContainer: UIViewRepresentable {
 
             print("No anchor hit detected in node hierarchy.")
         }
+        
         func presentAnchorOptions(anchorName: String, node: SCNNode) {
             let alert = UIAlertController(title: "Anchor Options", message: "Choose an action for the anchor '\(anchorName)'", preferredStyle: .alert)
             
@@ -332,23 +329,6 @@ struct ARViewContainer: UIViewRepresentable {
             }
         }
         
-        func deleteAnchor(anchorName: String, node: SCNNode) {
-            guard let anchor = parent.sceneView.session.currentFrame?.anchors.first(where: { $0.name == anchorName }) else {
-                print("Anchor not found in session.")
-                return
-            }
-            
-            // Remove the anchor
-            parent.sceneView.session.remove(anchor: anchor)
-            node.removeFromParentNode()
-            print("Anchor '\(anchorName)' deleted.")
-            
-            // Optionally, update WorldManager state
-            DispatchQueue.main.async {
-                self.worldManager.deletedAnchors.append(anchor)
-            }
-        }
-        
         func deleteAnchor(anchorName: String) {
             guard let anchor = parent.sceneView.session.currentFrame?.anchors.first(where: { $0.name == anchorName }) else {
                 print("Anchor with name \(anchorName) not found.")
@@ -359,6 +339,7 @@ struct ARViewContainer: UIViewRepresentable {
             parent.sceneView.session.remove(anchor: anchor)
             print("Anchor '\(anchorName)' deleted.")
         }
+        
         func renameAnchor(oldName: String, newName: String) {
             guard let anchor = parent.sceneView.session.currentFrame?.anchors.first(where: { $0.name == oldName }) else {
                 print("Anchor with name \(oldName) not found.")
@@ -384,7 +365,6 @@ struct ARViewContainer: UIViewRepresentable {
             parent.sceneView.session.remove(anchor: anchor)
             print("Anchor '\(anchorName)' prepared for moving.")
         }
-        
         
         private func setupScanningZones() {
             let origin = matrix_identity_float4x4 // Identity at origin
@@ -600,6 +580,7 @@ struct ARViewContainer: UIViewRepresentable {
                     print("Failed to play haptic pattern: \(error)")
                 }
             }
+        
         func updateAnchorLighting(intensity: CGFloat, temperature: CGFloat) {
             let normalizedIntensity = min(max(intensity / 1000.0, 0.2), 2.0) // Normalize between 0.2 and 2.0
 
@@ -614,10 +595,11 @@ struct ARViewContainer: UIViewRepresentable {
                 node.light?.intensity = normalizedIntensity * 1000
             }
         }
+        
         func session(_ session: ARSession, didUpdate frame: ARFrame) {
             
             if let lightEstimate = frame.lightEstimate {
-                   if lightEstimate.ambientIntensity < 200.0 { // Example threshold for low light
+                   if lightEstimate.ambientIntensity < 100.0 { // Example threshold for low light
                        Drops.show("Low light detected. Turn on flash.")
                    }
                }
@@ -681,11 +663,6 @@ struct ARViewContainer: UIViewRepresentable {
                 return
             }
             lastUpdateTime = Date()
-           
-          //  print("Updated ARMeshAnchor with identifier: \(meshAnchor.identifier)")
-            
-            // Optionally, you can update or merge the mesh geometry here if you wish.
-            // We'll just demonstrate extracting the vertices into a point cloud.
             
             if !isLoading {
                 let meshGeometry = meshAnchor.geometry
@@ -821,99 +798,6 @@ struct ARViewContainer: UIViewRepresentable {
             }
         }
         
-        func createArrowNode() -> SCNNode {
-            // Shaft
-            let cylinder = SCNCylinder(radius: 0.02, height: 0.1)
-            cylinder.firstMaterial?.diffuse.contents = UIColor.red
-            let shaftNode = SCNNode(geometry: cylinder)
-            shaftNode.position = SCNVector3(0, 0.05, 0)
-            
-            // Head
-            let cone = SCNCone(topRadius: 0.0, bottomRadius: 0.04, height: 0.08)
-            cone.firstMaterial?.diffuse.contents = UIColor.red
-            let headNode = SCNNode(geometry: cone)
-            headNode.position = SCNVector3(0, 0.14, 0)
-            
-            // Combine
-            let arrowNode = SCNNode()
-            arrowNode.addChildNode(shaftNode)
-            arrowNode.addChildNode(headNode)
-            
-            // Rotate so arrow is along -Z by default
-            arrowNode.eulerAngles.x = -.pi / 2
-            
-            return arrowNode
-        }
-        
-        func placeArrowInFrontOfCamera(targetPosition: SIMD3<Float>) {
-            guard let currentFrame = parent.sceneView.session.currentFrame else {
-                print("No current AR frame available.")
-                return
-            }
-            // Camera transform
-            let camTransform = currentFrame.camera.transform
-            let camPos = SIMD3<Float>(camTransform.columns.3.x,
-                                      camTransform.columns.3.y,
-                                      camTransform.columns.3.z)
-            // Forward is -Z
-            let forwardDir = normalize(SIMD3<Float>(-camTransform.columns.2.x,
-                                                    -camTransform.columns.2.y,
-                                                    -camTransform.columns.2.z))
-            // Place arrow ~1m in front
-            let arrowPos = camPos + (forwardDir * 1.0)
-            
-            let arrowNode = createArrowNode()
-            arrowNode.position = SCNVector3(arrowPos.x, arrowPos.y, arrowPos.z)
-            parent.sceneView.scene.rootNode.addChildNode(arrowNode)
-            currentArrowNode = arrowNode
-            
-            // Point toward desired zone
-            pointArrowToward(arrowNode, targetPosition: targetPosition)
-        }
-        
-        func ensureArrowInView(_ arrowNode: SCNNode, targetPosition: SIMD3<Float>) {
-            guard let currentFrame = parent.sceneView.session.currentFrame else { return }
-            
-            let cameraTransform = currentFrame.camera.transform
-            let forwardDirection = normalize(SIMD3<Float>(-cameraTransform.columns.2.x,
-                                                          -cameraTransform.columns.2.y,
-                                                          -cameraTransform.columns.2.z))
-            let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x,
-                                              cameraTransform.columns.3.y,
-                                              cameraTransform.columns.3.z)
-            let adjustedPosition = cameraPosition + (forwardDirection * 1.0)
-            arrowNode.position = SCNVector3(adjustedPosition.x, adjustedPosition.y, adjustedPosition.z)
-            
-            pointArrowToward(arrowNode, targetPosition: targetPosition)
-        }
-        
-        func pointArrowToward(_ arrowNode: SCNNode, targetPosition: SIMD3<Float>) {
-            let arrowPosition = SIMD3<Float>(arrowNode.position.x, arrowNode.position.y, arrowNode.position.z)
-            let direction = normalize(targetPosition - arrowPosition)
-            
-            // Build a transform that looks down negative Z = direction
-            var transform = matrix_identity_float4x4
-            transform.columns.2 = SIMD4<Float>(-direction.x, -direction.y, -direction.z, 0)
-            // Keep Y as global up or a cross-based approach, depending on your needs:
-            transform.columns.1 = SIMD4<Float>(0, 1, 0, 0)
-            // Recompute X as cross(Y, Z)
-            transform.columns.0 = SIMD4<Float>(
-                direction.y * transform.columns.1.z - direction.z * transform.columns.1.y,
-                direction.z * transform.columns.1.x - direction.x * transform.columns.1.z,
-                direction.x * transform.columns.1.y - direction.y * transform.columns.1.x,
-                0
-            )
-            transform.columns.3 = SIMD4<Float>(arrowPosition, 1)
-            
-            arrowNode.transform = SCNMatrix4(transform)
-        }
-        
-        func removeArrow() {
-            currentArrowNode?.removeFromParentNode()
-            currentArrowNode = nil
-            print("Arrow removed.")
-        }
-        
         func addJumpingAnimation(to node: SCNNode, basedOn distance: Float) {
             // We need the node's name to track it in our dictionaries
             guard let anchorName = node.name else { return }
@@ -1046,35 +930,4 @@ extension ARViewContainer {
     }
 }
 
-// Simple checks for emoji
-extension String {
-    var containsEmoji: Bool {
-        return unicodeScalars.contains { $0.properties.isEmojiPresentation }
-    }
 
-}
-
-extension Character {
-    var isEmoji: Bool {
-        return self.unicodeScalars.contains { scalar in
-            scalar.properties.isEmoji ||
-            (scalar.value >= 0x1F600 && scalar.value <= 0x1F64F) || // Emoticons
-            (scalar.value >= 0x1F300 && scalar.value <= 0x1F5FF) || // Misc Symbols and Pictographs
-            (scalar.value >= 0x1F680 && scalar.value <= 0x1F6FF) || // Transport and Map
-            (scalar.value >= 0x2600 && scalar.value <= 0x26FF) ||   // Misc Symbols
-            (scalar.value >= 0x2700 && scalar.value <= 0x27BF) ||   // Dingbats
-            (scalar.value >= 0xFE00 && scalar.value <= 0xFE0F) ||   // Variation Selectors
-            (scalar.value >= 0x1F900 && scalar.value <= 0x1F9FF) || // Supplemental Symbols and Pictographs
-            (scalar.value >= 0x1F1E6 && scalar.value <= 0x1F1FF)    // Flags
-        }
-    }
-}
-
-// Helper to build translation matrices
-extension matrix_float4x4 {
-    static func translation(_ t: SIMD3<Float>) -> matrix_float4x4 {
-        var result = matrix_identity_float4x4
-        result.columns.3 = SIMD4<Float>(t.x, t.y, t.z, 1.0)
-        return result
-    }
-}
