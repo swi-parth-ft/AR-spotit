@@ -10,7 +10,8 @@ struct ContentView: View {
     @State private var showAnchorList = false
     @State private var newRoom = ""
     var sceneView = ARSCNView()
-
+    @State private var audioEngine = AVAudioEngine()
+       @State private var audioPlayer = AVAudioPlayerNode()
     
     @State private var currentInstruction: String = "Start scanning the Front Wall."
     @State private var progress: Float = 0.0
@@ -23,7 +24,7 @@ struct ContentView: View {
     @Binding var isShowingFocusedAnchor: Bool
    @State private var isAddingNewAnchor: Bool = false
     
-  
+    @State private var shouldPlay = false
        // Function to toggle flashlight
        private func toggleFlashlight() {
            guard let device = AVCaptureDevice.default(for: .video), device.hasTorch else {
@@ -109,11 +110,15 @@ struct ContentView: View {
                                     anchorName: $currentAnchorName,
                                     worldManager: worldManager,
                                     findAnchor: findAnchor,
-                                    showFocusedAnchor: $isShowingFocusedAnchor)
+                                    showFocusedAnchor: $isShowingFocusedAnchor,
+                                    shouldPlay: $shouldPlay)
                     .onAppear {
                         if findAnchor != "" {
                             worldManager.isShowingAll = false
                         }
+                    }
+                    .onDisappear {
+                        shouldPlay = false
                     }
                     .edgesIgnoringSafeArea(.all)
                     
@@ -172,20 +177,7 @@ struct ContentView: View {
                             
                             Spacer()
                             HStack {
-                                VStack {
-                                    Button {
-                                        toggleFlashlight()
-                                    } label: {
-                                        
-                                            Image(systemName: isFlashlightOn ? "flashlight.on.fill" : "flashlight.off.fill")
-                                            .foregroundStyle(.black)
-                                            .frame(width: 50, height: 50)
-                                            .background(Color.white)
-                                            .cornerRadius(25)
-                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                           
-                                           
-                                    }
+                                VStack(spacing: 10) {
                                     
                                     Button {
                                      //   worldManager.isAddingAnchor.toggle()
@@ -199,21 +191,92 @@ struct ContentView: View {
                                             .shadow(color: Color.white.opacity(0.5), radius: 10)
                                            
                                     }
+
+                                    
                                     
                                     Button {
-                                      //  isShowingFocusedAnchor.toggle()
-                                        worldManager.isShowingAll.toggle()
+                                        toggleFlashlight()
                                     } label: {
-                                        Image(systemName: "circle.hexagongrid.fill")
-                                            .foregroundStyle(.black)
-                                            .frame(width: 50, height: 50)
-                                            .background(Color.white)
-                                            .cornerRadius(25)
-                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                        ZStack {
+                                            if !isFlashlightOn {
+                                                // White ring when flashlight is ON
+                                                Circle()
+                                                    .stroke(Color.white, lineWidth: 4)
+                                                    .frame(width: 48, height: 48)
+                                            } else {
+                                                // Solid white background when flashlight is OFF
+                                                Circle()
+                                                    .fill(Color.white)
+                                                    .frame(width: 50, height: 50)
+                                            }
+                                            // Flashlight icon
+                                            Image(systemName: isFlashlightOn ? "flashlight.on.fill" : "flashlight.off.fill")
+                                                .foregroundStyle(isFlashlightOn ? .black : .white)
+                                        }
+                                    }
+                                    .shadow(color: Color.white.opacity(0.5), radius: 10)
+
+                                    
+                                    
+
+                                        
                                            
+                                    
+                                    if findAnchor != "" {
+                                        
+                                        Button {
+                                          //  isShowingFocusedAnchor.toggle()
+                                            worldManager.isShowingAll.toggle()
+                                        } label: {
+                                            
+                                            ZStack {
+                                                if !worldManager.isShowingAll {
+                                                    // White ring when flashlight is ON
+                                                    Circle()
+                                                        .stroke(Color.white, lineWidth: 4)
+                                                        .frame(width: 48, height: 48)
+                                                } else {
+                                                    // Solid white background when flashlight is OFF
+                                                    Circle()
+                                                        .fill(Color.white)
+                                                        .frame(width: 50, height: 50)
+                                                }
+                                                // Flashlight icon
+                                                Image(systemName: worldManager.isShowingAll ? "circle.hexagongrid.fill" : "circle.hexagongrid")
+                                                    .foregroundStyle(worldManager.isShowingAll ? .black : .white)
+                                            }
+                                        }
+                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                        
+                                        Button {
+                                            shouldPlay.toggle()
+                                        } label: {
+                                            
+                                            ZStack {
+                                                if !shouldPlay {
+                                                    // White ring when flashlight is ON
+                                                    Circle()
+                                                        .stroke(Color.white, lineWidth: 4)
+                                                        .frame(width: 48, height: 48)
+                                                } else {
+                                                    // Solid white background when flashlight is OFF
+                                                    Circle()
+                                                        .fill(Color.white)
+                                                        .frame(width: 50, height: 50)
+                                                }
+                                                // Flashlight icon
+                                                Image(systemName: shouldPlay ? "speaker.2.fill" : "speaker.2")
+                                                    .foregroundStyle(shouldPlay ? .black : .white)
+                                            }
+                                            
+                                            
+                                        }
+                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
+
                                     }
                                 }
                                 .padding()
+                               
                                 Spacer()
                             }
                             Spacer()
@@ -225,7 +288,7 @@ struct ContentView: View {
                                 HStack {
                          
                                     Button {
-                                        
+                                        shouldPlay = false
                                         findAnchor = ""
                                         
                                         
@@ -284,6 +347,7 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
+                        shouldPlay = false
                         dismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")

@@ -19,6 +19,8 @@ struct WorldsView: View {
     @State private var showFocusedAnchor: Bool = false
     @State private var isRenaming = false
     @State private var currentName = ""
+    @State private var isTestingAudio = false
+    
     func extractEmoji(from string: String) -> String? {
         for char in string {
                 if char.isEmoji {
@@ -205,6 +207,14 @@ struct WorldsView: View {
                         .font(.title2)
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
+                
+                Button {
+                    isTestingAudio.toggle()
+                } label: {
+                    Image(systemName: "ladybug.fill")
+                        .font(.title2)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+                }
             }
             .sheet(item: $selectedWorld) { world in
                 ContentView(
@@ -224,6 +234,9 @@ struct WorldsView: View {
                         .presentationDetents([.fraction(0.4)])
               //  }
             }
+            .sheet(isPresented: $isTestingAudio, content: {
+                SpatialAudioDebugView()
+            })
             .onChange(of: worldManager.reload) {
                 print("reloaded")
             }

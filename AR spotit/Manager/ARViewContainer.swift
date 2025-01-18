@@ -2,6 +2,8 @@ import SwiftUI
 import ARKit
 import CoreHaptics
 import Drops
+import AVFoundation
+
 
 struct ARViewContainer: UIViewRepresentable {
     let sceneView: ARSCNView
@@ -12,6 +14,20 @@ struct ARViewContainer: UIViewRepresentable {
     @State private var tempAnchor: ARAnchor? // For moving the anchor
 
     @Binding var showFocusedAnchor: Bool
+    
+    @Binding var shouldPlay: Bool
+    // Audio properties
+       private let audioEngine = AVAudioEngine()
+       private let audioPlayer = AVAudioPlayerNode()
+       private let audioEnvironmentNode = AVAudioEnvironmentNode()
+    @State private var findAnchorReference: ARAnchor?
+
+    private func stopAudio() {
+        audioPlayer.stop()
+          audioEngine.stop()
+          print("Audio stopped.")
+      }
+    
     func makeUIView(context: Context) -> ARSCNView {
         sceneView.delegate = context.coordinator
         
@@ -44,15 +60,70 @@ struct ARViewContainer: UIViewRepresentable {
         
         sceneView.addGestureRecognizer(tapGesture)
         
+       // setupAudio()
+        
         return sceneView
     }
     
     func updateUIView(_ uiView: ARSCNView, context: Context) {
     }
     
+    
+ 
+    
     func makeCoordinator() -> Coordinator {
         Coordinator(self, worldManager: worldManager)
     }
+    
+    private func setupAudio() {
+        configureAudioSession()
+
+        
+            // Load the audio file
+            guard let audioFileURL = Bundle.main.url(forResource: "ping", withExtension: "mp3"),
+                  let audioFile = try? AVAudioFile(forReading: audioFileURL) else {
+                print("Audio file not found.")
+                return
+            }
+
+            // Attach nodes
+            audioEngine.attach(audioPlayer)
+            audioEngine.attach(audioEnvironmentNode)
+
+            // Connect nodes
+            audioEngine.connect(audioPlayer, to: audioEnvironmentNode, format: nil)
+            audioEngine.connect(audioEnvironmentNode, to: audioEngine.mainMixerNode, format: nil)
+
+            // Start audio engine
+        do {
+            try audioEngine.start()
+        } catch {
+            print("Failed to start audio engine: \(error)")
+        }
+        // Loop the audio file indefinitely
+            func scheduleAudio() {
+                audioPlayer.scheduleFile(audioFile, at: nil, completionHandler: {
+                    scheduleAudio() // Recursively schedule audio
+                })
+            }
+
+            scheduleAudio()
+            audioPlayer.play()
+        }
+    
+    private func configureAudioSession() {
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            // Use playback category and spatial mode
+            try audioSession.setCategory(.playback)
+            try audioSession.setActive(true)
+            print("Audio session configured for spatial audio.")
+        } catch {
+            print("Failed to configure audio session: \(error)")
+        }
+    }
+    
+  
     
     class Coordinator: NSObject, ARSCNViewDelegate, ARSessionDelegate, Sendable {
         private var lastAnimationUpdateTime: Date = Date()
@@ -79,6 +150,8 @@ struct ARViewContainer: UIViewRepresentable {
 
         private var nodeBasePositions = [String: SCNVector3]()
         private var nodeJumpHeights = [String: Float]()
+        private var isAudioPlaying = true
+
         
         init(_ parent: ARViewContainer, worldManager: WorldManager) {
             self.parent = parent
@@ -631,6 +704,7 @@ struct ARViewContainer: UIViewRepresentable {
                                               anchor.transform.columns.3.z)
             let distance = simd_distance(cameraPosition, anchorPosition)
             let clampedDistance = max(0.1, min(distance, 5.0)) // Clamp distance
+            let direction = anchorPosition - cameraPosition
 
             // Turn distance into a pulsing interval
             let interval = pulseInterval(for: clampedDistance)
@@ -640,7 +714,44 @@ struct ARViewContainer: UIViewRepresentable {
                 playDub()
                 nextPulseTime = Date().addingTimeInterval(interval)
             }
-
+            
+            if parent.shouldPlay {
+                
+                if !isAudioPlaying {
+                    isAudioPlaying = true
+                    parent.setupAudio()
+                    
+                }
+                // Update audio position
+                // Update the listener's position to match the camera
+                parent.audioEnvironmentNode.listenerPosition = AVAudio3DPoint(
+                    x: cameraPosition.x,
+                    y: cameraPosition.y,
+                    z: cameraPosition.z
+                )
+                
+                parent.audioEnvironmentNode.distanceAttenuationParameters.distanceAttenuationModel = .exponential
+                parent.audioEnvironmentNode.distanceAttenuationParameters.referenceDistance = 1.0 // Reference for volume
+                parent.audioEnvironmentNode.distanceAttenuationParameters.maximumDistance = 10.0
+                parent.audioEnvironmentNode.distanceAttenuationParameters.rolloffFactor = 1.0
+                parent.audioEnvironmentNode.listenerPosition = AVAudio3DPoint(x: 0, y: 0, z: 0)
+                
+                // Update the audio source's position to match the anchor
+                parent.audioEnvironmentNode.position = AVAudio3DPoint(
+                    x: direction.x,
+                    y: direction.y,
+                    z: direction.z
+                )
+                
+                // Adjust volume based on distance
+                parent.audioPlayer.volume = max(0.1, 1.0 - (distance / 2.0))
+            } else {
+                if isAudioPlaying {
+                    isAudioPlaying = false
+                      DispatchQueue.global(qos: .background).async {
+                          self.parent.stopAudio()
+                      }
+                  }            }
             guard let node = anchorNodes[anchor.name ?? ""] else {
                 return
             }
@@ -777,10 +888,13 @@ struct ARViewContainer: UIViewRepresentable {
                 case .normal:
                     print("Relocalization complete. Ready to add guide anchors.")
                     worldIsLoaded = true
+                  
+
                     try? await Task.sleep(nanoseconds: 500_000_000)
                     DispatchQueue.main.async {
                         withAnimation(.easeIn(duration: 1)) {
                             self.worldManager.isRelocalizationComplete = true
+
                         }
                     }
                 case .limited(.relocalizing):
