@@ -188,6 +188,10 @@ struct WorldsView: View {
               
                     }
                 }
+                .onAppear {
+                    worldManager.loadSavedWorlds()
+          
+                }
                 .padding(.top)
                 .sheet(isPresented: $isRenaming) {
                     
@@ -223,7 +227,7 @@ struct WorldsView: View {
                     findAnchor: $findingAnchorName,
                     isShowingFocusedAnchor: $showFocusedAnchor
                 )
-                .interactiveDismissDisabled()
+//                .interactiveDismissDisabled()
 
             }
             .sheet(isPresented: $isAddingNewRoom) {

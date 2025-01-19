@@ -39,3 +39,17 @@ extension matrix_float4x4 {
         return result
     }
 }
+
+
+
+extension BinaryFloatingPoint {
+    var degreesToRadians: Self {
+        return self * .pi / 180
+    }
+}
+
+extension BinaryInteger {
+    var degreesToRadians: Double {
+        return Double(self) * .pi / 180
+    }
+}

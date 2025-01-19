@@ -22,28 +22,28 @@ class WorldManager: ObservableObject {
     @Published var reload = false
     
     init() {
-        
-        loadSavedWorlds()
-        
-        fetchWorldNamesFromCloudKit {
-            print("Data synced with CloudKit.")
-            
-            for world in self.savedWorlds {
-                self.getAnchorNames(for: world.name) { anchorNames in
-                    DispatchQueue.main.async {
-                        self.cachedAnchorNames[world.name] = anchorNames
-                    }
-                }
-                
-                if !FileManager.default.fileExists(atPath: world.filePath.path) {
-                    print("Fetching missing data for world: \(world.name)")
-                    
-                    self.iCloudManager.loadWorldMap(roomName: world.name) { _ in
-                        print("Fetched and saved \(world.name) locally.")
-                    }
-                }
-            }
-        }
+//        
+//        loadSavedWorlds()
+//        
+//        fetchWorldNamesFromCloudKit {
+//            print("Data synced with CloudKit.")
+//            
+//            for world in self.savedWorlds {
+//                self.getAnchorNames(for: world.name) { anchorNames in
+//                    DispatchQueue.main.async {
+//                        self.cachedAnchorNames[world.name] = anchorNames
+//                    }
+//                }
+//                
+//                if !FileManager.default.fileExists(atPath: world.filePath.path) {
+//                    print("Fetching missing data for world: \(world.name)")
+//                    
+//                    self.iCloudManager.loadWorldMap(roomName: world.name) { _ in
+//                        print("Fetched and saved \(world.name) locally.")
+//                    }
+//                }
+//            }
+//        }
     }
     
     func saveWorldMap(for roomName: String, sceneView: ARSCNView) {
@@ -59,7 +59,8 @@ class WorldManager: ObservableObject {
             } else {
                 self.savedWorlds.append(WorldModel(name: roomName, lastModified: timestamp))
             }
-            
+            sceneView.session.pause()
+            reload.toggle()
             let world = self.savedWorlds.first { $0.name == roomName }!
             
             do {
@@ -146,7 +147,7 @@ class WorldManager: ObservableObject {
         }
     }
     
-    private func loadSavedWorlds() {
+    func loadSavedWorlds() {
         let fileURL = WorldModel.appSupportDirectory.appendingPathComponent("worldsList.json")
         do {
             let data = try Data(contentsOf: fileURL)
@@ -168,6 +169,27 @@ class WorldManager: ObservableObject {
                 print("No saved world list found or failed to decode: \(error.localizedDescription)")
             }
         }
+        
+        
+             fetchWorldNamesFromCloudKit {
+                 print("Data synced with CloudKit.")
+     
+                 for world in self.savedWorlds {
+                     self.getAnchorNames(for: world.name) { anchorNames in
+                         DispatchQueue.main.async {
+                             self.cachedAnchorNames[world.name] = anchorNames
+                         }
+                     }
+     
+                     if !FileManager.default.fileExists(atPath: world.filePath.path) {
+                         print("Fetching missing data for world: \(world.name)")
+     
+                         self.iCloudManager.loadWorldMap(roomName: world.name) { _ in
+                             print("Fetched and saved \(world.name) locally.")
+                         }
+                     }
+                 }
+             }
     }
     
     func getAnchorNames(for worldName: String, completion: @escaping ([String]) -> Void) {

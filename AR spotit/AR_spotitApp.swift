@@ -17,6 +17,7 @@ struct AR_spotitApp: App {
     var body: some Scene {
         WindowGroup {
             WorldsView()
+                .environmentObject(worldManager)
                 .onOpenURL { url in
                                     handleIncomingWorldFile(url)
                                 }

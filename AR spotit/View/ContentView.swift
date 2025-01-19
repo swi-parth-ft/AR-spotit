@@ -25,78 +25,8 @@ struct ContentView: View {
    @State private var isAddingNewAnchor: Bool = false
     
     @State private var shouldPlay = false
-       // Function to toggle flashlight
-       private func toggleFlashlight() {
-           guard let device = AVCaptureDevice.default(for: .video), device.hasTorch else {
-               print("Flashlight not available on this device")
-               return
-           }
-           
-           do {
-               try device.lockForConfiguration()
-               if isFlashlightOn {
-                   device.torchMode = .off
-               } else {
-                   try device.setTorchModeOn(level: 1.0) // Maximum brightness
-               }
-               isFlashlightOn.toggle()
-               device.unlockForConfiguration()
-           } catch {
-               print("Failed to toggle flashlight: \(error)")
-           }
-       }
-    func extractEmoji(from string: String) -> String? {
-        for char in string {
-                if char.isEmoji {
-                    return String(char)
-                }
-            }
-            return nil
-    }
-    
-    func shareWorld() {
-        guard let world = worldManager.savedWorlds.first(where: { $0.name == currentRoomName }) else {
-            print("No world found with name \(currentRoomName).")
-            return
-        }
-
-        let sourceFilePath = world.filePath
-        guard FileManager.default.fileExists(atPath: sourceFilePath.path) else {
-            print("World map file not found.")
-            return
-        }
-
-        // Move file to a shareable location
-        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let destinationURL = documentsURL.appendingPathComponent("\(currentRoomName)_worldMap.worldmap")
-
-        do {
-            if FileManager.default.fileExists(atPath: destinationURL.path) {
-                try FileManager.default.removeItem(at: destinationURL)
-            }
-            try FileManager.default.copyItem(at: sourceFilePath, to: destinationURL)
-            print("File ready for sharing at: \(destinationURL)")
-
-            // Present the share sheet
-            let activityController = UIActivityViewController(activityItems: [destinationURL], applicationActivities: nil)
-            
-            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-               let rootViewController = windowScene.windows.first?.rootViewController {
-                DispatchQueue.main.async {
-                    if let presentedVC = rootViewController.presentedViewController {
-                        presentedVC.dismiss(animated: false) {
-                            rootViewController.present(activityController, animated: true, completion: nil)
-                        }
-                    } else {
-                        rootViewController.present(activityController, animated: true, completion: nil)
-                    }
-                }
-            }
-        } catch {
-            print("Error preparing file for sharing: \(error.localizedDescription)")
-        }
-    }
-    
+   @State private var isEditingAnchor: Bool = false
+    @State private var nameOfAnchorToEdit: String = ""
     
     var body: some View {
         NavigationStack {
@@ -111,7 +41,9 @@ struct ContentView: View {
                                     worldManager: worldManager,
                                     findAnchor: findAnchor,
                                     showFocusedAnchor: $isShowingFocusedAnchor,
-                                    shouldPlay: $shouldPlay)
+                                    shouldPlay: $shouldPlay,
+                                    isEditingAnchor: $isEditingAnchor,
+                                    nameOfAnchorToEdit: $nameOfAnchorToEdit)
                     .onAppear {
                         if findAnchor != "" {
                             worldManager.isShowingAll = false
@@ -120,6 +52,7 @@ struct ContentView: View {
                     .onDisappear {
                         shouldPlay = false
                     }
+                    
                     .edgesIgnoringSafeArea(.all)
                     
                    
@@ -291,7 +224,13 @@ struct ContentView: View {
                                         shouldPlay = false
                                         findAnchor = ""
                                         
-                                        
+                                        if audioPlayer.isPlaying {
+                                               audioPlayer.stop()
+                                           }
+                                           if audioEngine.isRunning {
+                                               audioEngine.stop()
+                                               audioEngine.reset()
+                                           }
                                         guard !currentRoomName.isEmpty else { return }
                                         worldManager.saveWorldMap(for: currentRoomName, sceneView: sceneView)
                                         
@@ -325,6 +264,9 @@ struct ContentView: View {
                 
                 
             }
+            .onAppear {
+                worldManager.loadSavedWorlds()
+            }
             .onChange(of: worldManager.scannedZones) {
                 updateScanningProgress()
             }
@@ -342,12 +284,43 @@ struct ContentView: View {
                     .presentationDetents([.fraction(0.6)])
 
             }
+            .sheet(isPresented: $isEditingAnchor) {
+                EditAnchorView(
+                    anchorName: $nameOfAnchorToEdit,
+                    onDelete: { anchorName in
+                        // 1️⃣ Access the Coordinator via sceneView.delegate
+                        if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
+                            coordinator.deleteAnchor(anchorName: anchorName)
+                        }
+                        // Optionally dismiss the sheet:
+                        isEditingAnchor = false
+                    },
+                    onMove: { anchorName in
+                        if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
+                            coordinator.prepareToMoveAnchor(anchorName: anchorName)
+                        }
+                        // Optionally dismiss the sheet:
+                        isEditingAnchor = false
+                    },
+                    onRename: { oldName, newName in
+                        if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
+                            coordinator.renameAnchor(oldName: oldName, newName: newName)
+                        }
+                        // Optionally dismiss the sheet:
+                        isEditingAnchor = false
+                    }
+                )
+                .presentationDetents([.fraction(0.6)])
+
+            }
         //    .navigationTitle(currentRoomName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
+                        
                         shouldPlay = false
+                        sceneView.session.pause()
                         dismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
@@ -389,7 +362,77 @@ struct ContentView: View {
         }
        
     }
-    
+    // Function to toggle flashlight
+    private func toggleFlashlight() {
+        guard let device = AVCaptureDevice.default(for: .video), device.hasTorch else {
+            print("Flashlight not available on this device")
+            return
+        }
+        
+        do {
+            try device.lockForConfiguration()
+            if isFlashlightOn {
+                device.torchMode = .off
+            } else {
+                try device.setTorchModeOn(level: 1.0) // Maximum brightness
+            }
+            isFlashlightOn.toggle()
+            device.unlockForConfiguration()
+        } catch {
+            print("Failed to toggle flashlight: \(error)")
+        }
+    }
+ func extractEmoji(from string: String) -> String? {
+     for char in string {
+             if char.isEmoji {
+                 return String(char)
+             }
+         }
+         return nil
+ }
+ 
+ func shareWorld() {
+     guard let world = worldManager.savedWorlds.first(where: { $0.name == currentRoomName }) else {
+         print("No world found with name \(currentRoomName).")
+         return
+     }
+
+     let sourceFilePath = world.filePath
+     guard FileManager.default.fileExists(atPath: sourceFilePath.path) else {
+         print("World map file not found.")
+         return
+     }
+
+     // Move file to a shareable location
+     let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+     let destinationURL = documentsURL.appendingPathComponent("\(currentRoomName)_worldMap.worldmap")
+
+     do {
+         if FileManager.default.fileExists(atPath: destinationURL.path) {
+             try FileManager.default.removeItem(at: destinationURL)
+         }
+         try FileManager.default.copyItem(at: sourceFilePath, to: destinationURL)
+         print("File ready for sharing at: \(destinationURL)")
+
+         // Present the share sheet
+         let activityController = UIActivityViewController(activityItems: [destinationURL], applicationActivities: nil)
+         
+         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+            let rootViewController = windowScene.windows.first?.rootViewController {
+             DispatchQueue.main.async {
+                 if let presentedVC = rootViewController.presentedViewController {
+                     presentedVC.dismiss(animated: false) {
+                         rootViewController.present(activityController, animated: true, completion: nil)
+                     }
+                 } else {
+                     rootViewController.present(activityController, animated: true, completion: nil)
+                 }
+             }
+         }
+     } catch {
+         print("Error preparing file for sharing: \(error.localizedDescription)")
+     }
+ }
     private func updateScanningProgress() {
         DispatchQueue.main.async {
             let totalZones = Float(worldManager.scanningZones.count)

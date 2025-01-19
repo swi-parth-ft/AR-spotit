@@ -295,96 +295,112 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "4CB26657-4624-4D07-A064-A334570A2C46"
+            uuid = "70CE5F9F-90BD-485F-A7B3-F5F9E60DDCB4"
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "AR spotit/Manager/ARViewContainer.swift"
+            filePath = "AR spotit/View/ContentView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "747"
-            endingLineNumber = "747"
-            landmarkName = "session(_:didUpdate:)"
+            startingLineNumber = "252"
+            endingLineNumber = "252"
+            landmarkName = "body"
+            landmarkType = "24">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "91A7EB92-FE21-4E3A-9599-09AFB805E6F3"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "AR spotit/View/ContentView.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "275"
+            endingLineNumber = "275"
+            landmarkName = "body"
+            landmarkType = "24">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "947B5CD9-CC83-4E47-A611-4143338FE7DB"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "AR spotit/View/ContentView.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "14"
+            endingLineNumber = "14"
+            landmarkName = "ContentView"
+            landmarkType = "14">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "E7EE2CC6-4118-427E-8A5C-538DC4006F1B"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "AR spotit/Manager/WorldManager.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "134"
+            endingLineNumber = "134"
+            landmarkName = "loadWorldMap(for:sceneView:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "056172E4-836A-47D1-819C-8E67A3754321"
+            uuid = "3FDB6680-88E6-4332-8795-8D2D4AB4F594"
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "AR spotit/Manager/ARViewContainer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "726"
-            endingLineNumber = "726"
-            landmarkName = "session(_:didUpdate:)"
+            startingLineNumber = "1054"
+            endingLineNumber = "1054"
+            landmarkName = "session(_:cameraDidChangeTrackingState:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "E3B3EA47-503A-4F3D-8CAD-5E72F12A82A5"
+            uuid = "AC7C590B-7E12-4140-BA6D-EFF4FDD41849"
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "AR spotit/Manager/ARViewContainer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "714"
-            endingLineNumber = "714"
-            landmarkName = "session(_:didUpdate:)"
+            startingLineNumber = "1069"
+            endingLineNumber = "1069"
+            landmarkName = "session(_:cameraDidChangeTrackingState:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "411C9088-3C7C-4FF0-ABFA-DB3A3EC049E2"
+            uuid = "BF5A2B61-BFB5-45C8-8F12-6C3AF8A26085"
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "AR spotit/Manager/ARViewContainer.swift"
+            filePath = "AR spotit/Manager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "120"
-            endingLineNumber = "120"
-            landmarkName = "configureAudioSession()"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "E8A1ACF4-2C63-4132-9E5C-35B90D0E3B99"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "AR spotit/Manager/ARViewContainer.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "122"
-            endingLineNumber = "122"
-            landmarkName = "configureAudioSession()"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "561AB05B-74E2-49D1-81D1-DAF7D1C83740"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "AR spotit/Manager/ARViewContainer.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "123"
-            endingLineNumber = "123"
-            landmarkName = "configureAudioSession()"
+            startingLineNumber = "82"
+            endingLineNumber = "82"
+            landmarkName = "loadWorldMap(for:sceneView:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

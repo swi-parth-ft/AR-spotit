@@ -22,6 +22,9 @@ struct ARViewContainer: UIViewRepresentable {
        private let audioEnvironmentNode = AVAudioEnvironmentNode()
     @State private var findAnchorReference: ARAnchor?
 
+    @Binding var isEditingAnchor: Bool
+    @Binding var nameOfAnchorToEdit: String
+    
     private func stopAudio() {
         audioPlayer.stop()
           audioEngine.stop()
@@ -46,7 +49,8 @@ struct ARViewContainer: UIViewRepresentable {
         sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
         sceneView.automaticallyUpdatesLighting = true
         sceneView.session.delegate = context.coordinator as any ARSessionDelegate
-   
+     //   sceneView.antialiasingMode = .multisampling4X
+        //sceneView.scene.lightingEnvironment.intensity = 0.1 // Lower the intensity for a darker environment
         let tapGesture = UITapGestureRecognizer(
             target: context.coordinator,
             action: #selector(context.coordinator.handleTap(_:))
@@ -56,10 +60,13 @@ struct ARViewContainer: UIViewRepresentable {
             target: context.coordinator,
             action: #selector(context.coordinator.handleLongPress(_:))
         )
+        
+        
         sceneView.addGestureRecognizer(longPressGesture)
         
         sceneView.addGestureRecognizer(tapGesture)
         
+       
        // setupAudio()
         
         return sceneView
@@ -72,7 +79,11 @@ struct ARViewContainer: UIViewRepresentable {
  
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(self, worldManager: worldManager)
+        let coordinator = Coordinator(self, worldManager: worldManager)
+//        coordinator.createImageFromLabel = { text, font, textColor, backgroundColor, size in
+//            self.imageFromLabel(text: text, font: font, textColor: textColor, backgroundColor: backgroundColor, size: size)
+//        }
+        return coordinator
     }
     
     private func setupAudio() {
@@ -152,6 +163,7 @@ struct ARViewContainer: UIViewRepresentable {
         private var nodeJumpHeights = [String: Float]()
         private var isAudioPlaying = true
 
+
         
         init(_ parent: ARViewContainer, worldManager: WorldManager) {
             self.parent = parent
@@ -160,6 +172,8 @@ struct ARViewContainer: UIViewRepresentable {
             setupHaptics()
             setupScanningZones()
         }
+        
+        
         
         func updateNodeVisibility(in sceneView: ARSCNView) {
                     let allNodes = sceneView.scene.rootNode.childNodes
@@ -321,7 +335,10 @@ struct ARViewContainer: UIViewRepresentable {
             while let node = currentNode {
                 if let name = node.name {
                     print("Found anchor with name: \(name)")
-                    presentAnchorOptions(anchorName: name, node: node)
+                    parent.nameOfAnchorToEdit = name
+                    parent.isEditingAnchor = true
+                    
+                  //  presentAnchorOptions(anchorName: name, node: node)
                     return
                 }
                 currentNode = node.parent
@@ -518,13 +535,168 @@ struct ARViewContainer: UIViewRepresentable {
             
             print("Visualizing anchor with name: \(anchorName)")
             
+            
+            
             // 1) Show sphere or emoji
             let emoji = parent.extractEmoji(from: anchorName)
             if let emoji = emoji {
+                let glassEmojiNode = createGlassEmojiNode(emoji: emoji)
+                   node.addChildNode(glassEmojiNode)
                 // If an emoji is present, create a flat plane with the emoji
-                let emojiFont = UIFont.systemFont(ofSize: 100)
-                let emojiSize = CGSize(width: 100, height: 100)
-                guard let emojiImage = parent.imageFromLabel(
+
+            } else {
+                let sphereGeometry = SCNSphere(radius: 0.03)
+                sphereGeometry.firstMaterial?.diffuse.contents = UIColor.white
+                let sphereNode = SCNNode(geometry: sphereGeometry)
+                node.addChildNode(sphereNode)
+            }
+//
+            
+            
+                        let cleanAnchorName = anchorName.filter { !$0.isEmoji }
+                        
+                        // Make an image for the text
+                        let labelFont: UIFont = {
+                            if let descriptor = UIFontDescriptor
+                                .preferredFontDescriptor(withTextStyle: .title2)
+                                .withDesign(.rounded) {
+                                
+                                // Example: size 30
+                                return UIFont(descriptor: descriptor, size: 30)
+                            } else {
+                                // Fallback if .rounded not available
+                                return UIFont.systemFont(ofSize: 30)
+                            }
+                        }()
+                        
+                        let imageSize = CGSize(width: 400, height: 120)
+            DispatchQueue.global(qos: .userInitiated).async {
+                
+                guard let labelImage = self.parent.imageFromLabel(
+                    text: cleanAnchorName,
+                    font: labelFont,
+                    textColor: .white,
+                    backgroundColor: .clear,
+                    size: imageSize
+                ) else {
+                    print("Failed to create label image.")
+                    return
+                }
+                //
+                // Create a plane for the text
+                let planeWidth: CGFloat = 0.3
+                let planeHeight: CGFloat = 0.09 // a bit shorter than the width
+                let textPlane = SCNPlane(width: planeWidth, height: planeHeight)
+                
+                let textMaterial = SCNMaterial()
+                textMaterial.diffuse.contents = labelImage
+                textMaterial.isDoubleSided = true
+                textMaterial.lightingModel = .constant
+
+                textPlane.materials = [textMaterial]
+                
+                let textNode = SCNNode(geometry: textPlane)
+                // Position above the emoji or sphere
+                textNode.position = SCNVector3(0, 0.07, 0)
+                
+                // Let the text face camera
+                let billboardConstraint = SCNBillboardConstraint()
+                billboardConstraint.freeAxes = .Y
+                textNode.constraints = [billboardConstraint]
+                
+                node.addChildNode(textNode)
+            }
+//
+//            let cleanName = anchorName.filter { !$0.isEmoji }
+//             guard !cleanName.isEmpty else { return }
+//             
+//            //  Create the 3D text node
+//             let textNode = create3DTextNode(
+//                 cleanName,
+//                 fontSize: 30,
+//                 extrusion: 2,       // try bigger to get more "paint tube" look
+//                 chamfer: 200,          // bigger chamfer for rounder edges
+//                 color: .white   // or your favorite color
+//             )
+//             textNode.position = SCNVector3(0, 0.07, 0)
+//             
+//             // Make text face the camera (if desired)
+//             let billboardConstraint = SCNBillboardConstraint()
+//             billboardConstraint.freeAxes = .Y
+//             textNode.constraints = [billboardConstraint]
+             
+      //       node.addChildNode(textNode)
+            let spotlightNode = SCNNode()
+            let spotlight = SCNLight()
+            spotlight.type = .spot
+            spotlight.spotInnerAngle = 30
+            spotlight.spotOuterAngle = 60
+            spotlight.intensity = 50
+            spotlight.temperature = 10000
+        
+            spotlight.castsShadow = true // Enable shadows for better visual impact
+
+            spotlightNode.light = spotlight
+            spotlightNode.position = SCNVector3(0, 1, 0) // Above and slightly forward
+            spotlightNode.eulerAngles = SCNVector3(-Float.pi / 2, 0, 0) // Point downward
+            node.addChildNode(spotlightNode)
+        
+//            if anchorName == "Fishing rod 🎣" {
+//                let audioSource = SCNAudioSource(fileNamed: "Morse.aiff")!
+//                audioSource.loops = true
+//                audioSource.isPositional = true
+//                
+//                // Decode the audio from disk ahead of time to prevent a delay in playback
+//                audioSource.load()
+//                node.addAudioPlayer(SCNAudioPlayer(source: audioSource))
+//
+//            }
+           
+          //  addVolumetricSpotlightAbove(node)
+            
+//            if anchor.name == parent.findAnchor {
+//                addVolumetricSpotlightAbove(node)
+//                }
+            let shouldHide = !worldManager.isShowingAll && (anchorName != parent.findAnchor)
+      
+                node.isHidden = shouldHide
+            
+        }
+       
+        
+        
+        
+        func createGlassEmojiNode(
+            emoji: String,
+            bubbleRadius: CGFloat = 0.05  // Radius of the glass sphere
+        ) -> SCNNode {
+            let parentNode = SCNNode()
+
+            // Glass sphere
+            let sphereGeometry = SCNSphere(radius: bubbleRadius)
+            let glassMaterial = SCNMaterial()
+            glassMaterial.lightingModel = .physicallyBased
+            glassMaterial.diffuse.contents = UIColor.clear // Clear base color
+
+            glassMaterial.metalness.contents = 0.0
+            glassMaterial.roughness.contents = 0.05
+            glassMaterial.diffuse.contents = UIColor(white: 1, alpha: 0.05)
+            glassMaterial.transparency = 0.2
+            glassMaterial.transparencyMode = .dualLayer
+            glassMaterial.writesToDepthBuffer = false // Prevent depth conflicts
+            sphereGeometry.materials = [glassMaterial]
+
+            let sphereNode = SCNNode(geometry: sphereGeometry)
+            sphereNode.renderingOrder = 0
+
+            parentNode.addChildNode(sphereNode)
+
+            // Emoji plane inside the sphere
+            DispatchQueue.global(qos: .userInitiated).async {
+                let emojiFont = UIFont.systemFont(ofSize: 70)
+                let emojiSize = CGSize(width: 70, height: 70)
+                
+                guard let emojiImage = self.parent.imageFromLabel(
                     text: emoji,
                     font: emojiFont,
                     textColor: .black,
@@ -535,85 +707,78 @@ struct ARViewContainer: UIViewRepresentable {
                     return
                 }
                 
-                let planeSize: CGFloat = 0.1
-                let emojiPlane = SCNPlane(width: planeSize, height: planeSize)
-                let emojiMaterial = SCNMaterial()
-                emojiMaterial.diffuse.contents = emojiImage
-                emojiMaterial.isDoubleSided = true
-                emojiPlane.materials = [emojiMaterial]
-                
-                let emojiNode = SCNNode(geometry: emojiPlane)
-                emojiNode.position = SCNVector3(0, 0, 0)
-                
-                // Make it face the camera
-                let billboardConstraint = SCNBillboardConstraint()
-                billboardConstraint.freeAxes = .Y
-                emojiNode.constraints = [billboardConstraint]
-                
-                node.addChildNode(emojiNode)
-            } else {
-                let sphereGeometry = SCNSphere(radius: 0.03)
-                sphereGeometry.firstMaterial?.diffuse.contents = UIColor.white
-                let sphereNode = SCNNode(geometry: sphereGeometry)
-                node.addChildNode(sphereNode)
-            }
-            
-            // 2) “Frosted glass” panel above
-            let panelWidth: CGFloat = 0.3
-            let panelHeight: CGFloat = 0.1
-            let cornerRadius: CGFloat = 0.02
-            let extrusionDepth: CGFloat = 0.01
-            
-            let rect = CGRect(x: -panelWidth/2, y: -panelHeight/2, width: panelWidth, height: panelHeight)
-            let roundedRectPath = UIBezierPath(roundedRect: rect, cornerRadius: cornerRadius)
-            
-            let panelGeometry = SCNShape(path: roundedRectPath, extrusionDepth: extrusionDepth)
-            let panelMaterial = SCNMaterial()
-            panelMaterial.diffuse.contents = UIColor(white: 1.0, alpha: 0.6)
-            panelMaterial.isDoubleSided = true
-            panelGeometry.materials = [panelMaterial]
-            
-            let panelNode = SCNNode(geometry: panelGeometry)
-            let verticalOffset: Float = 0.15
-            panelNode.position = SCNVector3(0, 0.05 + verticalOffset, 0)
-            let billboardConstraint = SCNBillboardConstraint()
-            billboardConstraint.freeAxes = .Y
-            panelNode.constraints = [billboardConstraint]
-            node.addChildNode(panelNode)
-            
-            // 3) Text plane
-            let cleanAnchorName = anchorName.filter { !$0.isEmoji }
-            let displayString = "\(cleanAnchorName)"
-            let font = UIFont(name: "AppleColorEmoji", size: 20) ?? UIFont.systemFont(ofSize: 50)
-            let imageSize = CGSize(width: 200, height: 100)
-            guard let labelImage = parent.imageFromLabel(
-                text: displayString,
-                font: font,
-                textColor: .black,
-                backgroundColor: .clear,
-                size: imageSize
-            ) else {
-                print("Failed to create label image")
-                return
-            }
-            
-            let textPlaneGeometry = SCNPlane(width: panelWidth, height: panelHeight)
-            let textMaterial = SCNMaterial()
-            textMaterial.diffuse.contents = labelImage
-            textMaterial.isDoubleSided = true
-            textPlaneGeometry.materials = [textMaterial]
-            
-            let textPlaneNode = SCNNode(geometry: textPlaneGeometry)
-            textPlaneNode.position = SCNVector3(0, 0, extrusionDepth + 0.001)
-            panelNode.addChildNode(textPlaneNode)
-            
-            print(parent.findAnchor)
+                DispatchQueue.main.async {
+                    let planeSize: CGFloat = bubbleRadius * 1
+                    let emojiPlane = SCNPlane(width: planeSize, height: planeSize)
+                    let emojiMaterial = SCNMaterial()
+                    emojiMaterial.diffuse.contents = emojiImage
+                    emojiMaterial.lightingModel = .constant // Ensure emoji ignores scene lighting
 
+                    emojiMaterial.isDoubleSided = true
+                    emojiPlane.materials = [emojiMaterial]
+                    
+                    let emojiNode = SCNNode(geometry: emojiPlane)
+                    emojiNode.position = SCNVector3(0, 0, 0.01)
+                    emojiNode.renderingOrder = 1
+                    // Make the emoji plane face the camera
+                    let billboardConstraint = SCNBillboardConstraint()
+                    billboardConstraint.freeAxes = .Y
+                    emojiNode.constraints = [billboardConstraint]
+                    
+                    parentNode.addChildNode(emojiNode)
+                }
+            }
+
+            return parentNode
+        }
+        func create3DTextNode(
+            _ text: String,
+            fontSize: CGFloat = 60,
+            extrusion: CGFloat = 5,
+            chamfer: CGFloat = 2,
+            color: UIColor = .systemBlue
+        ) -> SCNNode {
+            // (A) Create an SCNText geometry
+            let scnText = SCNText(string: text, extrusionDepth: extrusion)
             
-            let shouldHide = !worldManager.isShowingAll && (anchorName != parent.findAnchor)
-      
-                node.isHidden = shouldHide
+            // Use a rounded SF font (fallback if not available)
+            if let desc = UIFontDescriptor.preferredFontDescriptor(withTextStyle: .title1)
+                .withDesign(.rounded) {
+                scnText.font = UIFont(descriptor: desc, size: fontSize)
+            } else {
+            //    scnText.font = UIFont.systemFont(ofSize: fontSize)
+            }
             
+            // (B) Optional: round edges
+            scnText.chamferRadius = chamfer
+          //  scnText.chamferMode = .both  // Round front & back edges
+             //   scnText.flatness = 0.0
+            // (C) Material for the text
+            let material = SCNMaterial()
+            material.diffuse.contents = color
+            material.lightingModel = .physicallyBased
+            material.metalness.contents = 0    // 0 = non-metal, 1 = fully metallic
+            material.roughness.contents = 0.15   // lower roughness => more reflective
+            scnText.materials = [material]
+            
+            // (D) Create a node from the text geometry
+            let textNode = SCNNode(geometry: scnText)
+            
+            // (E) SCNText is sized in *points*. For AR, we usually scale down.
+            // For example, scaling to 1/1000 or 1/500 of the default size.
+            textNode.scale = SCNVector3(0.001, 0.001, 0.001)
+            
+            // (F) Center the text around (0,0,0) by adjusting the pivot
+            // after boundingBox is calculated
+            DispatchQueue.main.async {
+                let (minBox, maxBox) = textNode.boundingBox
+                let dx = maxBox.x - minBox.x
+                let dy = maxBox.y - minBox.y
+                let dz = maxBox.z - minBox.z
+                textNode.pivot = SCNMatrix4MakeTranslation(dx / 2, dy / 2, dz / 2)
+            }
+            
+            return textNode
         }
 
         private func pulseInterval(for distance: Float) -> TimeInterval {
@@ -673,7 +838,7 @@ struct ARViewContainer: UIViewRepresentable {
             
             if let lightEstimate = frame.lightEstimate {
                    if lightEstimate.ambientIntensity < 100.0 { // Example threshold for low light
-                       Drops.show("Low light detected. Turn on flash.")
+                     //  Drops.show("Low light detected. Turn on flash.")
                    }
                }
             

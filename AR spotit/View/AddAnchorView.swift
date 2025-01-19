@@ -18,7 +18,7 @@ struct AddAnchorView: View {
     @State private var isSelectingEmoji = false
     @State private var selectedEmoji: EmojiDetails? = {
           let emojis = loadEmojis()
-          return emojis.first { $0.id == "🎣" } // Set the default emoji to 😀
+          return emojis.first { $0.id == "🎣" }
       }()
     var body: some View {
         NavigationStack {
