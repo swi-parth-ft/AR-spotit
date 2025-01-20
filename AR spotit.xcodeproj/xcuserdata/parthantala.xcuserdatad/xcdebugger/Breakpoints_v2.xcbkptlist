@@ -366,8 +366,8 @@
             filePath = "AR spotit/Manager/ARViewContainer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "1054"
-            endingLineNumber = "1054"
+            startingLineNumber = "973"
+            endingLineNumber = "973"
             landmarkName = "session(_:cameraDidChangeTrackingState:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -382,8 +382,8 @@
             filePath = "AR spotit/Manager/ARViewContainer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "1069"
-            endingLineNumber = "1069"
+            startingLineNumber = "988"
+            endingLineNumber = "988"
             landmarkName = "session(_:cameraDidChangeTrackingState:)"
             landmarkType = "7">
          </BreakpointContent>

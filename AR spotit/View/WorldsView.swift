@@ -20,6 +20,14 @@ struct WorldsView: View {
     @State private var isRenaming = false
     @State private var currentName = ""
     @State private var isTestingAudio = false
+    @State private var searchText = "" // New State for Search Text
+    @State private var sortingOption: SortingOption = .name // Sorting Option
+
+    
+    enum SortingOption {
+         case name
+         case lastModified
+     }
     
     func extractEmoji(from string: String) -> String? {
         for char in string {
@@ -28,6 +36,39 @@ struct WorldsView: View {
                 }
             }
             return nil
+    }
+    
+    var filteredWorlds: [WorldModel] {
+        
+        let sortedWorlds: [WorldModel]
+             switch sortingOption {
+             case .name:
+                 sortedWorlds = worldManager.savedWorlds.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+             case .lastModified:
+                 sortedWorlds = worldManager.savedWorlds.sorted { $0.lastModified > $1.lastModified }
+             }
+        
+        
+        if searchText.isEmpty {
+                   return sortedWorlds
+               } else {
+                   return sortedWorlds.filter { world in
+                       world.name.localizedCaseInsensitiveContains(searchText) ||
+                       (anchorsByWorld[world.name]?.contains(where: { $0.localizedCaseInsensitiveContains(searchText) }) ?? false)
+                   }
+               }
+    }
+
+    func filteredAnchors(for worldName: String) -> [String] {
+        if searchText.isEmpty {
+                return anchorsByWorld[worldName] ?? [] // Show all anchors when search is empty
+            }
+        // If searchText matches the worldName, return all anchors for this world
+        if worldName.localizedCaseInsensitiveContains(searchText) {
+            return anchorsByWorld[worldName] ?? []
+        }
+        // Otherwise, filter anchors by searchText
+        return (anchorsByWorld[worldName]?.filter { $0.localizedCaseInsensitiveContains(searchText) }) ?? []
     }
     
     init() {
@@ -54,7 +95,7 @@ struct WorldsView: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    ForEach(worldManager.savedWorlds) { world in
+                    ForEach(filteredWorlds) { world in
                         VStack(alignment: .leading, spacing: 10) {
                             // Room Title
                             HStack {
@@ -68,7 +109,7 @@ struct WorldsView: View {
                                     worldManager.isShowingAll = true
                                     selectedWorld = world // Set the selected world
                                 }) {
-                                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                    Image(systemName: "arkit")
                                         .font(.title)
                                         .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 }
@@ -124,11 +165,12 @@ struct WorldsView: View {
                                 LazyVGrid(columns: columns, spacing: 10) {
                                     if let anchors = anchorsByWorld[world.name], !anchors.isEmpty {
                                         // Filter out "guide" anchors
-                                        let nonGuideAnchors = anchors.filter { $0 != "guide" }
-                                   
                                         
+                                   
+                                        let anchors = filteredAnchors(for: world.name)
+                                        let filteredAnchors = anchors.filter { $0 != "guide" }
                                         // Show non-guide anchors
-                                        ForEach(Array(nonGuideAnchors.enumerated()), id: \.0) { index, anchorName in
+                                        ForEach(Array(filteredAnchors.enumerated()), id: \.0) { index, anchorName in
                                             VStack {
                                                     // Extract and display the emoji if present
                                                 let emoji = extractEmoji(from: anchorName)
@@ -138,6 +180,7 @@ struct WorldsView: View {
                                                 let cleanAnchorName = anchorName.filter { !$0.isEmoji }
                                                     Text(cleanAnchorName)
                                                     .font(.system(.headline, design: .rounded))
+                                                    .multilineTextAlignment(.center)
                                                     .bold()
                                                         .foregroundStyle(.white)
                                                        
@@ -201,9 +244,24 @@ struct WorldsView: View {
                         
                 }
             }
-         
+            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic)) // Add Searchable Modifier
+
             .navigationTitle("My Things")
             .toolbar {
+                Menu {
+                    Button("Name", systemImage: "textformat.size.larger") {
+                                            sortingOption = .name
+                                        }
+                    .tint(colorScheme == .dark ? .white : .black)
+                    Button("Date", systemImage: "calendar") {
+                                            sortingOption = .lastModified
+                                        }
+                    .tint(colorScheme == .dark ? .white : .black)
+                                    } label: {
+                                        Label("Sort", systemImage: "arrow.up.arrow.down")
+                                    }
+                                    .tint(colorScheme == .dark ? .white : .black)
+                
                 Button {
                     isAddingNewRoom.toggle()
                 } label: {
@@ -220,7 +278,9 @@ struct WorldsView: View {
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
             }
-            .sheet(item: $selectedWorld) { world in
+            .sheet(item: $selectedWorld, onDismiss: {
+                worldManager.loadSavedWorlds()
+            }) { world in
                 ContentView(
                     currentRoomName: world.name,
                     directLoading: true,

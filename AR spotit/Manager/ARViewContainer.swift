@@ -91,7 +91,7 @@ struct ARViewContainer: UIViewRepresentable {
 
         
             // Load the audio file
-            guard let audioFileURL = Bundle.main.url(forResource: "ping", withExtension: "mp3"),
+            guard let audioFileURL = Bundle.main.url(forResource: "Morse", withExtension: "aiff"),
                   let audioFile = try? AVAudioFile(forReading: audioFileURL) else {
                 print("Audio file not found.")
                 return
@@ -114,7 +114,9 @@ struct ARViewContainer: UIViewRepresentable {
         // Loop the audio file indefinitely
             func scheduleAudio() {
                 audioPlayer.scheduleFile(audioFile, at: nil, completionHandler: {
-                    scheduleAudio() // Recursively schedule audio
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                scheduleAudio() // Recursively schedule audio with a delay
+                            }
                 })
             }
 
@@ -347,78 +349,6 @@ struct ARViewContainer: UIViewRepresentable {
             print("No anchor hit detected in node hierarchy.")
         }
         
-        func presentAnchorOptions(anchorName: String, node: SCNNode) {
-            let alert = UIAlertController(title: "Anchor Options", message: "Choose an action for the anchor '\(anchorName)'", preferredStyle: .alert)
-            
-            alert.addAction(UIAlertAction(title: "Rename", style: .default, handler: { _ in
-                self.promptForNewName(oldName: anchorName)
-            }))
-            
-            alert.addAction(UIAlertAction(title: "Delete", style: .destructive, handler: { _ in
-                self.deleteAnchor(anchorName: anchorName)
-            }))
-            
-            alert.addAction(UIAlertAction(title: "Move", style: .default, handler: { _ in
-                self.prepareToMoveAnchor(anchorName: anchorName)
-            }))
-            
-            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
-            
-            DispatchQueue.main.async {
-                if let windowScene = UIApplication.shared.connectedScenes
-                    .filter({ $0.activationState == .foregroundActive })
-                    .first as? UIWindowScene,
-                   let rootViewController = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController {
-                    
-                    // Find the top-most view controller
-                    var topController = rootViewController
-                    while let presentedController = topController.presentedViewController {
-                        topController = presentedController
-                    }
-                    
-                    topController.present(alert, animated: true, completion: nil)
-                } else {
-                    print("No active window to present the alert.")
-                }
-            }
-        }
-        
-        func promptForNewName(oldName: String) {
-            let alert = UIAlertController(title: "Rename Anchor", message: "Enter a new name for the anchor.", preferredStyle: .alert)
-            
-            alert.addTextField { textField in
-                textField.placeholder = "New anchor name"
-            }
-            
-            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
-            
-            alert.addAction(UIAlertAction(title: "Rename", style: .default, handler: { _ in
-                if let newName = alert.textFields?.first?.text, !newName.isEmpty {
-                    self.renameAnchor(oldName: oldName, newName: newName)
-                } else {
-                    print("Invalid name. Rename aborted.")
-                }
-            }))
-            
-            DispatchQueue.main.async {
-                if let windowScene = UIApplication.shared.connectedScenes
-                    .filter({ $0.activationState == .foregroundActive })
-                    .first as? UIWindowScene,
-                   let rootViewController = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController {
-                    
-                    // Find the top-most view controller
-                    var topController = rootViewController
-                    while let presentedController = topController.presentedViewController {
-                        topController = presentedController
-                    }
-                    
-                    topController.present(alert, animated: true, completion: nil)
-                } else {
-                    print("No active window to present the alert.")
-                }
-            }
-        }
-        
         func deleteAnchor(anchorName: String) {
             guard let anchor = parent.sceneView.session.currentFrame?.anchors.first(where: { $0.name == anchorName }) else {
                 print("Anchor with name \(anchorName) not found.")
@@ -491,13 +421,6 @@ struct ARViewContainer: UIViewRepresentable {
                         }
                         print("\(zoneName) scanned after 2 seconds.")
                     }
-                } else if !worldManager.scannedZones.contains(zoneName) {
-                    // If not scanned yet, show arrow pointing to that zone
-//                    if currentArrowNode == nil {
-//                        placeArrowInFrontOfCamera(targetPosition: zonePosition)
-//                    } else {
-//                        ensureArrowInView(currentArrowNode!, targetPosition: zonePosition)
-//                    }
                 }
             }
         }
@@ -660,6 +583,8 @@ struct ARViewContainer: UIViewRepresentable {
             let shouldHide = !worldManager.isShowingAll && (anchorName != parent.findAnchor)
       
                 node.isHidden = shouldHide
+            
+           
             
         }
        
@@ -923,12 +848,6 @@ struct ARViewContainer: UIViewRepresentable {
             DispatchQueue.main.async {
                 self.addJumpingAnimation(to: node, basedOn: clampedDistance)
             }
-          //
-//            // Add jumping animation
-//            guard let node = parent.sceneView.scene.rootNode.childNode(withName: anchor.name ?? "", recursively: true) else {
-//                return
-//            }
-//            addJumpingAnimation(to: node, basedOn: clampedDistance)
         }
         
         func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
@@ -1042,7 +961,7 @@ struct ARViewContainer: UIViewRepresentable {
         
         private func adjustMaxGuideAnchors(basedOn planeAnchor: ARPlaneAnchor) {
             let area = planeAnchor.extent.x * planeAnchor.extent.z
-            let newMax = Int(area * 15)
+            let newMax = Int(area * 10)
             print("Adjusted max guide anchors to \(newMax) based on plane size.")
         }
         
