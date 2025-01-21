@@ -8,25 +8,27 @@
 import SwiftUI
 
 struct AddNewRoom: View {
-    @State private var roomName = ""
+    @Binding var roomName: String
     @State private var selectedWorld: WorldModel?
     @State private var isShowingGuide: Bool = false
     @Environment(\.colorScheme) var colorScheme
-    init() {
-            var titleFont = UIFont.preferredFont(forTextStyle: .largeTitle) /// the default large title font
-            titleFont = UIFont(
-                descriptor:
-                    titleFont.fontDescriptor
-                    .withDesign(.rounded)? /// make rounded
-                    .withSymbolicTraits(.traitBold) /// make bold
-                    ??
-                    titleFont.fontDescriptor, /// return the normal title if customization failed
-                size: titleFont.pointSize
-            )
-            
-            /// set the rounded font
-            UINavigationBar.appearance().largeTitleTextAttributes = [.font: titleFont]
-        }
+    @Environment(\.dismiss) var dismiss
+
+//    init() {
+//            var titleFont = UIFont.preferredFont(forTextStyle: .largeTitle) /// the default large title font
+//            titleFont = UIFont(
+//                descriptor:
+//                    titleFont.fontDescriptor
+//                    .withDesign(.rounded)? /// make rounded
+//                    .withSymbolicTraits(.traitBold) /// make bold
+//                    ??
+//                    titleFont.fontDescriptor, /// return the normal title if customization failed
+//                size: titleFont.pointSize
+//            )
+//            
+//            /// set the rounded font
+//            UINavigationBar.appearance().largeTitleTextAttributes = [.font: titleFont]
+//        }
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading) {
@@ -43,7 +45,8 @@ struct AddNewRoom: View {
                     .padding(.horizontal)
                 
                 Button {
-                    selectedWorld = WorldModel(name: roomName)
+                    dismiss()
+                    //selectedWorld = WorldModel(name: roomName)
                 } label: {
                     Text("Next")
                         .font(.system(.headline, design: .rounded))
@@ -58,9 +61,9 @@ struct AddNewRoom: View {
                 .padding(.horizontal)
             }
             .navigationTitle("New Area")
-            .sheet(item: $selectedWorld) { world in
-                ContentView(currentRoomName: world.name, directLoading: false, findAnchor: .constant(""), isShowingFocusedAnchor: .constant(false))
-            }
+//            .sheet(item: $selectedWorld) { world in
+//                ContentView(currentRoomName: world.name, directLoading: false, findAnchor: .constant(""), isShowingFocusedAnchor: .constant(false))
+//            }
             .sheet(isPresented: $isShowingGuide) {
                 RoomScanGuideView()
             }
@@ -79,5 +82,5 @@ struct AddNewRoom: View {
 }
 
 #Preview {
-    AddNewRoom()
+    AddNewRoom(roomName: .constant(" "))
 }

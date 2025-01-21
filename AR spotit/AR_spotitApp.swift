@@ -28,7 +28,7 @@ struct AR_spotitApp: App {
     var body: some Scene {
         WindowGroup {
             WorldsView()
-                .environmentObject(worldManager)
+             //   .environmentObject(worldManager)
                 .onOpenURL { url in
                                     handleIncomingWorldFile(url)
                                 }
@@ -43,6 +43,7 @@ struct AR_spotitApp: App {
     }
 
     private func handleIncomingWorldFile(_ url: URL) {
+        
         // Make sure it’s the right type (e.g., .arworld, .worldmap, etc.)
         guard url.pathExtension == "arworld" || url.pathExtension == "worldmap" else {
             print("Unknown file type: \(url.pathExtension)")

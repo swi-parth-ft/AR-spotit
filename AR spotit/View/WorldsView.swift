@@ -5,7 +5,7 @@ struct WorldsView: View {
     
   
     
-    @ObservedObject var worldManager = WorldManager()
+    @StateObject var worldManager = WorldManager()
     @State private var selectedWorld: WorldModel? // Track which world is selected for adding anchors
     @State private var anchorsByWorld: [String: [String]] = [:] // Track anchors for each world
     let columns = [
@@ -25,7 +25,8 @@ struct WorldsView: View {
     @State private var sortingOption: SortingOption = .name // Sorting Option
 
     @ObservedObject var appState = AppState.shared // Observe AppState
-
+    @State private var roomName: String = ""
+@State private var updateRoomName: String?
     enum SortingOption {
          case name
          case lastModified
@@ -108,6 +109,7 @@ struct WorldsView: View {
                                 
                                 Spacer()
                                 Button(action: {
+                                    updateRoomName = world.name
                                     worldManager.isShowingAll = true
                                     selectedWorld = world // Set the selected world
                                 }) {
@@ -253,12 +255,11 @@ struct WorldsView: View {
                     worldManager.loadSavedWorlds()
           
                 }
-                .onChange(of: appState.isWorldUpdated) {
+                .onChange(of: AppState.shared.isWorldUpdated) {
                     worldManager.loadSavedWorlds()
-                
 
-                    
                 }
+    
                 .padding(.top)
                 .sheet(isPresented: $isRenaming) {
                     
@@ -304,6 +305,14 @@ struct WorldsView: View {
             }
             .sheet(item: $selectedWorld, onDismiss: {
                 worldManager.loadSavedWorlds()
+                
+                if let anchorsToUpdate = updateRoomName {
+                    worldManager.getAnchorNames(for: anchorsToUpdate) { fetchedAnchors in
+                        DispatchQueue.main.async {
+                            anchorsByWorld[anchorsToUpdate] = fetchedAnchors
+                        }
+                    }
+                }
             }) { world in
                 ContentView(
                     currentRoomName: world.name,
@@ -314,11 +323,13 @@ struct WorldsView: View {
                 .interactiveDismissDisabled()
 
             }
-            .sheet(isPresented: $isAddingNewRoom) {
+            .sheet(isPresented: $isAddingNewRoom, onDismiss: {
+                selectedWorld = WorldModel(name: roomName)
+            }) {
                 
 //                    RoomScanGuideView()
 //                } else {
-                    AddNewRoom()
+                AddNewRoom(roomName: $roomName)
                         .presentationDetents([.fraction(0.4)])
               //  }
             }
