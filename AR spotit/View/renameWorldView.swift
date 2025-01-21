@@ -32,7 +32,13 @@ struct renameWorldView: View {
                 
                 Button {
                     worldManager.renameWorld(currentName: worldName, newName: newName) {
-                       
+                        
+                        DispatchQueue.main.async {
+                                AppState.shared.isWorldUpdated.toggle() // Notify WorldsView
+                            }// Notify WorldsView
+                        
+                        let drop = Drop.init(title: "Renamed \(worldName) to \(newName)")
+                        Drops.show(drop)
                         dismiss()
                                
                     }

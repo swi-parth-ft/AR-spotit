@@ -277,6 +277,8 @@ struct ARViewContainer: UIViewRepresentable {
                 let anchor = ARAnchor(name: name, transform: result.worldTransform)
                 sceneView.session.add(anchor: anchor)
                 print("Placed anchor with name: \(name) at position: \(result.worldTransform.columns.3)")
+                let drop = Drop.init(title: "\(name) placed")
+                Drops.show(drop)
                 worldManager.isAddingAnchor = false
             } else {
                 if parent.tempAnchor != nil {
@@ -308,6 +310,8 @@ struct ARViewContainer: UIViewRepresentable {
                             let newAnchor = ARAnchor(name: tempAnchor.name ?? "defaultAnchor", transform: result.worldTransform)
                             sceneView.session.add(anchor: newAnchor)
                             parent.tempAnchor = nil
+                        let drop = Drop.init(title: "\(tempAnchor.name ?? "") moved")
+                        Drops.show(drop)
                             print("Anchor moved to new position.")
                         } else {
                             print("No anchor to move.")
@@ -357,6 +361,8 @@ struct ARViewContainer: UIViewRepresentable {
             
 
             parent.sceneView.session.remove(anchor: anchor)
+            let drop = Drop.init(title: "\(anchorName) deleted")
+            Drops.show(drop)
             print("Anchor '\(anchorName)' deleted.")
         }
         
@@ -370,7 +376,8 @@ struct ARViewContainer: UIViewRepresentable {
             let newAnchor = ARAnchor(name: newName, transform: anchor.transform)
             parent.sceneView.session.remove(anchor: anchor)
             parent.sceneView.session.add(anchor: newAnchor)
-            
+            let drop = Drop.init(title: "Renamed from \(oldName) to \(newName)")
+            Drops.show(drop)
             print("Anchor renamed from \(oldName) to \(newName).")
         }
         
@@ -384,6 +391,8 @@ struct ARViewContainer: UIViewRepresentable {
             parent.tempAnchor = anchor
             parent.sceneView.session.remove(anchor: anchor)
             print("Anchor '\(anchorName)' prepared for moving.")
+            let drop = Drop.init(title: "Tap new location to move \(anchorName)")
+            Drops.show(drop)
         }
         
         private func setupScanningZones() {

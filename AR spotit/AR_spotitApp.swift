@@ -8,6 +8,17 @@
 import SwiftUI
 import SwiftData
 
+
+class AppState: ObservableObject {
+    static let shared = AppState() // Singleton instance
+    @Published var isWorldUpdated: Bool = false {
+        didSet {
+            print("isWorldUpdated changed to: \(isWorldUpdated)")
+        }
+    }
+}
+
+
 @main
 struct AR_spotitApp: App {
 

@@ -285,6 +285,51 @@ class WorldManager: ObservableObject {
             print("Error saving locally after CloudKit sync: \(error.localizedDescription)")
         }
     }
+    
+    
+    func shareWorld(currentRoomName: String) {
+        guard let world = savedWorlds.first(where: { $0.name == currentRoomName }) else {
+            print("No world found with name \(currentRoomName).")
+            return
+        }
+
+        let sourceFilePath = world.filePath
+        guard FileManager.default.fileExists(atPath: sourceFilePath.path) else {
+            print("World map file not found.")
+            return
+        }
+
+        // Move file to a shareable location
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let destinationURL = documentsURL.appendingPathComponent("\(currentRoomName)_worldMap.worldmap")
+
+        do {
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                try FileManager.default.removeItem(at: destinationURL)
+            }
+            try FileManager.default.copyItem(at: sourceFilePath, to: destinationURL)
+            print("File ready for sharing at: \(destinationURL)")
+
+            // Present the share sheet
+            let activityController = UIActivityViewController(activityItems: [destinationURL], applicationActivities: nil)
+            
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let rootViewController = windowScene.windows.first?.rootViewController {
+                DispatchQueue.main.async {
+                    if let presentedVC = rootViewController.presentedViewController {
+                        presentedVC.dismiss(animated: false) {
+                            rootViewController.present(activityController, animated: true, completion: nil)
+                        }
+                    } else {
+                        rootViewController.present(activityController, animated: true, completion: nil)
+                    }
+                }
+            }
+        } catch {
+            print("Error preparing file for sharing: \(error.localizedDescription)")
+        }
+    }
+
 }
 
 //MARK: Rename and Import

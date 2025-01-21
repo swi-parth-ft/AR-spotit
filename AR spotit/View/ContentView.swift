@@ -1,6 +1,8 @@
 import SwiftUI
 import ARKit
 import AVFoundation
+import Drops
+
 struct ContentView: View {
     
     @Environment(\.dismiss) var dismiss
@@ -28,6 +30,7 @@ struct ContentView: View {
    @State private var isEditingAnchor: Bool = false
     @State private var nameOfAnchorToEdit: String = ""
     
+
     var body: some View {
         NavigationStack {
             
@@ -51,6 +54,14 @@ struct ContentView: View {
                     }
                     .onDisappear {
                         shouldPlay = false
+                        
+                        if audioPlayer.isPlaying {
+                               audioPlayer.stop()
+                           }
+                           if audioEngine.isRunning {
+                               audioEngine.stop()
+                               audioEngine.reset()
+                           }
                     }
                     
                     .edgesIgnoringSafeArea(.all)
@@ -160,6 +171,8 @@ struct ContentView: View {
                                         Button {
                                           //  isShowingFocusedAnchor.toggle()
                                             worldManager.isShowingAll.toggle()
+                                            let drop = Drop.init(title: worldManager.isShowingAll ? "Showing all items" : "Showing \(findAnchor) only")
+                                            Drops.show(drop)
                                         } label: {
                                             
                                             ZStack {
@@ -234,7 +247,8 @@ struct ContentView: View {
                                         guard !currentRoomName.isEmpty else { return }
                                         worldManager.saveWorldMap(for: currentRoomName, sceneView: sceneView)
                                         
-                                        
+                                        let drop = Drop.init(title: "\(currentRoomName) saved")
+                                        Drops.show(drop)
                                         dismiss()
                                     } label: {
                                         Text("Done")
@@ -320,7 +334,18 @@ struct ContentView: View {
                     Button {
                         
                         shouldPlay = false
+                        findAnchor = ""
                         sceneView.session.pause()
+
+                        if audioPlayer.isPlaying {
+                               audioPlayer.stop()
+                            print("audio stopped")
+                           }
+                           if audioEngine.isRunning {
+                               audioEngine.stop()
+                               audioEngine.reset()
+                               print("engine stopped")
+                           }
                         dismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
@@ -346,7 +371,7 @@ struct ContentView: View {
                         }
                         
                         Button {
-                                    shareWorld()
+                            worldManager.shareWorld(currentRoomName: currentRoomName)
                         } label: {
                             Label("Share World", systemImage: "square.and.arrow.up")
                         }
@@ -391,48 +416,6 @@ struct ContentView: View {
          return nil
  }
  
- func shareWorld() {
-     guard let world = worldManager.savedWorlds.first(where: { $0.name == currentRoomName }) else {
-         print("No world found with name \(currentRoomName).")
-         return
-     }
-
-     let sourceFilePath = world.filePath
-     guard FileManager.default.fileExists(atPath: sourceFilePath.path) else {
-         print("World map file not found.")
-         return
-     }
-
-     // Move file to a shareable location
-     let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-     let destinationURL = documentsURL.appendingPathComponent("\(currentRoomName)_worldMap.worldmap")
-
-     do {
-         if FileManager.default.fileExists(atPath: destinationURL.path) {
-             try FileManager.default.removeItem(at: destinationURL)
-         }
-         try FileManager.default.copyItem(at: sourceFilePath, to: destinationURL)
-         print("File ready for sharing at: \(destinationURL)")
-
-         // Present the share sheet
-         let activityController = UIActivityViewController(activityItems: [destinationURL], applicationActivities: nil)
-         
-         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-            let rootViewController = windowScene.windows.first?.rootViewController {
-             DispatchQueue.main.async {
-                 if let presentedVC = rootViewController.presentedViewController {
-                     presentedVC.dismiss(animated: false) {
-                         rootViewController.present(activityController, animated: true, completion: nil)
-                     }
-                 } else {
-                     rootViewController.present(activityController, animated: true, completion: nil)
-                 }
-             }
-         }
-     } catch {
-         print("Error preparing file for sharing: \(error.localizedDescription)")
-     }
- }
     private func updateScanningProgress() {
         DispatchQueue.main.async {
             let totalZones = Float(worldManager.scanningZones.count)

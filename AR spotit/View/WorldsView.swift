@@ -1,4 +1,5 @@
 import SwiftUI
+import Drops
 
 struct WorldsView: View {
     
@@ -23,7 +24,8 @@ struct WorldsView: View {
     @State private var searchText = "" // New State for Search Text
     @State private var sortingOption: SortingOption = .name // Sorting Option
 
-    
+    @ObservedObject var appState = AppState.shared // Observe AppState
+
     enum SortingOption {
          case name
          case lastModified
@@ -127,9 +129,25 @@ struct WorldsView: View {
                                         }
                                     }
                                     
+                                    Button {
+                                        worldManager.shareWorld(currentRoomName: world.name)
+                                    } label: {
+                                        HStack {
+                                            Text("Share")
+                                            Image(systemName: "square.and.arrow.up")
+                                                .font(.title)
+                                                .foregroundStyle(colorScheme == .dark ? .white : .black)
+
+                                        }
+                                        .font(.title)
+                                        
+                                    }
+                                    
                                     Button(role: .destructive) {
                                         worldManager.deleteWorld(roomName: world.name) {
                                             print("Deletion process completed.")
+                                            let drop = Drop.init(title: "\(world.name) deleted!")
+                                            Drops.show(drop)
                                         }
                                     } label: {
                                         HStack {
@@ -151,7 +169,7 @@ struct WorldsView: View {
                                     
                                     
                                 } label: {
-                                    Image(systemName: "pencil.and.scribble")
+                                    Image(systemName: "ellipsis.circle")
                                         .font(.title)
                                         .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 }
@@ -235,6 +253,12 @@ struct WorldsView: View {
                     worldManager.loadSavedWorlds()
           
                 }
+                .onChange(of: appState.isWorldUpdated) {
+                    worldManager.loadSavedWorlds()
+                
+
+                    
+                }
                 .padding(.top)
                 .sheet(isPresented: $isRenaming) {
                     
@@ -287,7 +311,7 @@ struct WorldsView: View {
                     findAnchor: $findingAnchorName,
                     isShowingFocusedAnchor: $showFocusedAnchor
                 )
-//                .interactiveDismissDisabled()
+                .interactiveDismissDisabled()
 
             }
             .sheet(isPresented: $isAddingNewRoom) {

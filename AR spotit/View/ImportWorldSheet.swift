@@ -7,6 +7,7 @@
 
 
 import SwiftUI
+import Drops
 
 struct ImportWorldSheet: View {
     @EnvironmentObject var worldManager: WorldManager
@@ -31,6 +32,12 @@ struct ImportWorldSheet: View {
                 
                 Button(action: {
                     saveWorld()
+                    worldManager.loadSavedWorlds()
+                    AppState.shared.isWorldUpdated.toggle() // Notify WorldsView
+                    let drop = Drop.init(title: "\(worldManager.tempWorldName) Saved!")
+                    Drops.show(drop)
+                    
+                    
                 }) {
                     Text("Save")
                         .font(.system(.headline, design: .rounded))
