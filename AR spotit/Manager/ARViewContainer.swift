@@ -1054,10 +1054,24 @@ struct ARViewContainer: UIViewRepresentable {
             // 5) Create an absolute “move(to:)” up, then down. This guarantees no drift.
             let upPosition   = SCNVector3(basePos.x, basePos.y + newJump, basePos.z)
             let downPosition = basePos
+            
+            let b1Position   = SCNVector3(basePos.x, basePos.y + newJump / 2, basePos.z)
+            let b2Position   = SCNVector3(basePos.x, basePos.y + newJump / 3, basePos.z)
 
+            let delayDuration: TimeInterval = 0.75  // adjust as needed
+            let waitAction = SCNAction.wait(duration: delayDuration)
+            let waitAction1 = SCNAction.wait(duration: 0.2)
+            let waitAction2 = SCNAction.wait(duration: 0.1)
+            let waitAction3 = SCNAction.wait(duration: 0.05)
+            let scale = SCNAction.scale(by: 2.0, duration: 0.5)
+            let scaleDown = SCNAction.scale(by: 0.5, duration: 0.5)
             let moveUp   = SCNAction.move(to: upPosition,   duration: 0.5)
-            let moveDown = SCNAction.move(to: downPosition, duration: 0.5)
-            let jumpCycle = SCNAction.sequence([moveUp, moveDown])
+            let moveDown = SCNAction.move(to: downPosition, duration: 0.25)
+            let bounce1Up   = SCNAction.move(to: b1Position,   duration: 0.4)
+            let bounce1Down = SCNAction.move(to: downPosition,   duration: 0.2)
+            let bounce2Up   = SCNAction.move(to: b2Position,   duration: 0.3)
+            let bounce2Down = SCNAction.move(to: downPosition,   duration: 0.2)
+            let jumpCycle = SCNAction.sequence([moveUp, waitAction1, scale, scaleDown, moveDown, bounce1Up, waitAction2, bounce1Down, bounce2Up, waitAction3, bounce2Down, waitAction])
             let repeatJump = SCNAction.repeatForever(jumpCycle)
 
             // 6) Run the repeatForever

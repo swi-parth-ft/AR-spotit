@@ -295,13 +295,13 @@ struct WorldsView: View {
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
                 
-                Button {
-                    isTestingAudio.toggle()
-                } label: {
-                    Image(systemName: "ladybug.fill")
-                        .font(.title2)
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                }
+//                Button {
+//                    isTestingAudio.toggle()
+//                } label: {
+//                    Image(systemName: "ladybug.fill")
+//                        .font(.title2)
+//                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+//                }
             }
             .sheet(item: $selectedWorld, onDismiss: {
                 worldManager.loadSavedWorlds()

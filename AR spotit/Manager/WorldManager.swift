@@ -20,6 +20,7 @@ class WorldManager: ObservableObject {
     @Published var importWorldURL: URL?
     @Published var tempWorldName = ""
     @Published var reload = false
+    @Published var isWorldLoaded = false
     
     init() {
 //        
@@ -129,7 +130,7 @@ class WorldManager: ObservableObject {
                 coordinator.worldIsLoaded = true
                 print("World loaded. Ready to add new guide anchors.")
             }
-            
+            isWorldLoaded = true
             print("World map for \(roomName) loaded successfully.")
         } catch {
             print("Error loading ARWorldMap for \(roomName): \(error.localizedDescription)")

@@ -236,7 +236,7 @@ struct ContentView: View {
                                     Button {
                                         shouldPlay = false
                                         findAnchor = ""
-                                        
+                                        worldManager.isWorldLoaded = false
                                         if audioPlayer.isPlaying {
                                                audioPlayer.stop()
                                            }
@@ -332,7 +332,7 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        
+                        worldManager.isWorldLoaded = false
                         shouldPlay = false
                         findAnchor = ""
                         sceneView.session.pause()
