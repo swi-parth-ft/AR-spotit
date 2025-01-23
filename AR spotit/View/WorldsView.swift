@@ -88,9 +88,6 @@ struct WorldsView: View {
             
             /// set the rounded font
             UINavigationBar.appearance().largeTitleTextAttributes = [.font: titleFont]
-        
-       
-           
         }
     
     
@@ -100,6 +97,29 @@ struct WorldsView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     ForEach(filteredWorlds) { world in
                         VStack(alignment: .leading, spacing: 10) {
+                            
+                            // (NEW) Show snapshot preview if it exists
+                               let snapshotPath = WorldModel.appSupportDirectory
+                                   .appendingPathComponent("\(world.name)_snapshot.png")
+                               
+                               if FileManager.default.fileExists(atPath: snapshotPath.path),
+                                  let uiImage = UIImage(contentsOfFile: snapshotPath.path) {
+                                   
+                                   Image(uiImage: uiImage)
+                                       .resizable()
+                                       .scaledToFill()
+                                       .frame(height: 200)
+                                       .clipped()
+                                       .cornerRadius(15)
+                                       .padding(.horizontal)
+                               } else {
+                                   // fallback if no image
+                                   Text("No Snapshot")
+                                       .font(.footnote)
+                                       .foregroundColor(.secondary)
+                                       .padding(.horizontal)
+                               }
+                            
                             // Room Title
                             HStack {
                               

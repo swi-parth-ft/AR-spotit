@@ -164,6 +164,7 @@ struct ARViewContainer: UIViewRepresentable {
         private var nodeBasePositions = [String: SCNVector3]()
         private var nodeJumpHeights = [String: Float]()
         private var isAudioPlaying = true
+        private var pointCloudParentNode = SCNNode()
 
 
         
@@ -435,6 +436,9 @@ struct ARViewContainer: UIViewRepresentable {
         }
         
         func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+            
+        
+            
             node.name = anchor.name
             anchorNodes[anchor.name ?? ""] = node
 
@@ -770,6 +774,8 @@ struct ARViewContainer: UIViewRepresentable {
         
         func session(_ session: ARSession, didUpdate frame: ARFrame) {
             
+            
+            
             if let lightEstimate = frame.lightEstimate {
                    if lightEstimate.ambientIntensity < 100.0 { // Example threshold for low light
                      //  Drops.show("Low light detected. Turn on flash.")
@@ -862,6 +868,9 @@ struct ARViewContainer: UIViewRepresentable {
         func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
             guard let meshAnchor = anchor as? ARMeshAnchor else { return }
             
+         
+            
+            
             // Throttle updates to once every 0.5 seconds
             if Date().timeIntervalSince(lastUpdateTime) < 0.5 {
                 return
@@ -869,6 +878,9 @@ struct ARViewContainer: UIViewRepresentable {
             lastUpdateTime = Date()
             
             if !isLoading {
+                
+                
+                
                 let meshGeometry = meshAnchor.geometry
                 let vertexBuffer = meshGeometry.vertices.buffer
                 let vertexCount = meshGeometry.vertices.count
@@ -884,7 +896,18 @@ struct ARViewContainer: UIViewRepresentable {
                 }
                 
                 let pointCloudNode = parent.createPointCloudNode(from: vertices)
-                node.addChildNode(pointCloudNode)
+             //   node.addChildNode(pointCloudNode)
+                
+             //   let pointCloudNode = parent.createPointCloudNode(from: vertices)
+                    
+                    // Instead of `node.addChildNode(...)`,
+                    // add it to our global parent so we can snapshot them all later:
+                    pointCloudParentNode.addChildNode(pointCloudNode)
+                    
+                    // If it's not already in the scene, add it:
+                    if pointCloudParentNode.parent == nil {
+                        parent.sceneView.scene.rootNode.addChildNode(pointCloudParentNode)
+                    }
             }
         }
         
@@ -1009,8 +1032,8 @@ struct ARViewContainer: UIViewRepresentable {
             // We need the node's name to track it in our dictionaries
             guard let anchorName = node.name else { return }
 
-            if distance < 1.0 {
-                   node.removeAction(forKey: "jumping")
+            if distance < 1.0  {
+                node.removeAction(forKey: "jumping")
                 if let basePos = nodeBasePositions[anchorName] {
                     let moveToOriginal = SCNAction.move(to: basePos, duration: 0.3) // Smooth reset in 0.3 seconds
                     node.runAction(moveToOriginal)
@@ -1072,7 +1095,7 @@ struct ARViewContainer: UIViewRepresentable {
              let bounces = 3
              var bounceActions: [SCNAction] = []
             var currentHeight = newJump
-             for i in 1...bounces {
+             for _ in 1...bounces {
                  currentHeight *= 0.5 // Reduce height by 50% for each bounce
                  let bounceUpPosition = SCNVector3(basePos.x, basePos.y + currentHeight, basePos.z)
                  let bounceDurationUp = TimeInterval(sqrt(2 * gravityAcceleration * currentHeight) / gravityAcceleration)
@@ -1197,3 +1220,52 @@ extension ARViewContainer {
 }
 
 
+extension ARViewContainer.Coordinator {
+    
+    func capturePointCloudSnapshot(size: CGSize = CGSize(width: 800, height: 600)) -> UIImage? {
+        // 1) Create a temporary scene
+        let tempScene = SCNScene()
+        tempScene.background.contents = UIColor.black  // black background
+        
+        // 2) Clone your pointCloudParentNode from the live AR scene
+        //    or if you have a reference directly, you can do:
+        let clone = pointCloudParentNode.clone()
+        tempScene.rootNode.addChildNode(clone)
+        
+        // 3) Add a camera
+        let cameraNode = SCNNode()
+        cameraNode.camera = SCNCamera()
+        cameraNode.camera?.automaticallyAdjustsZRange = true
+        tempScene.rootNode.addChildNode(cameraNode)
+        
+        // 4) Compute bounding box so we can frame all the dots
+        let (minVec, maxVec) = clone.boundingBox
+        // If the bounding box is huge or zero, you may need special logic,
+        // but let’s do a basic approach:
+        let center = SCNVector3(
+            (minVec.x + maxVec.x) * 0.5,
+            (minVec.y + maxVec.y) * 0.5,
+            (minVec.z + maxVec.z) * 0.5
+        )
+        let sizeVec = SCNVector3(
+            maxVec.x - minVec.x,
+            maxVec.y - minVec.y,
+            maxVec.z - minVec.z
+        )
+        
+        // Place camera "in front" of the bounding box
+        cameraNode.position = SCNVector3(center.x, center.y, center.z + Float(sizeVec.z * 2.0))
+        cameraNode.look(at: center)
+        
+        // 5) Offscreen SCNView to render
+        let scnView = SCNView(frame: CGRect(origin: .zero, size: size))
+        scnView.scene = tempScene
+        scnView.pointOfView = cameraNode
+        scnView.backgroundColor = .black
+        scnView.antialiasingMode = .multisampling4X
+        
+        // 6) Snapshot
+        let image = scnView.snapshot()
+        return image
+    }
+}

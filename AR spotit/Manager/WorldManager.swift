@@ -71,6 +71,24 @@ class WorldManager: ObservableObject {
                 self.saveWorldList()
                 
                 print("World map for \(roomName) saved locally at: \(filePath.path)")
+                
+                if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
+                    if let snapshotImage = coordinator.capturePointCloudSnapshot() {
+                                 
+                                 // Generate a filename for the PNG
+                                 let imageFilename = "\(roomName)_snapshot.png"
+                                 let imageFileURL = WorldModel.appSupportDirectory.appendingPathComponent(imageFilename)
+                                 
+                                 do {
+                                     try snapshotImage.pngData()?.write(to: imageFileURL)
+                                     print("Saved snapshot image for \(roomName) at \(imageFileURL.path)")
+                                 } catch {
+                                     print("Error saving snapshot PNG: \(error.localizedDescription)")
+                                 }
+                             } else {
+                                 print("Failed to capture mesh snapshot for \(roomName).")
+                             }
+                         }
                 iCloudManager.uploadWorldMap(roomName: roomName, data: data, lastModified: timestamp) {
                     print("Sync to CloudKit complete for \(roomName).")
                 }
