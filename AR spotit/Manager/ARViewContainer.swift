@@ -1055,27 +1055,72 @@ struct ARViewContainer: UIViewRepresentable {
             let upPosition   = SCNVector3(basePos.x, basePos.y + newJump, basePos.z)
             let downPosition = basePos
             
-            let b1Position   = SCNVector3(basePos.x, basePos.y + newJump / 2, basePos.z)
-            let b2Position   = SCNVector3(basePos.x, basePos.y + newJump / 3, basePos.z)
+            // 3) Define gravity-based motion and damping for bounces
+                let gravityAcceleration: Float = 9.8 // Gravity acceleration (m/s²)
+            let initialVelocity = sqrt(2 * gravityAcceleration * newJump) // Initial velocity from height
+                let durationUp = TimeInterval(initialVelocity / gravityAcceleration) // Time to reach the peak
+                let durationDown = durationUp // Symmetric free fall
 
-            let delayDuration: TimeInterval = 0.75  // adjust as needed
-            let waitAction = SCNAction.wait(duration: delayDuration)
-            let waitAction1 = SCNAction.wait(duration: 0.2)
-            let waitAction2 = SCNAction.wait(duration: 0.1)
-            let waitAction3 = SCNAction.wait(duration: 0.05)
-            let scale = SCNAction.scale(by: 2.0, duration: 0.5)
-            let scaleDown = SCNAction.scale(by: 0.5, duration: 0.5)
-            let moveUp   = SCNAction.move(to: upPosition,   duration: 0.5)
-            let moveDown = SCNAction.move(to: downPosition, duration: 0.25)
-            let bounce1Up   = SCNAction.move(to: b1Position,   duration: 0.4)
-            let bounce1Down = SCNAction.move(to: downPosition,   duration: 0.2)
-            let bounce2Up   = SCNAction.move(to: b2Position,   duration: 0.3)
-            let bounce2Down = SCNAction.move(to: downPosition,   duration: 0.2)
-            let jumpCycle = SCNAction.sequence([moveUp, waitAction1, scale, scaleDown, moveDown, bounce1Up, waitAction2, bounce1Down, bounce2Up, waitAction3, bounce2Down, waitAction])
-            let repeatJump = SCNAction.repeatForever(jumpCycle)
+            // First jump (up and down)
+             let moveUp = SCNAction.move(to: upPosition, duration: durationUp)
+             moveUp.timingFunction = { t in t * t } // Accelerates upward
 
-            // 6) Run the repeatForever
-            node.runAction(repeatJump, forKey: "jumping")
+             let moveDown = SCNAction.move(to: downPosition, duration: durationDown)
+             moveDown.timingFunction = { t in t * t } // Accelerates downward
+
+             // Bounces with damping
+             let bounces = 3
+             var bounceActions: [SCNAction] = []
+            var currentHeight = newJump
+             for i in 1...bounces {
+                 currentHeight *= 0.5 // Reduce height by 50% for each bounce
+                 let bounceUpPosition = SCNVector3(basePos.x, basePos.y + currentHeight, basePos.z)
+                 let bounceDurationUp = TimeInterval(sqrt(2 * gravityAcceleration * currentHeight) / gravityAcceleration)
+                 let bounceDurationDown = bounceDurationUp
+
+                 let bounceUp = SCNAction.move(to: bounceUpPosition, duration: bounceDurationUp)
+                 bounceUp.timingFunction = { t in t * t } // Accelerates upward
+
+                 let bounceDown = SCNAction.move(to: downPosition, duration: bounceDurationDown)
+                 bounceDown.timingFunction = { t in t * t } // Accelerates downward
+
+                 bounceActions.append(bounceUp)
+                 bounceActions.append(bounceDown)
+             }
+
+             // Add a wait action before repeating
+             let waitAction = SCNAction.wait(duration: 0.75)
+
+             // Combine actions into a full sequence
+             let fullSequence = SCNAction.sequence([moveUp, moveDown] + bounceActions + [waitAction])
+
+             // Repeat the full sequence forever
+             let repeatAction = SCNAction.repeatForever(fullSequence)
+
+             // Run the action
+             node.runAction(repeatAction, forKey: "jumping")
+            
+//            let b1Position   = SCNVector3(basePos.x, basePos.y + newJump / 2, basePos.z)
+//            let b2Position   = SCNVector3(basePos.x, basePos.y + newJump / 3, basePos.z)
+//
+//            let delayDuration: TimeInterval = 0.75  // adjust as needed
+//            let waitAction = SCNAction.wait(duration: delayDuration)
+//            let waitAction1 = SCNAction.wait(duration: 0.2)
+//            let waitAction2 = SCNAction.wait(duration: 0.1)
+//            let waitAction3 = SCNAction.wait(duration: 0.05)
+//            let scale = SCNAction.scale(by: 2.0, duration: 0.5)
+//            let scaleDown = SCNAction.scale(by: 0.5, duration: 0.5)
+//            let moveUp   = SCNAction.move(to: upPosition,   duration: 0.5)
+//            let moveDown = SCNAction.move(to: downPosition, duration: 0.25)
+//            let bounce1Up   = SCNAction.move(to: b1Position,   duration: 0.4)
+//            let bounce1Down = SCNAction.move(to: downPosition,   duration: 0.2)
+//            let bounce2Up   = SCNAction.move(to: b2Position,   duration: 0.3)
+//            let bounce2Down = SCNAction.move(to: downPosition,   duration: 0.2)
+//            let jumpCycle = SCNAction.sequence([moveUp, waitAction1, scale, scaleDown, moveDown, bounce1Up, waitAction2, bounce1Down, bounce2Up, waitAction3, bounce2Down, waitAction])
+//            let repeatJump = SCNAction.repeatForever(jumpCycle)
+//
+//            // 6) Run the repeatForever
+//            node.runAction(repeatJump, forKey: "jumping")
         }
     }
 }
