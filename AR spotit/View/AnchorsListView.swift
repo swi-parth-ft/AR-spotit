@@ -20,7 +20,7 @@ struct AnchorsListView: View {
     @State private var isRenaming = false
     @State private var isOpeningWorld = false
     @State private var showFocusedAnchor: Bool = false
-
+    @Binding var isOpeningFromAnchorListView: Bool
     let columns = [
         GridItem(.flexible(), spacing: 10),
         GridItem(.flexible(), spacing: 10),
@@ -217,7 +217,7 @@ struct AnchorsListView: View {
                         //                    updateRoomName = world.name
 //                                            worldManager.isShowingAll = true
                     //    isOpeningWorld = true
-                        
+                        isOpeningFromAnchorListView = true
                         dismiss()
 
                         //                    selectedWorld = world // Set the selected world

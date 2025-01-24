@@ -29,6 +29,7 @@ struct WorldsView: View {
 @State private var updateRoomName: String?
     @State private var isShowingAnchors: Bool = false
     @State private var selectedImage: UIImage?
+    @State private var isOpeningFromAnchorListView = false
     
     @Namespace private var animationNamespace
     enum SortingOption {
@@ -443,7 +444,8 @@ struct WorldsView: View {
                   AnchorsListView(
                       worldManager: worldManager,
                       worldName: $currentName,
-                      findingAnchorName: $findingAnchorName
+                      findingAnchorName: $findingAnchorName,
+                      isOpeningFromAnchorListView: $isOpeningFromAnchorListView
                   )
                   .navigationTransition(.zoom(sourceID: "zoom-\(currentName)", in: animationNamespace))
 
@@ -456,10 +458,12 @@ struct WorldsView: View {
                           }
                       }
                       
-                      if currentName != "" {
+                      if isOpeningFromAnchorListView {
                           if let world = worldManager.savedWorlds.first(where: { $0.name == currentName }) {
                               worldManager.isShowingAll = true
                               selectedWorld = world
+                              
+                              isOpeningFromAnchorListView = false
                           }
                       }
                       currentName = ""
