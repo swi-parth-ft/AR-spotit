@@ -175,7 +175,7 @@ struct AnchorsListView: View {
 //                    selectedWorld = world // Set the selected world
                 }) {
                     Image(systemName: "arkit")
-                        .font(.title)
+                        .font(.title2)
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
                 Menu {
@@ -186,7 +186,7 @@ struct AnchorsListView: View {
                         HStack {
                             Text("Rename")
                             Image(systemName: "character.cursor.ibeam")
-                                .font(.title)
+                                .font(.title2)
                                 .foregroundStyle(colorScheme == .dark ? .white : .black)
                         }
                     }
@@ -197,11 +197,11 @@ struct AnchorsListView: View {
                         HStack {
                             Text("Share")
                             Image(systemName: "square.and.arrow.up")
-                                .font(.title)
+                                .font(.title2)
                                 .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                         }
-                        .font(.title)
+                        .font(.title2)
                         
                     }
                     
@@ -219,7 +219,7 @@ struct AnchorsListView: View {
                                 .foregroundStyle(.red)
                                 
                         }
-                        .font(.title)
+                        .font(.title2)
                         
                     }
                     
@@ -229,7 +229,7 @@ struct AnchorsListView: View {
                     
                 } label: {
                     Image(systemName: "ellipsis.circle")
-                        .font(.title)
+                        .font(.title2)
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
             }

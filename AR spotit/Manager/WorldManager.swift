@@ -405,7 +405,22 @@ extension WorldManager {
     
     private func renameAndSaveWorld(data: Data, currentName: String, newName: String, completion: (() -> Void)?) {
         saveImportedWorld(data: data, worldName: newName)
-        
+        // 2) Rename the snapshot file, if it exists
+           let oldSnapshotURL = WorldModel.appSupportDirectory
+               .appendingPathComponent("\(currentName)_snapshot.png")
+           let newSnapshotURL = WorldModel.appSupportDirectory
+               .appendingPathComponent("\(newName)_snapshot.png")
+           
+           if FileManager.default.fileExists(atPath: oldSnapshotURL.path) {
+               do {
+                   try FileManager.default.moveItem(at: oldSnapshotURL, to: newSnapshotURL)
+                   print("✅ Snapshot renamed from \(currentName) to \(newName).")
+               } catch {
+                   print("❌ Error renaming snapshot: \(error.localizedDescription)")
+               }
+           } else {
+               print("No existing snapshot found for \(currentName).")
+           }
         
         deleteWorld(roomName: currentName) {
             print("✅ Renamed \(currentName) to \(newName) successfully.")
