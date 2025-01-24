@@ -295,22 +295,6 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "70CE5F9F-90BD-485F-A7B3-F5F9E60DDCB4"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "AR spotit/View/ContentView.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "269"
-            endingLineNumber = "269"
-            landmarkName = "body"
-            landmarkType = "24">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
             uuid = "91A7EB92-FE21-4E3A-9599-09AFB805E6F3"
             shouldBeEnabled = "No"
             ignoreCount = "0"
@@ -318,8 +302,8 @@
             filePath = "AR spotit/View/ContentView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "304"
-            endingLineNumber = "304"
+            startingLineNumber = "297"
+            endingLineNumber = "297"
             landmarkName = "body"
             landmarkType = "24">
          </BreakpointContent>
@@ -366,8 +350,8 @@
             filePath = "AR spotit/Manager/ARViewContainer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "997"
-            endingLineNumber = "997"
+            startingLineNumber = "1031"
+            endingLineNumber = "1031"
             landmarkName = "session(_:cameraDidChangeTrackingState:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -382,8 +366,8 @@
             filePath = "AR spotit/Manager/ARViewContainer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "1012"
-            endingLineNumber = "1012"
+            startingLineNumber = "1046"
+            endingLineNumber = "1046"
             landmarkName = "session(_:cameraDidChangeTrackingState:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -430,8 +414,8 @@
             filePath = "AR spotit/View/ContentView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "355"
-            endingLineNumber = "355"
+            startingLineNumber = "346"
+            endingLineNumber = "346"
             landmarkName = "body"
             landmarkType = "24">
          </BreakpointContent>
@@ -446,8 +430,8 @@
             filePath = "AR spotit/View/WorldsView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "344"
-            endingLineNumber = "344"
+            startingLineNumber = "348"
+            endingLineNumber = "348"
             landmarkName = "body"
             landmarkType = "24">
          </BreakpointContent>
@@ -462,8 +446,8 @@
             filePath = "AR spotit/View/WorldsView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "404"
-            endingLineNumber = "404"
+            startingLineNumber = "410"
+            endingLineNumber = "410"
             landmarkName = "body"
             landmarkType = "24">
          </BreakpointContent>
@@ -478,8 +462,8 @@
             filePath = "AR spotit/View/WorldsView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "408"
-            endingLineNumber = "408"
+            startingLineNumber = "414"
+            endingLineNumber = "414"
             landmarkName = "body"
             landmarkType = "24">
          </BreakpointContent>
@@ -494,8 +478,8 @@
             filePath = "AR spotit/View/WorldsView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "407"
-            endingLineNumber = "407"
+            startingLineNumber = "413"
+            endingLineNumber = "413"
             landmarkName = "body"
             landmarkType = "24">
          </BreakpointContent>
@@ -510,8 +494,8 @@
             filePath = "AR spotit/View/WorldsView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "341"
-            endingLineNumber = "341"
+            startingLineNumber = "343"
+            endingLineNumber = "343"
             landmarkName = "body"
             landmarkType = "24">
          </BreakpointContent>
@@ -526,8 +510,8 @@
             filePath = "AR spotit/View/WorldsView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "397"
-            endingLineNumber = "397"
+            startingLineNumber = "403"
+            endingLineNumber = "403"
             landmarkName = "body"
             landmarkType = "24">
          </BreakpointContent>
@@ -574,8 +558,8 @@
             filePath = "AR spotit/View/AnchorsListView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "185"
-            endingLineNumber = "185"
+            startingLineNumber = "187"
+            endingLineNumber = "187"
             landmarkName = "body"
             landmarkType = "24">
          </BreakpointContent>

@@ -72,37 +72,37 @@ struct ContentView: View {
                    
                     
                     
-                    if !worldManager.isRelocalizationComplete {
+                    if !worldManager.isWorldLoaded || !worldManager.isRelocalizationComplete {
                         
-                        VStack {
+                        ZStack {
                             
                             CircleView(text: !findAnchor.isEmpty ? findAnchor.filter { !$0.isEmoji } : currentRoomName, emoji: extractEmoji(from: findAnchor) ?? "🔍")
-                                .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.width)
+                                .padding(.top)
+
+                                .frame(width: 800, height: 800)
+
                             
-                            Text("Move around slowly...")
-                                .foregroundStyle(.white)
-                                .font(.system(.title2, design: .rounded))
-                                .bold()
-                                .shadow(radius: 5)
                             
-                            Spacer()
-                                .frame(height: 200)
-                            
-                            Button {
-                                toggleFlashlight()
-                            } label: {
-                                
-                                   
+                            VStack {
+                                Spacer()
+                                Button {
+                                    toggleFlashlight()
+                                } label: {
+                                    
+                                    
                                     Image(systemName: isFlashlightOn ? "flashlight.on.fill" : "flashlight.off.fill")
                                         .foregroundStyle(.black)
                                         .frame(width: 50, height: 50)
                                         .background(Color.white)
                                         .cornerRadius(25)
                                         .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                        
-                                
-                                   
+                                    
+                                    
+                                    
+                                }
+                                .padding(30)
                             }
+                            .padding()
                         }
                          
                     } else {
@@ -263,10 +263,10 @@ struct ContentView: View {
                                             
                                     }
                                     .onAppear {
-                                        guard directLoading, !currentRoomName.isEmpty, !hasLoadedWorldMap else { return }
-                                        hasLoadedWorldMap = true
-                                        
-                                        worldManager.loadWorldMap(for: currentRoomName, sceneView: sceneView)
+//                                        guard directLoading, !currentRoomName.isEmpty, !hasLoadedWorldMap else { return }
+//                                        hasLoadedWorldMap = true
+//                                        
+//                                        worldManager.loadWorldMap(for: currentRoomName, sceneView: sceneView)
                                     }
                        
                                     
@@ -282,19 +282,12 @@ struct ContentView: View {
                 
             }
             .onAppear {
-                worldManager.loadSavedWorlds()
-                print("sceneView instance: \(sceneView)")
-                   if let delegate = sceneView.delegate {
-                       print("sceneView.delegate: \(delegate)")
-                   } else {
-                       print("sceneView.delegate is nil!")
-                   }
-                   if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
-                       print("Coordinator is set: \(coordinator)")
-                   } else {
-                       print("Coordinator is NOT set.")
-                   }
-                   print("worldManager state: \(worldManager.savedWorlds.count) worlds loaded")
+                worldManager.loadSavedWorlds {
+                    guard directLoading, !currentRoomName.isEmpty, !hasLoadedWorldMap else { return }
+                    hasLoadedWorldMap = true
+                    
+                    worldManager.loadWorldMap(for: currentRoomName, sceneView: sceneView)
+                }
             }
             .onChange(of: worldManager.scannedZones) {
                 updateScanningProgress()
@@ -340,8 +333,6 @@ struct ContentView: View {
                 .presentationDetents([.fraction(0.6)])
 
             }
-        //    .navigationTitle(currentRoomName)
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {

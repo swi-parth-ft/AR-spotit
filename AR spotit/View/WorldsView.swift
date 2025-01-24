@@ -333,12 +333,16 @@ struct WorldsView: View {
                 }
                 .onAppear {
                     if currentName == "" {
-                        worldManager.loadSavedWorlds()
+                        worldManager.loadSavedWorlds {
+                            
+                        }
                     }
           
                 }
                 .onChange(of: AppState.shared.isWorldUpdated) {
-                    worldManager.loadSavedWorlds()
+                    worldManager.loadSavedWorlds {
+                        
+                    }
 
                 }
     
@@ -355,7 +359,7 @@ struct WorldsView: View {
             }
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic)) // Add Searchable Modifier
 
-            .navigationTitle("My Things")
+            .navigationTitle("it's here.")
             .toolbar {
                 Menu {
                     Button("Name", systemImage: "textformat.size.larger") {
@@ -389,7 +393,9 @@ struct WorldsView: View {
             }
             .sheet(item: $selectedWorld, onDismiss: {
                 
-                worldManager.loadSavedWorlds()
+                worldManager.loadSavedWorlds {
+                    
+                }
                 
                 if let anchorsToUpdate = updateRoomName {
                     worldManager.getAnchorNames(for: anchorsToUpdate) { fetchedAnchors in

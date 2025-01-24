@@ -178,7 +178,9 @@ struct AnchorsListView: View {
                 }
                 .onAppear {
                     // Fetch anchors for this specific world
-                    worldManager.loadSavedWorlds()
+                    worldManager.loadSavedWorlds {
+                        
+                    }
                     print(worldName)
                     worldManager.getAnchorNames(for: worldName) { fetchedAnchors in
                         DispatchQueue.main.async {
@@ -188,7 +190,9 @@ struct AnchorsListView: View {
                     
                 }
                 .sheet(isPresented: $isOpeningWorld, onDismiss: {
-                    worldManager.loadSavedWorlds()
+                    worldManager.loadSavedWorlds {
+                        
+                    }
                     
                     worldManager.getAnchorNames(for: worldName) { fetchedAnchors in
                             DispatchQueue.main.async {

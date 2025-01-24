@@ -25,6 +25,24 @@ struct ARViewContainer: UIViewRepresentable {
     @Binding var isEditingAnchor: Bool
     @Binding var nameOfAnchorToEdit: String
     
+    private let coachingOverlay = ARCoachingOverlayView()
+//
+//    // Implement the delegate method
+//        func coachingOverlayViewDidDeactivate(_ coachingOverlayView: ARCoachingOverlayView) {
+//            // This method is called when the coaching overlay completes its goal
+//            print("Coaching overlay deactivated")
+//        }
+//        
+//        func coachingOverlayViewWillActivate(_ coachingOverlayView: ARCoachingOverlayView) {
+//            // This method is called before the coaching overlay becomes active
+//            print("Coaching overlay will activate")
+//        }
+//        
+//        func coachingOverlayViewDidRequestSessionReset(_ coachingOverlayView: ARCoachingOverlayView) {
+//            // Handle session reset if needed
+//            print("Coaching overlay requested session reset")
+//        }
+    
     private func stopAudio() {
         audioPlayer.stop()
           audioEngine.stop()
@@ -66,7 +84,8 @@ struct ARViewContainer: UIViewRepresentable {
         
         sceneView.addGestureRecognizer(tapGesture)
         
-       
+        configureCoachingOverlay(for: sceneView, coordinator: context.coordinator)
+
        // setupAudio()
         
         return sceneView
@@ -138,7 +157,7 @@ struct ARViewContainer: UIViewRepresentable {
     
   
     
-    class Coordinator: NSObject, ARSCNViewDelegate, ARSessionDelegate, Sendable {
+    class Coordinator: NSObject, ARSCNViewDelegate, ARSessionDelegate, Sendable, ARCoachingOverlayViewDelegate {
         private var lastAnimationUpdateTime: Date = Date()
         private var hapticEngine: CHHapticEngine?
         private var lastHapticTriggerTime: Date = Date()
@@ -176,6 +195,21 @@ struct ARViewContainer: UIViewRepresentable {
             setupScanningZones()
         }
         
+        
+        func coachingOverlayViewDidDeactivate(_ coachingOverlayView: ARCoachingOverlayView) {
+                // Handle deactivation if needed
+                print("Coaching overlay deactivated")
+            }
+
+            func coachingOverlayViewWillActivate(_ coachingOverlayView: ARCoachingOverlayView) {
+                // Handle activation if needed
+                print("Coaching overlay will activate")
+            }
+
+            func coachingOverlayViewDidRequestSessionReset(_ coachingOverlayView: ARCoachingOverlayView) {
+                // Handle session reset if needed
+                print("Coaching overlay requested session reset")
+            }
         
         
         func updateNodeVisibility(in sceneView: ARSCNView) {
@@ -1395,4 +1429,23 @@ extension ARViewContainer.Coordinator {
 //        let image = scnView.snapshot()
 //        return image
 //    }
+}
+
+extension ARViewContainer {
+    private func configureCoachingOverlay(for sceneView: ARSCNView, coordinator: Coordinator) {
+        coachingOverlay.session = sceneView.session
+        coachingOverlay.delegate = coordinator // Assign the coordinator as the delegate
+        coachingOverlay.goal = .tracking // You can choose other goals like .horizontalPlane, .verticalPlane, etc.
+        coachingOverlay.activatesAutomatically = true
+        coachingOverlay.translatesAutoresizingMaskIntoConstraints = false
+        sceneView.addSubview(coachingOverlay)
+
+        // Constrain the coaching overlay to the edges of the scene view
+        NSLayoutConstraint.activate([
+            coachingOverlay.centerXAnchor.constraint(equalTo: sceneView.centerXAnchor),
+            coachingOverlay.centerYAnchor.constraint(equalTo: sceneView.centerYAnchor),
+            coachingOverlay.widthAnchor.constraint(equalTo: sceneView.widthAnchor),
+            coachingOverlay.heightAnchor.constraint(equalTo: sceneView.heightAnchor)
+        ])
+    }
 }

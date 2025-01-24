@@ -11,25 +11,26 @@ struct CircleView: View {
         ZStack {
             
             VStack {
-                Text("Finding,")
-                    .foregroundStyle(.white)
-                    .font(.system(.title2, design: .rounded))
-                    .bold()
-                    .shadow(radius: 5)
+               
                 
                 ParticleTextAnimation(text: emoji)
-                    .frame(width: 300, height: 80)
-                   
-                
+                    .frame(width: 300, height: 60)
+                ParticleTextAnimation(text: "Searching")
+                    .frame(width: 300, height: 60)
+                    .padding(.top, -20)
+
                 ParticleTextAnimation(text: text)
-                    .frame(width: 300, height: 80)
+                    .frame(width: 300, height: 60)
+                    .padding(.top, -20)
+                
+                Spacer()
                
             }
             VortexView(createRing()) {
                 Circle()
                     .fill(.white)
                     .blur(radius: 0)
-                    .frame(width: 32)
+                    .frame(width: 12)
                     .tag("circle")
             }
                 
@@ -37,6 +38,7 @@ struct CircleView: View {
             
                 
         }
+
     }
 
     func createRing() -> VortexSystem {

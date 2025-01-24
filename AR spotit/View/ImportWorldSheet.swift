@@ -32,7 +32,9 @@ struct ImportWorldSheet: View {
                 
                 Button(action: {
                     saveWorld()
-                    worldManager.loadSavedWorlds()
+                    worldManager.loadSavedWorlds {
+                        
+                    }
                     AppState.shared.isWorldUpdated.toggle() // Notify WorldsView
                     let drop = Drop.init(title: "\(worldManager.tempWorldName) Saved!")
                     Drops.show(drop)

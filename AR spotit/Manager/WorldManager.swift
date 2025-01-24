@@ -171,7 +171,7 @@ class WorldManager: ObservableObject {
         }
     }
     
-    func loadSavedWorlds() {
+    func loadSavedWorlds(completion: @escaping () -> Void) {
         let fileURL = WorldModel.appSupportDirectory.appendingPathComponent("worldsList.json")
         do {
             let data = try Data(contentsOf: fileURL)
@@ -194,27 +194,85 @@ class WorldManager: ObservableObject {
             }
         }
         
-        
-             fetchWorldNamesFromCloudKit {
-                 print("Data synced with CloudKit.")
-     
-                 for world in self.savedWorlds {
-                     self.getAnchorNames(for: world.name) { anchorNames in
-                         DispatchQueue.main.async {
-                             self.cachedAnchorNames[world.name] = anchorNames
-                         }
-                     }
-     
-                     if !FileManager.default.fileExists(atPath: world.filePath.path) {
-                         print("Fetching missing data for world: \(world.name)")
-     
-                         self.iCloudManager.loadWorldMap(roomName: world.name) { _ in
-                             print("Fetched and saved \(world.name) locally.")
-                         }
-                     }
-                 }
-             }
+        // Proceed to fetch from CloudKit
+        fetchWorldNamesFromCloudKit {
+            print("Data synced with CloudKit.")
+            
+            // Initialize DispatchGroup to track multiple async tasks
+            let dispatchGroup = DispatchGroup()
+            
+            for world in self.savedWorlds {
+                // Fetch anchor names
+                dispatchGroup.enter()
+                self.getAnchorNames(for: world.name) { anchorNames in
+                    DispatchQueue.main.async {
+                        self.cachedAnchorNames[world.name] = anchorNames
+                    }
+                    dispatchGroup.leave()
+                }
+                
+                // Check and load missing world maps from CloudKit
+                if !FileManager.default.fileExists(atPath: world.filePath.path) {
+                    print("Fetching missing data for world: \(world.name)")
+                    dispatchGroup.enter()
+                    self.iCloudManager.loadWorldMap(roomName: world.name) { _ in
+                        print("Fetched and saved \(world.name) locally.")
+                        dispatchGroup.leave()
+                    }
+                }
+            }
+            
+            // Notify once all async tasks are completed
+            dispatchGroup.notify(queue: .main) {
+                completion()
+            }
+        }
     }
+    
+//    func loadSavedWorlds() {
+//        let fileURL = WorldModel.appSupportDirectory.appendingPathComponent("worldsList.json")
+//        do {
+//            let data = try Data(contentsOf: fileURL)
+//            let decodedWorlds = try JSONDecoder().decode([WorldModel].self, from: data)
+//            
+//            // Deduplicate based on world name
+//            let uniqueWorlds = Array(
+//                Dictionary(grouping: decodedWorlds, by: { $0.name })
+//                    .compactMap { $0.value.first }
+//            )
+//            
+//            DispatchQueue.main.async {
+//                self.savedWorlds = uniqueWorlds
+//                print("Saved worlds loaded: \(self.savedWorlds.map { $0.name })")
+//            }
+//        } catch {
+//            DispatchQueue.main.async {
+//                self.savedWorlds = []
+//                print("No saved world list found or failed to decode: \(error.localizedDescription)")
+//            }
+//        }
+//        
+//        
+//             fetchWorldNamesFromCloudKit {
+//                 print("Data synced with CloudKit.")
+//     
+//                 for world in self.savedWorlds {
+//                     self.getAnchorNames(for: world.name) { anchorNames in
+//                         DispatchQueue.main.async {
+//                             self.cachedAnchorNames[world.name] = anchorNames
+//                         }
+//                     }
+//     
+//                     if !FileManager.default.fileExists(atPath: world.filePath.path) {
+//                         print("Fetching missing data for world: \(world.name)")
+//     
+//                         self.iCloudManager.loadWorldMap(roomName: world.name) { _ in
+//                             print("Fetched and saved \(world.name) locally.")
+//                         }
+//                     }
+//                 }
+//             }
+//    }
     
     func getAnchorNames(for worldName: String, completion: @escaping ([String]) -> Void) {
 
