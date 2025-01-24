@@ -27,6 +27,8 @@ struct WorldsView: View {
     @ObservedObject var appState = AppState.shared // Observe AppState
     @State private var roomName: String = ""
 @State private var updateRoomName: String?
+    @State private var isShowingAnchors: Bool = false
+    @State private var selectedImage: UIImage?
     enum SortingOption {
          case name
          case lastModified
@@ -98,132 +100,179 @@ struct WorldsView: View {
                     ForEach(filteredWorlds) { world in
                         VStack(alignment: .leading, spacing: 10) {
                             
-                            // (NEW) Show snapshot preview if it exists
-                               let snapshotPath = WorldModel.appSupportDirectory
-                                   .appendingPathComponent("\(world.name)_snapshot.png")
-                               
-                               if FileManager.default.fileExists(atPath: snapshotPath.path),
-                                  let uiImage = UIImage(contentsOfFile: snapshotPath.path) {
-                                   
-                                   Image(uiImage: uiImage)
-                                       .resizable()
-                                       .scaledToFill()
-                                       .frame(height: 200)
-                                       .clipped()
-                                       .cornerRadius(15)
-                                       .padding(.horizontal)
-                               } else {
-                                   // fallback if no image
-                                   Text("No Snapshot")
-                                       .font(.footnote)
-                                       .foregroundColor(.secondary)
-                                       .padding(.horizontal)
-                               }
+                            ZStack {
+                                
                             
-                            // Room Title
-                            HStack {
-                              
-                                    Text(world.name)
-                                        .font(.system(.title2, design: .rounded))
-                                        .bold()
+                                // (NEW) Show snapshot preview if it exists
+                                let snapshotPath = WorldModel.appSupportDirectory
+                                    .appendingPathComponent("\(world.name)_snapshot.png")
                                 
-                                Spacer()
-                                Button(action: {
-                                    updateRoomName = world.name
-                                    worldManager.isShowingAll = true
-                                    selectedWorld = world // Set the selected world
-                                }) {
-                                    Image(systemName: "arkit")
-                                        .font(.title)
-                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                if FileManager.default.fileExists(atPath: snapshotPath.path),
+                                   let uiImage = UIImage(contentsOfFile: snapshotPath.path) {
+                                    
+                                    if colorScheme == .dark {
+                                        Image(uiImage: uiImage)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(height: 200)
+                                            .clipped()
+                                            .cornerRadius(15)
+                                            .overlay(
+                                                        RoundedRectangle(cornerRadius: 15)
+                                                            .stroke(Color.white, lineWidth: 4) // Customize color and width as needed
+                                                            .fill(LinearGradient(colors: [.black.opacity(0.8), .black.opacity(0.0)], startPoint: .bottom, endPoint: .top))
+
+                                                    )
+                                            .padding(.horizontal)
+                                    } else {
+                                        Image(uiImage: uiImage)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(height: 200)
+                                            .clipped()
+                                            .cornerRadius(15)
+                                            .overlay(
+                                                        RoundedRectangle(cornerRadius: 15)
+                                                            .stroke(Color.white, lineWidth: 4) // Customize color and width as needed
+                                                            .fill(LinearGradient(colors: [.black.opacity(0.8), .black.opacity(0.0)], startPoint: .bottom, endPoint: .top))
+                                                    )
+                                            .padding(.horizontal)
+                                            .colorInvert()
+                                    }
+
+                                } else {
+                                    // fallback if no image
+                                    Text("No Snapshot")
+                                        .font(.footnote)
+                                        .foregroundColor(.secondary)
+                                        .padding(.horizontal)
                                 }
                                 
-                                Menu {
-                                    Button {
+                                VStack {
+                                    Spacer()
+                                    // Room Title
+                                    HStack {
+                                      
+                                            Text(world.name)
+                                                .font(.system(.title2, design: .rounded))
+                                                .bold()
                                         
-                                        isRenaming.toggle()
-                                    } label: {
-                                        HStack {
-                                            Text("Rename")
-                                            Image(systemName: "character.cursor.ibeam")
+                                        Spacer()
+                                        Button(action: {
+                                            updateRoomName = world.name
+                                            worldManager.isShowingAll = true
+                                            selectedWorld = world // Set the selected world
+                                        }) {
+                                            Image(systemName: "arkit")
                                                 .font(.title)
                                                 .foregroundStyle(colorScheme == .dark ? .white : .black)
                                         }
-                                    }
-                                    
-                                    Button {
-                                        worldManager.shareWorld(currentRoomName: world.name)
-                                    } label: {
-                                        HStack {
-                                            Text("Share")
-                                            Image(systemName: "square.and.arrow.up")
-                                                .font(.title)
-                                                .foregroundStyle(colorScheme == .dark ? .white : .black)
-
-                                        }
-                                        .font(.title)
                                         
-                                    }
-                                    
-                                    Button(role: .destructive) {
-                                        worldManager.deleteWorld(roomName: world.name) {
-                                            print("Deletion process completed.")
-                                            let drop = Drop.init(title: "\(world.name) deleted!")
-                                            Drops.show(drop)
-                                        }
-                                    } label: {
-                                        HStack {
-                                            Text("Delete")
-                                                .foregroundColor(.red) // Use this for text
-                                            Image(systemName: "trash.fill")
-                                                .foregroundStyle(.red)
+                                        Menu {
+                                            Button {
                                                 
+                                                isRenaming.toggle()
+                                            } label: {
+                                                HStack {
+                                                    Text("Rename")
+                                                    Image(systemName: "character.cursor.ibeam")
+                                                        .font(.title)
+                                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                                }
+                                            }
+                                            
+                                            Button {
+                                                worldManager.shareWorld(currentRoomName: world.name)
+                                            } label: {
+                                                HStack {
+                                                    Text("Share")
+                                                    Image(systemName: "square.and.arrow.up")
+                                                        .font(.title)
+                                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+
+                                                }
+                                                .font(.title)
+                                                
+                                            }
+                                            
+                                            Button(role: .destructive) {
+                                                worldManager.deleteWorld(roomName: world.name) {
+                                                    print("Deletion process completed.")
+                                                    let drop = Drop.init(title: "\(world.name) deleted!")
+                                                    Drops.show(drop)
+                                                }
+                                            } label: {
+                                                HStack {
+                                                    Text("Delete")
+                                                        .foregroundColor(.red) // Use this for text
+                                                    Image(systemName: "trash.fill")
+                                                        .foregroundStyle(.red)
+                                                        
+                                                }
+                                                .font(.title)
+                                                
+                                            }
+                                            
+                                            .onAppear {
+                                                currentName = world.name
+                                            }
+                                            
+                                            
+                                            
+                                            
+                                        } label: {
+                                            Image(systemName: "ellipsis.circle")
+                                                .font(.title)
+                                                .foregroundStyle(colorScheme == .dark ? .white : .black)
                                         }
-                                        .font(.title)
                                         
+
                                     }
-                                    
-                                    .onAppear {
-                                        currentName = world.name
-                                    }
-                                    
-                                    
-                                    
-                                    
-                                } label: {
-                                    Image(systemName: "ellipsis.circle")
-                                        .font(.title)
-                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                    .padding(.horizontal)
                                 }
+                              
+                                .padding()
+
+
                                 
-
                             }
-                            .padding(.horizontal)
-
-                            // Anchors Section
-                            ScrollView(.vertical, showsIndicators: false) {
-                                LazyVGrid(columns: columns, spacing: 10) {
-                                    if let anchors = anchorsByWorld[world.name], !anchors.isEmpty {
-                                        // Filter out "guide" anchors
-                                        
-                                   
-                                        let anchors = filteredAnchors(for: world.name)
-                                        let filteredAnchors = anchors.filter { $0 != "guide" }
-                                        // Show non-guide anchors
-                                        ForEach(Array(filteredAnchors.enumerated()), id: \.0) { index, anchorName in
-                                            VStack {
+                            .frame(height: 200)
+                            .onTapGesture {
+                                currentName = world.name
+                              //  DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    
+                                    isShowingAnchors = true
+                              //  }
+                            }
+                            
+                           
+                            if searchText != "" {
+                                
+                                
+                                // Anchors Section
+                                ScrollView(.vertical, showsIndicators: false) {
+                                    LazyVGrid(columns: columns, spacing: 10) {
+                                        if let anchors = anchorsByWorld[world.name], !anchors.isEmpty {
+                                            // Filter out "guide" anchors
+                                            
+                                            
+                                            let anchors = filteredAnchors(for: world.name)
+                                            let filteredAnchors = anchors.filter { $0 != "guide" }
+                                            // Show non-guide anchors
+                                            ForEach(Array(filteredAnchors.enumerated()), id: \.0) { index, anchorName in
+                                                VStack {
                                                     // Extract and display the emoji if present
-                                                let emoji = extractEmoji(from: anchorName)
+                                                    let emoji = extractEmoji(from: anchorName)
                                                     Text(emoji ?? "📍")
-                                                    .font(.system(size: 50))
+                                                        .font(.system(size: 50))
                                                     // Display the anchor name without the emoji
-                                                let cleanAnchorName = anchorName.filter { !$0.isEmoji }
+                                                    let cleanAnchorName = anchorName.filter { !$0.isEmoji }
                                                     Text(cleanAnchorName)
-                                                    .font(.system(.headline, design: .rounded))
-                                                    .multilineTextAlignment(.center)
-                                                    .bold()
+                                                        .font(.system(.headline, design: .rounded))
+                                                        .multilineTextAlignment(.center)
+                                                        .bold()
                                                         .foregroundStyle(.white)
-                                                       
+                                                    
                                                 }
                                                 .frame(maxWidth: .infinity)
                                                 
@@ -242,27 +291,28 @@ struct WorldsView: View {
                                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                                         selectedWorld = world
                                                     }
-                                                  
+                                                    
                                                 }
+                                            }
+                                            
+                                        } else {
+                                            Text("No anchors found.")
+                                                .foregroundColor(.secondary)
+                                                .padding()
+                                                .frame(maxWidth: .infinity)
                                         }
-                                        
-                                    } else {
-                                        Text("No anchors found.")
-                                            .foregroundColor(.secondary)
-                                            .padding()
-                                            .frame(maxWidth: .infinity)
                                     }
+                                    .padding(.horizontal)
+                                    
+                                    
                                 }
-                                .padding(.horizontal)
-                                
-                         
-                            }
-                            .onAppear {
-                                // Fetch anchors for this specific world
-                                if anchorsByWorld[world.name] == nil || anchorsByWorld[world.name]?.isEmpty == true {
-                                    worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
-                                        DispatchQueue.main.async {
-                                            anchorsByWorld[world.name] = fetchedAnchors
+                                .onAppear {
+                                    // Fetch anchors for this specific world
+                                    if anchorsByWorld[world.name] == nil || anchorsByWorld[world.name]?.isEmpty == true {
+                                        worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
+                                            DispatchQueue.main.async {
+                                                anchorsByWorld[world.name] = fetchedAnchors
+                                            }
                                         }
                                     }
                                 }
@@ -288,6 +338,8 @@ struct WorldsView: View {
 
                         
                 }
+            
+          
             }
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic)) // Add Searchable Modifier
 
@@ -324,6 +376,7 @@ struct WorldsView: View {
 //                }
             }
             .sheet(item: $selectedWorld, onDismiss: {
+                
                 worldManager.loadSavedWorlds()
                 
                 if let anchorsToUpdate = updateRoomName {
@@ -356,6 +409,22 @@ struct WorldsView: View {
             .sheet(isPresented: $isTestingAudio, content: {
                 SpatialAudioDebugView()
             })
+            
+            .sheet(isPresented: $isShowingAnchors, onDismiss: {
+                if findingAnchorName != "" {
+                    
+                    
+                    worldManager.isShowingAll = false
+                    isFindingAnchor = true
+                    
+                    if let world = worldManager.savedWorlds.first(where: { $0.name == currentName }) {
+                        selectedWorld = world
+                    }
+                }
+               
+            }) {
+                AnchorsListView(worldManager: worldManager, worldName: $currentName, findingAnchorName: $findingAnchorName)
+            }
             .onChange(of: worldManager.reload) {
                 print("reloaded")
             }

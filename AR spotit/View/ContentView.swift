@@ -290,9 +290,7 @@ struct ContentView: View {
                     coordinator.updateNodeVisibility(in: sceneView)
                 }
             }
-            .sheet(isPresented: $showAnchorList) {
-                AnchorListView(sceneView: sceneView, worldManager: worldManager)
-            }
+        
             .sheet(isPresented: $isAddingNewAnchor) {
                 AddAnchorView(anchorName: $currentAnchorName, worldManager: worldManager)
                     .presentationDetents([.fraction(0.6)])

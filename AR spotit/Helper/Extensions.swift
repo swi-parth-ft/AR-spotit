@@ -53,3 +53,4 @@ extension BinaryInteger {
         return Double(self) * .pi / 180
     }
 }
+

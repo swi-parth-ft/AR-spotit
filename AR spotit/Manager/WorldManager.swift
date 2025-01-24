@@ -55,9 +55,12 @@ class WorldManager: ObservableObject {
             }
             
             let timestamp = Date()
+            var isNew = true
             if let index = self.savedWorlds.firstIndex(where: { $0.name == roomName }) {
+                isNew = false
                 self.savedWorlds[index].lastModified = timestamp
             } else {
+                isNew = true
                 self.savedWorlds.append(WorldModel(name: roomName, lastModified: timestamp))
             }
             sceneView.session.pause()
@@ -72,23 +75,25 @@ class WorldManager: ObservableObject {
                 
                 print("World map for \(roomName) saved locally at: \(filePath.path)")
                 
-                if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
-                    if let snapshotImage = coordinator.capturePointCloudSnapshot() {
-                                 
-                                 // Generate a filename for the PNG
-                                 let imageFilename = "\(roomName)_snapshot.png"
-                                 let imageFileURL = WorldModel.appSupportDirectory.appendingPathComponent(imageFilename)
-                                 
-                                 do {
-                                     try snapshotImage.pngData()?.write(to: imageFileURL)
-                                     print("Saved snapshot image for \(roomName) at \(imageFileURL.path)")
-                                 } catch {
-                                     print("Error saving snapshot PNG: \(error.localizedDescription)")
-                                 }
-                             } else {
-                                 print("Failed to capture mesh snapshot for \(roomName).")
-                             }
-                         }
+                if isNew {
+                    if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
+                        if let snapshotImage = coordinator.capturePointCloudSnapshotOffscreenClone() {
+                            
+                            // Generate a filename for the PNG
+                            let imageFilename = "\(roomName)_snapshot.png"
+                            let imageFileURL = WorldModel.appSupportDirectory.appendingPathComponent(imageFilename)
+                            
+                            do {
+                                try snapshotImage.pngData()?.write(to: imageFileURL)
+                                print("Saved snapshot image for \(roomName) at \(imageFileURL.path)")
+                            } catch {
+                                print("Error saving snapshot PNG: \(error.localizedDescription)")
+                            }
+                        } else {
+                            print("Failed to capture mesh snapshot for \(roomName).")
+                        }
+                    }
+                }
                 iCloudManager.uploadWorldMap(roomName: roomName, data: data, lastModified: timestamp) {
                     print("Sync to CloudKit complete for \(roomName).")
                 }
