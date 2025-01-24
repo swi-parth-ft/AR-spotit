@@ -215,8 +215,10 @@ struct AnchorsListView: View {
                     Button(action: {
                         
                         //                    updateRoomName = world.name
-                                            worldManager.isShowingAll = true
-                        isOpeningWorld = true
+//                                            worldManager.isShowingAll = true
+                    //    isOpeningWorld = true
+                        
+                        dismiss()
 
                         //                    selectedWorld = world // Set the selected world
                     }) {

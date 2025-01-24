@@ -455,6 +455,13 @@ struct WorldsView: View {
                               selectedWorld = world
                           }
                       }
+                      
+                      if currentName != "" {
+                          if let world = worldManager.savedWorlds.first(where: { $0.name == currentName }) {
+                              worldManager.isShowingAll = true
+                              selectedWorld = world
+                          }
+                      }
                       currentName = ""
                   }
               }

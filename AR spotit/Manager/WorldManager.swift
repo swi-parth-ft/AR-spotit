@@ -3,7 +3,7 @@ import CloudKit
 
 class WorldManager: ObservableObject {
     private lazy var iCloudManager: iCloudManager = {
-        return AR_spotit.iCloudManager(worldManager: self)
+        return it_s_here_.iCloudManager(worldManager: self)
         }()
     @Published var savedWorlds: [WorldModel] = []
     private let recordType = "ARWorldMapRecord"
