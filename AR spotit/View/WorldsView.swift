@@ -29,6 +29,8 @@ struct WorldsView: View {
 @State private var updateRoomName: String?
     @State private var isShowingAnchors: Bool = false
     @State private var selectedImage: UIImage?
+    
+    @Namespace private var animationNamespace
     enum SortingOption {
          case name
          case lastModified
@@ -94,11 +96,11 @@ struct WorldsView: View {
     
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading) {
                     ForEach(filteredWorlds) { world in
-                        VStack(alignment: .leading, spacing: 10) {
+                        VStack(alignment: .leading) {
                             
                             ZStack {
                                 
@@ -119,11 +121,12 @@ struct WorldsView: View {
                                             .cornerRadius(15)
                                             .overlay(
                                                         RoundedRectangle(cornerRadius: 15)
-                                                            .stroke(Color.white, lineWidth: 4) // Customize color and width as needed
                                                             .fill(LinearGradient(colors: [.black.opacity(0.8), .black.opacity(0.0)], startPoint: .bottom, endPoint: .top))
-
+                                                            
+                                                          
                                                     )
                                             .padding(.horizontal)
+                                            .shadow(color: .white.opacity(0.4), radius: 5)
                                     } else {
                                         Image(uiImage: uiImage)
                                             .resizable()
@@ -133,11 +136,14 @@ struct WorldsView: View {
                                             .cornerRadius(15)
                                             .overlay(
                                                         RoundedRectangle(cornerRadius: 15)
-                                                            .stroke(Color.white, lineWidth: 4) // Customize color and width as needed
                                                             .fill(LinearGradient(colors: [.black.opacity(0.8), .black.opacity(0.0)], startPoint: .bottom, endPoint: .top))
+                                                            
+                                                          
                                                     )
                                             .padding(.horizontal)
                                             .colorInvert()
+                                            .shadow(radius: 5)
+
                                     }
 
                                 } else {
@@ -237,6 +243,9 @@ struct WorldsView: View {
                                 
                             }
                             .frame(height: 200)
+                            .padding(.vertical, 10)
+                            .matchedTransitionSource(id: "zoom-\(world.name)", in: animationNamespace)
+
                             .onTapGesture {
                                 currentName = world.name
                               //  DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -322,7 +331,9 @@ struct WorldsView: View {
                     }
                 }
                 .onAppear {
-                    worldManager.loadSavedWorlds()
+                    if currentName == "" {
+                        worldManager.loadSavedWorlds()
+                    }
           
                 }
                 .onChange(of: AppState.shared.isWorldUpdated) {
@@ -410,24 +421,43 @@ struct WorldsView: View {
                 SpatialAudioDebugView()
             })
             
-            .sheet(isPresented: $isShowingAnchors, onDismiss: {
-                if findingAnchorName != "" {
-                    
-                    
-                    worldManager.isShowingAll = false
-                    isFindingAnchor = true
-                    
-                    if let world = worldManager.savedWorlds.first(where: { $0.name == currentName }) {
-                        selectedWorld = world
-                    }
-                }
-               
-            }) {
-                AnchorsListView(worldManager: worldManager, worldName: $currentName, findingAnchorName: $findingAnchorName)
-            }
+//            .sheet(isPresented: $isShowingAnchors, onDismiss: {
+//                if findingAnchorName != "" {
+//                    
+//                    
+//                    worldManager.isShowingAll = false
+//                    isFindingAnchor = true
+//                    
+//                    if let world = worldManager.savedWorlds.first(where: { $0.name == currentName }) {
+//                        selectedWorld = world
+//                    }
+//                }
+//               
+//            }) {
+//                AnchorsListView(worldManager: worldManager, worldName: $currentName, findingAnchorName: $findingAnchorName)
+//            }
             .onChange(of: worldManager.reload) {
                 print("reloaded")
             }
+            .navigationDestination(isPresented: $isShowingAnchors) {
+                  AnchorsListView(
+                      worldManager: worldManager,
+                      worldName: $currentName,
+                      findingAnchorName: $findingAnchorName
+                  )
+                  .navigationTransition(.zoom(sourceID: "zoom-\(currentName)", in: animationNamespace))
+
+                  .onDisappear {
+                      if findingAnchorName != "" {
+                          worldManager.isShowingAll = false
+                          isFindingAnchor = true
+                          if let world = worldManager.savedWorlds.first(where: { $0.name == currentName }) {
+                              selectedWorld = world
+                          }
+                      }
+                      currentName = ""
+                  }
+              }
             
          
         }

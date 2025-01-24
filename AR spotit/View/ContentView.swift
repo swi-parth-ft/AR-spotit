@@ -62,6 +62,9 @@ struct ContentView: View {
                                audioEngine.stop()
                                audioEngine.reset()
                            }
+                        
+                        sceneView.session.pause()
+
                     }
                     
                     .edgesIgnoringSafeArea(.all)
@@ -280,6 +283,18 @@ struct ContentView: View {
             }
             .onAppear {
                 worldManager.loadSavedWorlds()
+                print("sceneView instance: \(sceneView)")
+                   if let delegate = sceneView.delegate {
+                       print("sceneView.delegate: \(delegate)")
+                   } else {
+                       print("sceneView.delegate is nil!")
+                   }
+                   if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
+                       print("Coordinator is set: \(coordinator)")
+                   } else {
+                       print("Coordinator is NOT set.")
+                   }
+                   print("worldManager state: \(worldManager.savedWorlds.count) worlds loaded")
             }
             .onChange(of: worldManager.scannedZones) {
                 updateScanningProgress()
