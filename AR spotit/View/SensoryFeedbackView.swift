@@ -68,7 +68,7 @@ struct SensoryFeedbackView: View {
                         }
                         
                         Button(action: {
-                            HapticManager.shared.notification(type: .warning)
+                               HapticManager.shared.notification(type: .warning)
                         }) {
                             Text("Warning Notification")
                                 .foregroundColor(.white)

@@ -14,18 +14,19 @@ struct CircleView: View {
                
                 
                 ParticleTextAnimation(text: emoji)
-                    .frame(width: 700, height: 60)
+                    .frame(width: 700, height: 260)
                 ParticleTextAnimation(text: "Searching")
-                    .frame(width: 700, height: 60)
-                    .padding(.top, -20)
+                    .frame(width: 700, height: 560)
+                    .padding(.top, -520)
 
                 ParticleTextAnimation(text: text)
-                    .frame(width: 700, height: 60)
-                    .padding(.top, -20)
+                    .frame(width: 700, height: 560)
+                    .padding(.top, -520)
                 
                 Spacer()
                
             }
+            .padding(.top)
             VortexView(createRing()) {
                 Circle()
                     .fill(.white)

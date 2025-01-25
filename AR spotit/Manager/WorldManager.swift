@@ -21,30 +21,11 @@ class WorldManager: ObservableObject {
     @Published var tempWorldName = ""
     @Published var reload = false
     @Published var isWorldLoaded = false
+    @Published var isShowingARGuide = false
+
     
     init() {
-//        
-//        loadSavedWorlds()
-//        
-//        fetchWorldNamesFromCloudKit {
-//            print("Data synced with CloudKit.")
-//            
-//            for world in self.savedWorlds {
-//                self.getAnchorNames(for: world.name) { anchorNames in
-//                    DispatchQueue.main.async {
-//                        self.cachedAnchorNames[world.name] = anchorNames
-//                    }
-//                }
-//                
-//                if !FileManager.default.fileExists(atPath: world.filePath.path) {
-//                    print("Fetching missing data for world: \(world.name)")
-//                    
-//                    self.iCloudManager.loadWorldMap(roomName: world.name) { _ in
-//                        print("Fetched and saved \(world.name) locally.")
-//                    }
-//                }
-//            }
-//        }
+
     }
     
     func saveWorldMap(for roomName: String, sceneView: ARSCNView) {
@@ -110,6 +91,8 @@ class WorldManager: ObservableObject {
         
         guard let world = savedWorlds.first(where: { $0.name == roomName }) else {
             print("No saved world found with the name: \(roomName)")
+            isShowingARGuide = true
+
             return
         }
         
@@ -154,6 +137,7 @@ class WorldManager: ObservableObject {
                 print("World loaded. Ready to add new guide anchors.")
             }
             isWorldLoaded = true
+            isShowingARGuide = true
             print("World map for \(roomName) loaded successfully.")
         } catch {
             print("Error loading ARWorldMap for \(roomName): \(error.localizedDescription)")

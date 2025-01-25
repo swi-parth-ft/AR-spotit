@@ -54,3 +54,8 @@ extension BinaryInteger {
     }
 }
 
+extension Double {
+    func smoothed(to target: Double, factor: Double) -> Double {
+        return self + (target - self) * factor
+    }
+}

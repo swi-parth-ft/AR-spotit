@@ -14,7 +14,7 @@ struct ContentView: View {
     @State private var newRoom = ""
     var sceneView = ARSCNView()
     @State private var audioEngine = AVAudioEngine()
-       @State private var audioPlayer = AVAudioPlayerNode()
+    @State private var audioPlayer = AVAudioPlayerNode()
     
     @State private var currentInstruction: String = "Start scanning the Front Wall."
     @State private var progress: Float = 0.0
@@ -25,15 +25,20 @@ struct ContentView: View {
     @State private var animate = false
     @State private var isFlashlightOn = false
     @Binding var isShowingFocusedAnchor: Bool
-   @State private var isAddingNewAnchor: Bool = false
+    @State private var isAddingNewAnchor: Bool = false
     
     @State private var shouldPlay = false
-   @State private var isEditingAnchor: Bool = false
+    @State private var isEditingAnchor: Bool = false
     @State private var nameOfAnchorToEdit: String = ""
     
     @State private var engine: CHHapticEngine?
     @State private var animateButton = false
     @GestureState private var isPressed = false // Gesture state variable for press detection
+    
+    @State private var angle: Double = 0.0 // Store the angle for the arrow rotation
+    
+    
+    
     var body: some View {
         NavigationStack {
             
@@ -49,7 +54,8 @@ struct ContentView: View {
                                     showFocusedAnchor: $isShowingFocusedAnchor,
                                     shouldPlay: $shouldPlay,
                                     isEditingAnchor: $isEditingAnchor,
-                                    nameOfAnchorToEdit: $nameOfAnchorToEdit)
+                                    nameOfAnchorToEdit: $nameOfAnchorToEdit,
+                                    angle: $angle)
                     .onAppear {
                         if findAnchor != "" {
                             worldManager.isShowingAll = false
@@ -59,37 +65,37 @@ struct ContentView: View {
                         shouldPlay = false
                         
                         if audioPlayer.isPlaying {
-                               audioPlayer.stop()
-                           }
-                           if audioEngine.isRunning {
-                               audioEngine.stop()
-                               audioEngine.reset()
-                           }
+                            audioPlayer.stop()
+                        }
+                        if audioEngine.isRunning {
+                            audioEngine.stop()
+                            audioEngine.reset()
+                        }
                         
                         sceneView.session.pause()
-
+                        
                     }
                     
                     .edgesIgnoringSafeArea(.all)
                     
-                   
                     
                     
-                    if !worldManager.isWorldLoaded || !worldManager.isRelocalizationComplete {
+                    
+                    if !worldManager.isShowingARGuide || !worldManager.isRelocalizationComplete {
                         
                         ZStack {
                             
                             CircleView(text: !findAnchor.isEmpty ? findAnchor.filter { !$0.isEmoji } : currentRoomName, emoji: extractEmoji(from: findAnchor) ?? "🔍")
                                 .padding(.top)
-
+                            
                                 .frame(width: 800, height: 800)
-
+                            
                             
                             
                             VStack {
                                 Spacer()
                                 Button {
-                                   // toggleFlashlight()
+                                    // toggleFlashlight()
                                 } label: {
                                     
                                     
@@ -100,32 +106,32 @@ struct ContentView: View {
                                         .cornerRadius(25)
                                         .shadow(color: Color.white.opacity(0.5), radius: 10)
                                         .scaleEffect(isPressed ? 1.3 : (animateButton ? 1.4 : 1.0))
-                                                            .animation(.spring(response: 0.3, dampingFraction: 0.5, blendDuration: 0), value: isPressed)
-                                                            .animation(.spring(response: 0.3, dampingFraction: 0.5, blendDuration: 0), value: animateButton)
+                                        .animation(.spring(response: 0.3, dampingFraction: 0.5, blendDuration: 0), value: isPressed)
+                                        .animation(.spring(response: 0.3, dampingFraction: 0.5, blendDuration: 0), value: animateButton)
                                 }
                                 .simultaneousGesture(
-                                                   LongPressGesture(minimumDuration: 0.25)
-                                                    .updating($isPressed) { currentState, gestureState, transaction in
-                                                                            gestureState = currentState
-                                                                        }
-                                                       .onEnded { _ in
-                                                          
-                                                           toggleFlashlight()
-                                                          
-                                                           // Trigger the bouncy animation
-                                                           animateButton = true
-                                                           DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                                               animateButton = false
-                                                           }
-                                                       }
-                                               )
+                                    LongPressGesture(minimumDuration: 0.25)
+                                        .updating($isPressed) { currentState, gestureState, transaction in
+                                            gestureState = currentState
+                                        }
+                                        .onEnded { _ in
+                                            
+                                            toggleFlashlight()
+                                            
+                                            // Trigger the bouncy animation
+                                            animateButton = true
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                                animateButton = false
+                                            }
+                                        }
+                                )
                                 .sensoryFeedback(.impact(weight: .heavy, intensity: 1), trigger: isFlashlightOn)
-
+                                
                                 .padding(30)
                             }
                             .padding()
                         }
-                         
+                        
                     } else {
                         VStack {
                             if !directLoading {
@@ -141,17 +147,17 @@ struct ContentView: View {
                                     .padding(.bottom, 20)
                             }
                             
-                         
+                            
                             
                             Spacer()
                             HStack {
                                 VStack(spacing: 10) {
                                     
                                     Button {
-                                     //   worldManager.isAddingAnchor.toggle()
+                                        //   worldManager.isAddingAnchor.toggle()
                                         isAddingNewAnchor.toggle()
                                         HapticManager.shared.impact(style: .medium)
-
+                                        
                                     } label: {
                                         Image(systemName: "plus")
                                             .foregroundStyle(.black)
@@ -159,15 +165,15 @@ struct ContentView: View {
                                             .background(Color.white)
                                             .cornerRadius(25)
                                             .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                           
+                                        
                                     }
-
+                                    
                                     
                                     
                                     Button {
                                         toggleFlashlight()
                                         HapticManager.shared.impact(style: .medium)
-
+                                        
                                     } label: {
                                         ZStack {
                                             if !isFlashlightOn {
@@ -187,22 +193,22 @@ struct ContentView: View {
                                         }
                                     }
                                     .shadow(color: Color.white.opacity(0.5), radius: 10)
-
                                     
                                     
-
-                                        
-                                           
+                                    
+                                    
+                                    
+                                    
                                     
                                     if findAnchor != "" {
                                         
                                         Button {
-                                          //  isShowingFocusedAnchor.toggle()
+                                            //  isShowingFocusedAnchor.toggle()
                                             worldManager.isShowingAll.toggle()
                                             let drop = Drop.init(title: worldManager.isShowingAll ? "Showing all items" : "Showing \(findAnchor) only")
                                             Drops.show(drop)
                                             HapticManager.shared.impact(style: .medium)
-
+                                            
                                         } label: {
                                             
                                             ZStack {
@@ -227,7 +233,7 @@ struct ContentView: View {
                                         Button {
                                             shouldPlay.toggle()
                                             HapticManager.shared.impact(style: .medium)
-
+                                            
                                         } label: {
                                             
                                             ZStack {
@@ -250,32 +256,40 @@ struct ContentView: View {
                                             
                                         }
                                         .shadow(color: Color.white.opacity(0.5), radius: 10)
-
+                                        
                                     }
                                 }
                                 .padding()
-                               
+                                
                                 Spacer()
                             }
                             Spacer()
                             
                             VStack {
                                 
-                                
+                                if findAnchor != "" {
+                                    Image(systemName: "arrow.up.circle.fill")
+                                        .font(.system(size: 80))
+                                        .foregroundColor(.white)
+                                        .rotationEffect(.degrees(-angle))
+                                        .animation(.easeInOut, value: angle)
+                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                       
+                                }
                                 
                                 HStack {
-                         
+                                    
                                     Button {
                                         shouldPlay = false
                                         findAnchor = ""
                                         worldManager.isWorldLoaded = false
                                         if audioPlayer.isPlaying {
-                                               audioPlayer.stop()
-                                           }
-                                           if audioEngine.isRunning {
-                                               audioEngine.stop()
-                                               audioEngine.reset()
-                                           }
+                                            audioPlayer.stop()
+                                        }
+                                        if audioEngine.isRunning {
+                                            audioEngine.stop()
+                                            audioEngine.reset()
+                                        }
                                         guard !currentRoomName.isEmpty else { return }
                                         worldManager.saveWorldMap(for: currentRoomName, sceneView: sceneView)
                                         
@@ -283,7 +297,7 @@ struct ContentView: View {
                                         Drops.show(drop)
                                         
                                         HapticManager.shared.notification(type: .success)
-
+                                        
                                         dismiss()
                                     } label: {
                                         Text("Done")
@@ -292,26 +306,22 @@ struct ContentView: View {
                                             .background(Color.white)
                                             .cornerRadius(25)
                                             .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                            
+                                        
                                     }
                                     .onAppear {
-//                                        guard directLoading, !currentRoomName.isEmpty, !hasLoadedWorldMap else { return }
-//                                        hasLoadedWorldMap = true
-//                                        
-//                                        worldManager.loadWorldMap(for: currentRoomName, sceneView: sceneView)
+                                        //                                        guard directLoading, !currentRoomName.isEmpty, !hasLoadedWorldMap else { return }
+                                        //                                        hasLoadedWorldMap = true
+                                        //
+                                        //                                        worldManager.loadWorldMap(for: currentRoomName, sceneView: sceneView)
                                     }
-                       
+                                    
                                     
                                     
                                     
                                 }
                             }
                         }
-                        .onAppear {
-                            if worldManager.isWorldLoaded && worldManager.isRelocalizationComplete {
-                                complexSuccess()
-                            }
-                        }
+                        
                     }
                     
                 }
@@ -326,10 +336,8 @@ struct ContentView: View {
                     worldManager.loadWorldMap(for: currentRoomName, sceneView: sceneView)
                 }
                 
-                if findAnchor == "" {
-                    prepareHaptics()
-                }
-
+                
+                
             }
             .onChange(of: worldManager.scannedZones) {
                 updateScanningProgress()
@@ -340,11 +348,11 @@ struct ContentView: View {
                     coordinator.updateNodeVisibility(in: sceneView)
                 }
             }
-        
+            
             .sheet(isPresented: $isAddingNewAnchor) {
                 AddAnchorView(anchorName: $currentAnchorName, worldManager: worldManager)
                     .presentationDetents([.fraction(0.6)])
-
+                
             }
             .sheet(isPresented: $isEditingAnchor) {
                 EditAnchorView(
@@ -373,7 +381,7 @@ struct ContentView: View {
                     }
                 )
                 .presentationDetents([.fraction(0.6)])
-
+                
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -382,19 +390,19 @@ struct ContentView: View {
                         shouldPlay = false
                         findAnchor = ""
                         sceneView.session.pause()
-
+                        
                         if audioPlayer.isPlaying {
-                               audioPlayer.stop()
+                            audioPlayer.stop()
                             print("audio stopped")
-                           }
-                           if audioEngine.isRunning {
-                               audioEngine.stop()
-                               audioEngine.reset()
-                               print("engine stopped")
-                           }
+                        }
+                        if audioEngine.isRunning {
+                            audioEngine.stop()
+                            audioEngine.reset()
+                            print("engine stopped")
+                        }
                         
                         HapticManager.shared.impact(style: .medium)
-
+                        
                         dismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
@@ -414,7 +422,7 @@ struct ContentView: View {
                             worldManager.deleteWorld(roomName: currentRoomName) {
                                 print("Deletion process completed.")
                                 HapticManager.shared.notification(type: .success)
-
+                                
                                 dismiss()
                             }
                         } label: {
@@ -432,49 +440,16 @@ struct ContentView: View {
                             .foregroundStyle(.white)
                     }
                 }
-             
+                
             }
             
         }
-       
+        
     }
     
-    func prepareHaptics() {
-        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
-
-        do {
-            engine = try CHHapticEngine()
-            try engine?.start()
-        } catch {
-            print("There was an error creating the engine: \(error.localizedDescription)")
-        }
-    }
-
-    func complexSuccess() {
-        // make sure that the device supports haptics
-        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
-        var events = [CHHapticEvent]()
-
-        for i in stride(from: 0, to: 1, by: 0.1) {
-            let intensity = CHHapticEventParameter(parameterID: .hapticIntensity, value: Float(i))
-            let sharpness = CHHapticEventParameter(parameterID: .hapticSharpness, value: Float(i))
-            let event = CHHapticEvent(eventType: .hapticTransient, parameters: [intensity, sharpness], relativeTime: i)
-            events.append(event)
-        }
-
-      
-
-        // convert those events into a pattern and play it immediately
-        do {
-            let pattern = try CHHapticPattern(events: events, parameters: [])
-            let player = try engine?.makePlayer(with: pattern)
-            try player?.start(atTime: 0)
-        } catch {
-            print("Failed to play pattern: \(error.localizedDescription).")
-        }
-    }
-
-  
+    
+    
+    
     // Function to toggle flashlight
     private func toggleFlashlight() {
         guard let device = AVCaptureDevice.default(for: .video), device.hasTorch else {
@@ -495,15 +470,15 @@ struct ContentView: View {
             print("Failed to toggle flashlight: \(error)")
         }
     }
- func extractEmoji(from string: String) -> String? {
-     for char in string {
-             if char.isEmoji {
-                 return String(char)
-             }
-         }
-         return nil
- }
- 
+    func extractEmoji(from string: String) -> String? {
+        for char in string {
+            if char.isEmoji {
+                return String(char)
+            }
+        }
+        return nil
+    }
+    
     private func updateScanningProgress() {
         DispatchQueue.main.async {
             let totalZones = Float(worldManager.scanningZones.count)
@@ -535,13 +510,13 @@ struct ContentView: View {
 
 struct ProgressBar: View {
     var progress: Float
-
+    
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 10)
                 .frame(height: 20)
                 .foregroundColor(.gray.opacity(0.3))
-
+            
             RoundedRectangle(cornerRadius: 10)
                 .frame(width: CGFloat(progress) * 300, height: 20)
                 .foregroundColor(.blue)
@@ -553,12 +528,12 @@ struct ProgressBar: View {
 struct VisualEffectBlur: UIViewRepresentable {
     var blurStyle: UIBlurEffect.Style
     var intensity: CGFloat? = nil
-
+    
     func makeUIView(context: Context) -> UIVisualEffectView {
         let view = UIVisualEffectView(effect: UIBlurEffect(style: blurStyle))
         return view
     }
-
+    
     func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
         uiView.effect = UIBlurEffect(style: blurStyle)
     }

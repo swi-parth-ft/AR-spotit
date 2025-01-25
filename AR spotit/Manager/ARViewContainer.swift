@@ -26,6 +26,9 @@ struct ARViewContainer: UIViewRepresentable {
     @Binding var nameOfAnchorToEdit: String
     
     private let coachingOverlay = ARCoachingOverlayView()
+    
+    @Binding var angle: Double
+    
 //
 //    // Implement the delegate method
 //        func coachingOverlayViewDidDeactivate(_ coachingOverlayView: ARCoachingOverlayView) {
@@ -860,7 +863,29 @@ struct ARViewContainer: UIViewRepresentable {
             let distance = simd_distance(cameraPosition, anchorPosition)
             let clampedDistance = max(0.1, min(distance, 5.0)) // Clamp distance
             let direction = anchorPosition - cameraPosition
+          
+          //  let direction = anchorPosition - cameraPosition
+            print("Direction Vector: \(direction)")
 
+            // Project onto the horizontal plane
+            let horizontalDirection = SIMD3<Float>(direction.x, 0, direction.z)
+            print("Horizontal Direction: \(horizontalDirection)")
+
+            // Normalize Direction
+            let normalizedDirection = normalize(horizontalDirection)
+            print("Normalized Direction: \(normalizedDirection)")
+
+            // Calculate Angle
+           
+            
+            let smoothedAngle = calculateAngleBetweenVectors(cameraTransform: cameraTransform, anchorPosition: anchorPosition)
+
+            print("Normalized Angle in Degrees: \(smoothedAngle)")
+                // Update the angle in the parent view
+                DispatchQueue.main.async {
+                    self.parent.angle = smoothedAngle
+                                    print("Angle in Degrees: \(smoothedAngle)")
+                }
             // Turn distance into a pulsing interval
             let interval = pulseInterval(for: clampedDistance)
 
@@ -913,6 +938,39 @@ struct ARViewContainer: UIViewRepresentable {
             DispatchQueue.main.async {
                 self.addJumpingAnimation(to: node, basedOn: clampedDistance)
             }
+        }
+        
+        
+        
+        func normalize(_ vector: SIMD3<Float>) -> SIMD3<Float> {
+            let length = simd_length(vector)
+            return length > 0 ? vector / length : SIMD3<Float>(0, 0, 0)
+        }
+        
+        func calculateAngleBetweenVectors(cameraTransform: simd_float4x4, anchorPosition: SIMD3<Float>) -> Double {
+            // Extract the camera's forward vector (negative Z-axis)
+               let cameraForward = SIMD3<Float>(-cameraTransform.columns.2.x, 0, -cameraTransform.columns.2.z)
+
+               // Normalize the camera's forward vector
+               let normalizedCameraForward = normalize(cameraForward)
+
+               // Compute the direction vector from the camera to the anchor
+               let directionToAnchor = anchorPosition - SIMD3<Float>(cameraTransform.columns.3.x, 0, cameraTransform.columns.3.z)
+
+               // Normalize the direction vector
+               let normalizedDirectionToAnchor = normalize(SIMD3<Float>(directionToAnchor.x, 0, directionToAnchor.z))
+
+               // Calculate the angle using dot product and cross product
+               let dotProduct = dot(normalizedCameraForward, normalizedDirectionToAnchor)
+               let crossProduct = cross(normalizedCameraForward, normalizedDirectionToAnchor)
+
+               // Angle in radians
+               let angleInRadians = atan2(crossProduct.y, dotProduct)
+
+               // Convert radians to degrees
+               let angleInDegrees = angleInRadians * (180.0 / .pi)
+
+            return Double(angleInDegrees)
         }
         
         func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
@@ -1044,25 +1102,27 @@ struct ARViewContainer: UIViewRepresentable {
             relocalizationTask = Task {
                 switch camera.trackingState {
                 case .normal:
+//                    parent.coachingOverlay.removeFromSuperview()
+
                     print("Relocalization complete. Ready to add guide anchors.")
                     worldIsLoaded = true
                   
 
-                    try? await Task.sleep(nanoseconds: 500_000_000)
+                try? await Task.sleep(nanoseconds: 500_000_000)
                     DispatchQueue.main.async {
-                        withAnimation(.easeIn(duration: 1)) {
-                            self.worldManager.isRelocalizationComplete = true
+                       // withAnimation(.easeIn(duration: 1)) {
+                        self.worldManager.isRelocalizationComplete = true
 
-                        }
+                       // }
                     }
                 case .limited(.relocalizing):
                     print("Relocalizing...")
                     worldIsLoaded = false
                     try? await Task.sleep(nanoseconds: 500_000_000)
                     DispatchQueue.main.async {
-                        withAnimation(.easeOut(duration: 1)) {
+                      //  withAnimation(.easeOut(duration: 1)) {
                             self.worldManager.isRelocalizationComplete = false
-                        }
+                      //  }
                     }
                 default:
                     break

@@ -1,6 +1,15 @@
 {
-  "originHash" : "1a48328d2be7ea841dff8dddfeecc420dfb7127f13808c440a95e0ba1fbb2bac",
+  "originHash" : "05c76ef212e8960d0a35da75011329db62c87ce6b935c3379a0f76972b5bcb4a",
   "pins" : [
+    {
+      "identity" : "animatetext",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jasudev/AnimateText.git",
+      "state" : {
+        "revision" : "c55847e03bb3f36cf83cc217fe60ec5feda9ddd6",
+        "version" : "0.5.0"
+      }
+    },
     {
       "identity" : "drops",
       "kind" : "remoteSourceControl",
