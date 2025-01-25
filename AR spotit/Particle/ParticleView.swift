@@ -14,13 +14,13 @@ struct CircleView: View {
                
                 
                 ParticleTextAnimation(text: emoji)
-                    .frame(width: 300, height: 60)
+                    .frame(width: 700, height: 60)
                 ParticleTextAnimation(text: "Searching")
-                    .frame(width: 300, height: 60)
+                    .frame(width: 700, height: 60)
                     .padding(.top, -20)
 
                 ParticleTextAnimation(text: text)
-                    .frame(width: 300, height: 60)
+                    .frame(width: 700, height: 60)
                     .padding(.top, -20)
                 
                 Spacer()
@@ -30,7 +30,7 @@ struct CircleView: View {
                 Circle()
                     .fill(.white)
                     .blur(radius: 0)
-                    .frame(width: 12)
+                    .frame(width: 6)
                     .tag("circle")
             }
                 

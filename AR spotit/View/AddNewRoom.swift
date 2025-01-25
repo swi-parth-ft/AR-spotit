@@ -68,13 +68,27 @@ struct AddNewRoom: View {
                 RoomScanGuideView()
             }
             .toolbar {
-                Button {
-                    isShowingGuide.toggle()
-                } label: {
-                    Image(systemName: "lightbulb.circle")
-                        .font(.title2)
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isShowingGuide.toggle()
+                    } label: {
+                        Image(systemName: "lightbulb.circle")
+                            .font(.title2)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
+                    }
                 }
+                
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        roomName = ""
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
+                    }
+                }
+                
             }
            
         }

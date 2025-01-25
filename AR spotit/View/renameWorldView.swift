@@ -36,7 +36,8 @@ struct renameWorldView: View {
                         DispatchQueue.main.async {
                                 AppState.shared.isWorldUpdated.toggle() // Notify WorldsView
                             }// Notify WorldsView
-                        
+                        HapticManager.shared.notification(type: .success)
+
                         let drop = Drop.init(title: "Renamed \(worldName) to \(newName)")
                         Drops.show(drop)
                         dismiss()

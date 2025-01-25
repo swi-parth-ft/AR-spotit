@@ -74,6 +74,7 @@ struct AddAnchorView: View {
                         .background(Color.primary.opacity(1))
                         .cornerRadius(10)
                 }
+
                 .padding(.horizontal)
             }
             .navigationTitle("New Item")

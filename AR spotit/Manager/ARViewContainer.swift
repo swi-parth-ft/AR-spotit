@@ -314,6 +314,9 @@ struct ARViewContainer: UIViewRepresentable {
                 print("Placed anchor with name: \(name) at position: \(result.worldTransform.columns.3)")
                 let drop = Drop.init(title: "\(name) placed")
                 Drops.show(drop)
+                if parent.findAnchor == "" {
+                    HapticManager.shared.notification(type: .success)
+                }
                 worldManager.isAddingAnchor = false
             } else {
                 if parent.tempAnchor != nil {
@@ -348,6 +351,9 @@ struct ARViewContainer: UIViewRepresentable {
                         let drop = Drop.init(title: "\(tempAnchor.name ?? "") moved")
                         Drops.show(drop)
                             print("Anchor moved to new position.")
+                        if parent.findAnchor == "" {
+                            HapticManager.shared.notification(type: .success)
+                        }
                         } else {
                             print("No anchor to move.")
                         }
@@ -399,6 +405,10 @@ struct ARViewContainer: UIViewRepresentable {
             let drop = Drop.init(title: "\(anchorName) deleted")
             Drops.show(drop)
             print("Anchor '\(anchorName)' deleted.")
+            if parent.findAnchor == "" {
+                HapticManager.shared.notification(type: .success)
+            }
+
         }
         
         func renameAnchor(oldName: String, newName: String) {
@@ -414,6 +424,9 @@ struct ARViewContainer: UIViewRepresentable {
             let drop = Drop.init(title: "Renamed from \(oldName) to \(newName)")
             Drops.show(drop)
             print("Anchor renamed from \(oldName) to \(newName).")
+            if parent.findAnchor == "" {
+                HapticManager.shared.notification(type: .success)
+            }
         }
         
         func prepareToMoveAnchor(anchorName: String) {
@@ -428,6 +441,9 @@ struct ARViewContainer: UIViewRepresentable {
             print("Anchor '\(anchorName)' prepared for moving.")
             let drop = Drop.init(title: "Tap new location to move \(anchorName)")
             Drops.show(drop)
+            if parent.findAnchor == "" {
+                HapticManager.shared.notification(type: .warning)
+            }
         }
         
         private func setupScanningZones() {

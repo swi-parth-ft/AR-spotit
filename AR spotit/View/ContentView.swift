@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreHaptics
 import ARKit
 import AVFoundation
 import Drops
@@ -30,7 +31,9 @@ struct ContentView: View {
    @State private var isEditingAnchor: Bool = false
     @State private var nameOfAnchorToEdit: String = ""
     
-
+    @State private var engine: CHHapticEngine?
+    @State private var animateButton = false
+    @GestureState private var isPressed = false // Gesture state variable for press detection
     var body: some View {
         NavigationStack {
             
@@ -86,7 +89,7 @@ struct ContentView: View {
                             VStack {
                                 Spacer()
                                 Button {
-                                    toggleFlashlight()
+                                   // toggleFlashlight()
                                 } label: {
                                     
                                     
@@ -96,10 +99,28 @@ struct ContentView: View {
                                         .background(Color.white)
                                         .cornerRadius(25)
                                         .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                    
-                                    
-                                    
+                                        .scaleEffect(isPressed ? 1.3 : (animateButton ? 1.4 : 1.0))
+                                                            .animation(.spring(response: 0.3, dampingFraction: 0.5, blendDuration: 0), value: isPressed)
+                                                            .animation(.spring(response: 0.3, dampingFraction: 0.5, blendDuration: 0), value: animateButton)
                                 }
+                                .simultaneousGesture(
+                                                   LongPressGesture(minimumDuration: 0.25)
+                                                    .updating($isPressed) { currentState, gestureState, transaction in
+                                                                            gestureState = currentState
+                                                                        }
+                                                       .onEnded { _ in
+                                                          
+                                                           toggleFlashlight()
+                                                          
+                                                           // Trigger the bouncy animation
+                                                           animateButton = true
+                                                           DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                                               animateButton = false
+                                                           }
+                                                       }
+                                               )
+                                .sensoryFeedback(.impact(weight: .heavy, intensity: 1), trigger: isFlashlightOn)
+
                                 .padding(30)
                             }
                             .padding()
@@ -129,6 +150,8 @@ struct ContentView: View {
                                     Button {
                                      //   worldManager.isAddingAnchor.toggle()
                                         isAddingNewAnchor.toggle()
+                                        HapticManager.shared.impact(style: .medium)
+
                                     } label: {
                                         Image(systemName: "plus")
                                             .foregroundStyle(.black)
@@ -143,6 +166,8 @@ struct ContentView: View {
                                     
                                     Button {
                                         toggleFlashlight()
+                                        HapticManager.shared.impact(style: .medium)
+
                                     } label: {
                                         ZStack {
                                             if !isFlashlightOn {
@@ -176,6 +201,8 @@ struct ContentView: View {
                                             worldManager.isShowingAll.toggle()
                                             let drop = Drop.init(title: worldManager.isShowingAll ? "Showing all items" : "Showing \(findAnchor) only")
                                             Drops.show(drop)
+                                            HapticManager.shared.impact(style: .medium)
+
                                         } label: {
                                             
                                             ZStack {
@@ -199,6 +226,8 @@ struct ContentView: View {
                                         
                                         Button {
                                             shouldPlay.toggle()
+                                            HapticManager.shared.impact(style: .medium)
+
                                         } label: {
                                             
                                             ZStack {
@@ -252,6 +281,9 @@ struct ContentView: View {
                                         
                                         let drop = Drop.init(title: "\(currentRoomName) saved")
                                         Drops.show(drop)
+                                        
+                                        HapticManager.shared.notification(type: .success)
+
                                         dismiss()
                                     } label: {
                                         Text("Done")
@@ -275,6 +307,11 @@ struct ContentView: View {
                                 }
                             }
                         }
+                        .onAppear {
+                            if worldManager.isWorldLoaded && worldManager.isRelocalizationComplete {
+                                complexSuccess()
+                            }
+                        }
                     }
                     
                 }
@@ -288,6 +325,11 @@ struct ContentView: View {
                     
                     worldManager.loadWorldMap(for: currentRoomName, sceneView: sceneView)
                 }
+                
+                if findAnchor == "" {
+                    prepareHaptics()
+                }
+
             }
             .onChange(of: worldManager.scannedZones) {
                 updateScanningProgress()
@@ -350,6 +392,9 @@ struct ContentView: View {
                                audioEngine.reset()
                                print("engine stopped")
                            }
+                        
+                        HapticManager.shared.impact(style: .medium)
+
                         dismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
@@ -368,6 +413,8 @@ struct ContentView: View {
                         Button {
                             worldManager.deleteWorld(roomName: currentRoomName) {
                                 print("Deletion process completed.")
+                                HapticManager.shared.notification(type: .success)
+
                                 dismiss()
                             }
                         } label: {
@@ -391,6 +438,43 @@ struct ContentView: View {
         }
        
     }
+    
+    func prepareHaptics() {
+        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
+
+        do {
+            engine = try CHHapticEngine()
+            try engine?.start()
+        } catch {
+            print("There was an error creating the engine: \(error.localizedDescription)")
+        }
+    }
+
+    func complexSuccess() {
+        // make sure that the device supports haptics
+        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
+        var events = [CHHapticEvent]()
+
+        for i in stride(from: 0, to: 1, by: 0.1) {
+            let intensity = CHHapticEventParameter(parameterID: .hapticIntensity, value: Float(i))
+            let sharpness = CHHapticEventParameter(parameterID: .hapticSharpness, value: Float(i))
+            let event = CHHapticEvent(eventType: .hapticTransient, parameters: [intensity, sharpness], relativeTime: i)
+            events.append(event)
+        }
+
+      
+
+        // convert those events into a pattern and play it immediately
+        do {
+            let pattern = try CHHapticPattern(events: events, parameters: [])
+            let player = try engine?.makePlayer(with: pattern)
+            try player?.start(atTime: 0)
+        } catch {
+            print("Failed to play pattern: \(error.localizedDescription).")
+        }
+    }
+
+  
     // Function to toggle flashlight
     private func toggleFlashlight() {
         guard let device = AVCaptureDevice.default(for: .video), device.hasTorch else {

@@ -177,7 +177,8 @@ struct WorldsView: View {
                                         
                                         Menu {
                                             Button {
-                                                
+                                                HapticManager.shared.impact(style: .medium)
+
                                                 isRenaming.toggle()
                                             } label: {
                                                 HStack {
@@ -190,6 +191,8 @@ struct WorldsView: View {
                                             
                                             Button {
                                                 worldManager.shareWorld(currentRoomName: world.name)
+                                                HapticManager.shared.impact(style: .medium)
+
                                             } label: {
                                                 HStack {
                                                     Text("Share")
@@ -207,6 +210,8 @@ struct WorldsView: View {
                                                     print("Deletion process completed.")
                                                     let drop = Drop.init(title: "\(world.name) deleted!")
                                                     Drops.show(drop)
+                                                    HapticManager.shared.notification(type: .success)
+
                                                 }
                                             } label: {
                                                 HStack {
@@ -246,9 +251,11 @@ struct WorldsView: View {
                             .frame(height: 200)
                             .padding(.vertical, 10)
                             .matchedTransitionSource(id: "zoom-\(world.name)", in: animationNamespace)
-
                             .onTapGesture {
+                                
                                 currentName = world.name
+                                HapticManager.shared.impact(style: .heavy)
+
                               //  DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                     
                                     isShowingAnchors = true
@@ -377,19 +384,23 @@ struct WorldsView: View {
                 
                 Button {
                     isAddingNewRoom.toggle()
+                    HapticManager.shared.impact(style: .medium)
+
                 } label: {
                     Image(systemName: "plus.circle")
                         .font(.title2)
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
                 
-//                Button {
-//                    isTestingAudio.toggle()
-//                } label: {
-//                    Image(systemName: "ladybug.fill")
-//                        .font(.title2)
-//                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-//                }
+                Button {
+                    isTestingAudio.toggle()
+                    HapticManager.shared.impact(style: .medium)
+
+                } label: {
+                    Image(systemName: "ladybug.fill")
+                        .font(.title2)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+                }
             }
             .sheet(item: $selectedWorld, onDismiss: {
                 
@@ -415,17 +426,21 @@ struct WorldsView: View {
 
             }
             .sheet(isPresented: $isAddingNewRoom, onDismiss: {
-                selectedWorld = WorldModel(name: roomName)
+                if roomName != "" {
+                    selectedWorld = WorldModel(name: roomName)
+                }
             }) {
                 
 //                    RoomScanGuideView()
 //                } else {
                 AddNewRoom(roomName: $roomName)
                         .presentationDetents([.fraction(0.4)])
+                        .interactiveDismissDisabled()
+
               //  }
             }
             .sheet(isPresented: $isTestingAudio, content: {
-                SpatialAudioDebugView()
+                SensoryFeedbackView()
             })
             
 //            .sheet(isPresented: $isShowingAnchors, onDismiss: {
