@@ -61,7 +61,7 @@ struct ContentView: View {
     @State private var angle: Double = 0.0 // Store the angle for the arrow rotation
     @State private var distance: Double = 0.0
     @State private var itshere = ""
-    @State private var animatedDistance = ""
+    @State private var animatedAngle = ""
     var body: some View {
         NavigationStack {
             
@@ -177,11 +177,12 @@ struct ContentView: View {
                                         
                                         if distance < 0.9 {
                                             AnimateText<ATOffsetEffect>($itshere)                                                                                           .font(.system(.largeTitle, design: .rounded))
+                                                .foregroundStyle(.white)
                                                 .bold()
                                                 .shadow(color: Color.white.opacity(0.5), radius: 10)
                                                 .onAppear {
                                                     itshere = "it's here."
-                                                    animatedDistance = ""
+                                                    animatedAngle = ""
                                                 }
                                         } else {
                                     
@@ -196,11 +197,12 @@ struct ContentView: View {
                                             }
                                             
                                             
-                                            AnimateText<ATOffsetEffect>($animatedDistance)                                                                                           .font(.system(.largeTitle, design: .rounded))
+                                            AnimateText<ATOffsetEffect>($animatedAngle)                                                                                           .font(.system(.largeTitle, design: .rounded))
+                                                .foregroundStyle(.white)
                                                 .bold()
                                                 .shadow(color: Color.white.opacity(0.5), radius: 10)
                                                 .onChange(of: angle) {
-                                                    animatedDistance = "\(Direction.classify(angle: angle))."
+                                                    animatedAngle = "\(Direction.classify(angle: angle))."
                                                 }
                                         }
                                             
