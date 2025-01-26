@@ -127,8 +127,13 @@ class iCloudManager {
             }
             do {
                 let data = try Data(contentsOf: assetFileURL)
-                let unarchivedMap = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: data)
-                completion(unarchivedMap)
+                if let container = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMapContainer.self, from: data) {
+                    let worldMap = container.map
+                    completion(worldMap)
+                } else {
+                    print("Failed to unarchive ARWorldMapContainer from CloudKit.")
+                    completion(nil)
+                }
             } catch {
                 print("Error loading CloudKit asset: \(error.localizedDescription)")
                 completion(nil)

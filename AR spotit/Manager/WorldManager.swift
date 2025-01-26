@@ -30,59 +30,127 @@ class WorldManager: ObservableObject {
     
     func saveWorldMap(for roomName: String, sceneView: ARSCNView) {
         sceneView.session.getCurrentWorldMap { [weak self] worldMap, error in
-            guard let self = self, let map = worldMap else {
-                print("Error saving world map: \(error?.localizedDescription ?? "No world map available.")")
-                return
-            }
-            
+            guard let self = self, let map = worldMap else { return }
+
             let timestamp = Date()
             var isNew = true
             if let index = self.savedWorlds.firstIndex(where: { $0.name == roomName }) {
+                // If the world already exists, we'll preserve the old snapshot from its container
                 isNew = false
                 self.savedWorlds[index].lastModified = timestamp
             } else {
-                isNew = true
                 self.savedWorlds.append(WorldModel(name: roomName, lastModified: timestamp))
             }
+
+            let filePath = WorldModel.appSupportDirectory.appendingPathComponent("\(roomName)_worldMap")
             sceneView.session.pause()
-            reload.toggle()
-            let world = self.savedWorlds.first { $0.name == roomName }!
             
-            do {
-                let data = try NSKeyedArchiver.archivedData(withRootObject: map, requiringSecureCoding: true)
-                let filePath = world.filePath
-                try data.write(to: filePath)
-                self.saveWorldList()
-                
-                print("World map for \(roomName) saved locally at: \(filePath.path)")
-                
-                if isNew {
-                    if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
-                        if let snapshotImage = coordinator.capturePointCloudSnapshotOffscreenClone() {
-                            
-                            // Generate a filename for the PNG
-                            let imageFilename = "\(roomName)_snapshot.png"
-                            let imageFileURL = WorldModel.appSupportDirectory.appendingPathComponent(imageFilename)
-                            
-                            do {
-                                try snapshotImage.pngData()?.write(to: imageFileURL)
-                                print("Saved snapshot image for \(roomName) at \(imageFileURL.path)")
-                            } catch {
-                                print("Error saving snapshot PNG: \(error.localizedDescription)")
-                            }
-                        } else {
-                            print("Failed to capture mesh snapshot for \(roomName).")
+            // --- (A) Decide what snapshotData to embed ---
+            var snapshotData: Data? = nil
+
+            if isNew {
+                // (A1) If it's a new world, capture a fresh snapshot:
+                if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator,
+                   let snapshotImage = coordinator.capturePointCloudSnapshotOffscreenClone() {
+                    
+                    // Still save a separate .png for your WorldsView
+                    let imageURL = WorldModel.appSupportDirectory
+                        .appendingPathComponent("\(roomName)_snapshot.png")
+                    try? snapshotImage.pngData()?.write(to: imageURL)
+                    
+                    snapshotData = snapshotImage.pngData()
+                }
+            } else {
+                // (A2) If it's an existing world, preserve the old snapshot from the container
+                if FileManager.default.fileExists(atPath: filePath.path) {
+                    do {
+                        let oldData = try Data(contentsOf: filePath)
+                        if let oldContainer = try NSKeyedUnarchiver
+                            .unarchivedObject(ofClass: ARWorldMapContainer.self, from: oldData) {
+                            snapshotData = oldContainer.imageData
                         }
+                    } catch {
+                        print("Failed to read old container for existing world: \(error)")
                     }
                 }
-                iCloudManager.uploadWorldMap(roomName: roomName, data: data, lastModified: timestamp) {
-                    print("Sync to CloudKit complete for \(roomName).")
+            }
+
+            // --- (B) Build and archive the container ---
+            do {
+                let container = ARWorldMapContainer(map: map, imageData: snapshotData)
+                let containerData = try NSKeyedArchiver.archivedData(
+                    withRootObject: container,
+                    requiringSecureCoding: true
+                )
+                
+                try containerData.write(to: filePath)
+                self.saveWorldList()
+                
+                // (C) Upload to iCloud
+                self.iCloudManager.uploadWorldMap(roomName: roomName, data: containerData, lastModified: timestamp) {
+                    print("Synced \(roomName) to CloudKit.")
                 }
             } catch {
-                print("Error saving world map locally: \(error.localizedDescription)")
+                print("Error saving container for \(roomName): \(error)")
             }
         }
     }
+    
+//    func saveWorldMap(for roomName: String, sceneView: ARSCNView) {
+//        sceneView.session.getCurrentWorldMap { [weak self] worldMap, error in
+//            guard let self = self, let map = worldMap else {
+//                print("Error saving world map: \(error?.localizedDescription ?? "No world map available.")")
+//                return
+//            }
+//            
+//            let timestamp = Date()
+//            var isNew = true
+//            if let index = self.savedWorlds.firstIndex(where: { $0.name == roomName }) {
+//                isNew = false
+//                self.savedWorlds[index].lastModified = timestamp
+//            } else {
+//                isNew = true
+//                self.savedWorlds.append(WorldModel(name: roomName, lastModified: timestamp))
+//            }
+//            sceneView.session.pause()
+//            reload.toggle()
+//            let world = self.savedWorlds.first { $0.name == roomName }!
+//            
+//            do {
+//                let data = try NSKeyedArchiver.archivedData(withRootObject: map, requiringSecureCoding: true)
+//                let filePath = world.filePath
+//                try data.write(to: filePath)
+//                self.saveWorldList()
+//                
+//                print("World map for \(roomName) saved locally at: \(filePath.path)")
+//                
+//                if isNew {
+//                    if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
+//                        if let snapshotImage = coordinator.capturePointCloudSnapshotOffscreenClone() {
+//                            
+//                            // Generate a filename for the PNG
+//                            let imageFilename = "\(roomName)_snapshot.png"
+//                            let imageFileURL = WorldModel.appSupportDirectory.appendingPathComponent(imageFilename)
+//                            
+//                            do {
+//                                try snapshotImage.pngData()?.write(to: imageFileURL)
+//                                print("Saved snapshot image for \(roomName) at \(imageFileURL.path)")
+//                            } catch {
+//                                print("Error saving snapshot PNG: \(error.localizedDescription)")
+//                            }
+//                        } else {
+//                            print("Failed to capture mesh snapshot for \(roomName).")
+//                        }
+//                    }
+//                }
+//                iCloudManager.uploadWorldMap(roomName: roomName, data: data, lastModified: timestamp) {
+//                    print("Sync to CloudKit complete for \(roomName).")
+//                }
+//            } catch {
+//                print("Error saving world map locally: \(error.localizedDescription)")
+//            }
+//        }
+//    }
     
     func loadWorldMap(for roomName: String, sceneView: ARSCNView) {
         
@@ -108,12 +176,18 @@ class WorldManager: ObservableObject {
         
         do {
             let data = try Data(contentsOf: filePath)
-            let unarchivedMap = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: data)
+//            let unarchivedMap = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: data)
             
-            guard let worldMap = unarchivedMap else {
-                print("Failed to unarchive ARWorldMap.")
-                return
-            }
+            // Unarchive the container instead of just ARWorldMap
+                guard let container = try NSKeyedUnarchiver
+                    .unarchivedObject(ofClass: ARWorldMapContainer.self, from: data)
+                else {
+                    print("Failed to unarchive ARWorldMapContainer.")
+                    return
+                }
+                
+                // Grab the ARWorldMap
+                let worldMap = container.map
             
             sceneView.session.pause()
             
@@ -280,11 +354,15 @@ class WorldManager: ObservableObject {
         } else {
             do {
                 let data = try Data(contentsOf: world.filePath)
-                if let unarchivedMap = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: data) {
+                if let container = try NSKeyedUnarchiver.unarchivedObject(
+                    ofClass: ARWorldMapContainer.self,
+                    from: data
+                ) {
+                    let unarchivedMap = container.map
                     let anchorNames = unarchivedMap.anchors.compactMap { $0.name }.filter { $0 != "unknown" }
                     completion(anchorNames)
                 } else {
-                    print("Failed to unarchive ARWorldMap for \(worldName).")
+                    print("Failed to unarchive ARWorldMapContainer for \(worldName).")
                     completion([])
                 }
             } catch {
@@ -350,6 +428,20 @@ class WorldManager: ObservableObject {
         } catch {
             print("Error saving locally after CloudKit sync: \(error.localizedDescription)")
         }
+        
+        do {
+              if let container = try NSKeyedUnarchiver
+                  .unarchivedObject(ofClass: ARWorldMapContainer.self, from: data),
+                 let snapshotData = container.imageData {
+                  
+                  let snapshotURL = WorldModel.appSupportDirectory
+                      .appendingPathComponent("\(roomName)_snapshot.png")
+                  try snapshotData.write(to: snapshotURL)
+                  print("✅ Restored snapshot for \(roomName) from iCloud at: \(snapshotURL.path)")
+              }
+          } catch {
+              print("❌ Could not restore snapshot: \(error)")
+          }
     }
     
     
@@ -506,6 +598,21 @@ extension WorldManager {
             print("✅ Imported world saved as \(worldName).")
         } catch {
             print("❌ Error saving imported world: \(error.localizedDescription)")
+        }
+        
+        // 2) **Unarchive the container** to extract snapshotData, then write as PNG:
+        do {
+            if let container = try NSKeyedUnarchiver
+                .unarchivedObject(ofClass: ARWorldMapContainer.self, from: data),
+               let snapshotData = container.imageData {
+                
+                let snapshotURL = WorldModel.appSupportDirectory
+                    .appendingPathComponent("\(worldName)_snapshot.png")
+                try snapshotData.write(to: snapshotURL)
+                print("✅ Restored snapshot for \(worldName) at: \(snapshotURL.path)")
+            }
+        } catch {
+            print("❌ Could not restore snapshot for \(worldName): \(error)")
         }
         
         iCloudManager.uploadWorldMap(roomName: worldName, data: data, lastModified: timestamp) {
