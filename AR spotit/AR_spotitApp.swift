@@ -67,6 +67,7 @@ struct AR_spotitApp: App {
             print("Unknown file type: \(url.pathExtension)")
             return
         }
+        
 
         // Hand off the URL to a helper in your WorldManager
         worldManager.importWorldFromURL(url) 

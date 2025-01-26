@@ -74,13 +74,26 @@ struct ImportWorldSheet: View {
             return
         }
 
-        // Call the saving logic with the user-provided name
+        // (1) Try to start security-scoped access if the URL requires it
+        guard url.startAccessingSecurityScopedResource() else {
+            print("❌ Failed to gain security-scoped access to the file.")
+            return
+        }
+        defer {
+            // (2) Always stop accessing when done
+            url.stopAccessingSecurityScopedResource()
+        }
+
         let newWorldName = worldManager.tempWorldName.isEmpty ? "Untitled World" : worldManager.tempWorldName
+        
         do {
+            // (3) Now reading the file will not fail due to sandbox restrictions
             let data = try Data(contentsOf: url)
+            
             worldManager.saveImportedWorld(data: data, worldName: newWorldName)
+            print("✅ Imported file read successfully.")
         } catch {
-            print("Error reading data from URL: \(error.localizedDescription)")
+            print("❌ Error reading data from URL: \(error.localizedDescription)")
         }
 
         dismiss() // Close the sheet
