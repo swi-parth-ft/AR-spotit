@@ -1,8 +1,31 @@
 import SwiftUI
+import AnimateText
 import CoreHaptics
 import ARKit
 import AVFoundation
 import Drops
+
+
+enum Direction {
+    case inFront
+    case onRight
+    case onLeft
+    case behindYou
+
+    static func classify(angle: Double) -> String {
+        switch angle {
+        case -30...30:
+            return "In Front"
+        case -160..<(-30):
+            return "On Right"
+        case 30...160:
+            return "On Left"
+        default: // Covers angles less than -160 or greater than 160
+            return "Behind You"
+        }
+    }
+}
+
 
 struct ContentView: View {
     
@@ -36,9 +59,9 @@ struct ContentView: View {
     @GestureState private var isPressed = false // Gesture state variable for press detection
     
     @State private var angle: Double = 0.0 // Store the angle for the arrow rotation
-    
-    
-    
+    @State private var distance: Double = 0.0
+    @State private var itshere = ""
+    @State private var animatedDistance = ""
     var body: some View {
         NavigationStack {
             
@@ -55,7 +78,8 @@ struct ContentView: View {
                                     shouldPlay: $shouldPlay,
                                     isEditingAnchor: $isEditingAnchor,
                                     nameOfAnchorToEdit: $nameOfAnchorToEdit,
-                                    angle: $angle)
+                                    angle: $angle,
+                                    distanceForUI: $distance)
                     .onAppear {
                         if findAnchor != "" {
                             worldManager.isShowingAll = false
@@ -145,6 +169,44 @@ struct ContentView: View {
                                     .background(Color.white.opacity(0.8))
                                     .cornerRadius(10)
                                     .padding(.bottom, 20)
+                            }
+                            
+                            if findAnchor != "" {
+                                
+                                    HStack {
+                                        
+                                        if distance < 0.9 {
+                                            AnimateText<ATOffsetEffect>($itshere)                                                                                           .font(.system(.largeTitle, design: .rounded))
+                                                .bold()
+                                                .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                                .onAppear {
+                                                    itshere = "it's here."
+                                                    animatedDistance = ""
+                                                }
+                                        } else {
+                                    
+                                        Text("\(String(format: "%.2f", distance))m")
+                                            .font(.system(.largeTitle, design: .rounded))
+                                            .foregroundStyle(Color.white)
+                                            .bold()
+                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                            .animation(.smooth, value: distance)
+                                            .onAppear {
+                                                itshere = ""
+                                            }
+                                            
+                                            
+                                            AnimateText<ATOffsetEffect>($animatedDistance)                                                                                           .font(.system(.largeTitle, design: .rounded))
+                                                .bold()
+                                                .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                                .onChange(of: angle) {
+                                                    animatedDistance = "\(Direction.classify(angle: angle))."
+                                                }
+                                        }
+                                            
+                                        Spacer()
+                                    }
+                                    .padding()
                             }
                             
                             
@@ -268,6 +330,7 @@ struct ContentView: View {
                             VStack {
                                 
                                 if findAnchor != "" {
+                                    
                                     Image(systemName: "arrow.up.circle.fill")
                                         .font(.system(size: 80))
                                         .foregroundColor(.white)

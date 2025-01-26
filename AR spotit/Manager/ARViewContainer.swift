@@ -28,7 +28,7 @@ struct ARViewContainer: UIViewRepresentable {
     private let coachingOverlay = ARCoachingOverlayView()
     
     @Binding var angle: Double
-    
+    @Binding var distanceForUI: Double
 //
 //    // Implement the delegate method
 //        func coachingOverlayViewDidDeactivate(_ coachingOverlayView: ARCoachingOverlayView) {
@@ -122,9 +122,11 @@ struct ARViewContainer: UIViewRepresentable {
             // Attach nodes
             audioEngine.attach(audioPlayer)
             audioEngine.attach(audioEnvironmentNode)
+        // Set rendering algorithm for spatial audio
+            audioEnvironmentNode.renderingAlgorithm = .HRTF
 
             // Connect nodes
-            audioEngine.connect(audioPlayer, to: audioEnvironmentNode, format: nil)
+            audioEngine.connect(audioPlayer, to: audioEnvironmentNode, format: audioFile.processingFormat)
             audioEngine.connect(audioEnvironmentNode, to: audioEngine.mainMixerNode, format: nil)
 
             // Start audio engine
@@ -150,7 +152,7 @@ struct ARViewContainer: UIViewRepresentable {
         let audioSession = AVAudioSession.sharedInstance()
         do {
             // Use playback category and spatial mode
-            try audioSession.setCategory(.playback)
+            try audioSession.setCategory(.playback, mode: .moviePlayback, options: [.allowAirPlay, .mixWithOthers])
             try audioSession.setActive(true)
             print("Audio session configured for spatial audio.")
         } catch {
@@ -864,6 +866,8 @@ struct ARViewContainer: UIViewRepresentable {
             let clampedDistance = max(0.1, min(distance, 5.0)) // Clamp distance
             let direction = anchorPosition - cameraPosition
           
+            
+            
           //  let direction = anchorPosition - cameraPosition
             print("Direction Vector: \(direction)")
 
@@ -885,6 +889,8 @@ struct ARViewContainer: UIViewRepresentable {
                 DispatchQueue.main.async {
                     self.parent.angle = smoothedAngle
                                     print("Angle in Degrees: \(smoothedAngle)")
+                    
+                    self.parent.distanceForUI = Double(distance)
                 }
             // Turn distance into a pulsing interval
             let interval = pulseInterval(for: clampedDistance)
@@ -896,35 +902,36 @@ struct ARViewContainer: UIViewRepresentable {
             }
             
             if parent.shouldPlay {
-                
                 if !isAudioPlaying {
                     isAudioPlaying = true
                     parent.setupAudio()
-                    
                 }
-                // Update audio position
-                // Update the listener's position to match the camera
-                parent.audioEnvironmentNode.listenerPosition = AVAudio3DPoint(
-                    x: cameraPosition.x,
-                    y: cameraPosition.y,
-                    z: cameraPosition.z
-                )
                 
-                parent.audioEnvironmentNode.distanceAttenuationParameters.distanceAttenuationModel = .exponential
-                parent.audioEnvironmentNode.distanceAttenuationParameters.referenceDistance = 1.0 // Reference for volume
-                parent.audioEnvironmentNode.distanceAttenuationParameters.maximumDistance = 10.0
-                parent.audioEnvironmentNode.distanceAttenuationParameters.rolloffFactor = 1.0
-                parent.audioEnvironmentNode.listenerPosition = AVAudio3DPoint(x: 0, y: 0, z: 0)
-                
-                // Update the audio source's position to match the anchor
-                parent.audioEnvironmentNode.position = AVAudio3DPoint(
-                    x: direction.x,
-                    y: direction.y,
-                    z: direction.z
-                )
-                
+                updateAudioPan(with: smoothedAngle)
+
+
+//                // Update the listener's position to match the camera position
+//                parent.audioEnvironmentNode.listenerPosition = AVAudio3DPoint(
+//                    x: cameraPosition.x,
+//                    y: cameraPosition.y,
+//                    z: cameraPosition.z
+//                )
+//
+//                // Update the audio source's position to match the anchor position
+//                parent.audioPlayer.position = AVAudio3DPoint(
+//                    x: anchorPosition.x,
+//                    y: anchorPosition.y,
+//                    z: anchorPosition.z
+//                )
+
                 // Adjust volume based on distance
-                parent.audioPlayer.volume = max(0.1, 1.0 - (distance / 2.0))
+                parent.audioPlayer.volume = max(0.1, 1.0 - Float(distance) / 10.0)
+//                
+//                // Configure distance attenuation parameters
+//                parent.audioEnvironmentNode.distanceAttenuationParameters.distanceAttenuationModel = .exponential
+//                parent.audioEnvironmentNode.distanceAttenuationParameters.referenceDistance = 1.0
+//                parent.audioEnvironmentNode.distanceAttenuationParameters.maximumDistance = 20.0
+//                parent.audioEnvironmentNode.distanceAttenuationParameters.rolloffFactor = 2.0
             } else {
                 if isAudioPlaying {
                     isAudioPlaying = false
@@ -940,7 +947,23 @@ struct ARViewContainer: UIViewRepresentable {
             }
         }
         
-        
+        private func updateAudioPan(with angle: Double) {
+            let normalizedAngle = angle.truncatingRemainder(dividingBy: 360)
+
+            // Map angles to pan values:
+            // -160° to -90°: Left
+            // 90° to 160°: Right
+            // Otherwise, center
+            if normalizedAngle <= -160 || normalizedAngle >= 160 {
+                parent.audioPlayer.pan = 0.0 // Behind: Center
+                print("Playing from behind")
+            } else {
+                // Map angle (-90 to 90) to pan (-1.0 to 1.0)
+                let panValue: Float = Float(normalizedAngle / 90.0) // Normalize to -1.0 to 1.0
+                parent.audioPlayer.pan = panValue
+                print("Playing with pan: \(panValue)")
+            }
+        }
         
         func normalize(_ vector: SIMD3<Float>) -> SIMD3<Float> {
             let length = simd_length(vector)
@@ -1397,114 +1420,7 @@ extension ARViewContainer.Coordinator {
         // 6) Snapshot
         return scnView.snapshot()
     }
-    
-    /// Clones all the “anchor nodes” (including your white-dot geometry)
-//    /// from the live AR scene into a new SCNScene with black background,
-//    /// then renders it offscreen to a UIImage.
-//    func capturePointCloudSnapshotOffscreenClone(
-//        size: CGSize = CGSize(width: 800, height: 600)
-//    ) -> UIImage? {
-//        
-//        // 1) Create an empty scene with black background
-//        let tempScene = SCNScene()
-//        tempScene.background.contents = UIColor.black
-//        
-//        // 2) Clone the actual ARKit anchor nodes we’re showing in AR
-//        //    so we can render them offscreen.
-//        guard let currentFrame = parent.sceneView.session.currentFrame else {
-//            print("No currentFrame; cannot clone anchors.")
-//            return nil
-//        }
-//        for anchor in currentFrame.anchors {
-//            // The ARSCNView has a helper: node(for:anchor)
-//            guard let anchorNode = parent.sceneView.node(for: anchor) else {
-//                continue
-//            }
-//            // Clone that entire subtree
-//            let anchorClone = anchorNode.clone()
-//            tempScene.rootNode.addChildNode(anchorClone)
-//        }
-//        
-//        // 3) Add a camera to the temp scene
-//        let cameraNode = SCNNode()
-//        cameraNode.camera = SCNCamera()
-//        cameraNode.camera?.automaticallyAdjustsZRange = true
-//        tempScene.rootNode.addChildNode(cameraNode)
-//        
-//        // 4) Figure out bounding box to place the camera
-//        let (minVec, maxVec) = tempScene.rootNode.boundingBox
-//        let center = SCNVector3(
-//            (minVec.x + maxVec.x) / 2,
-//            (minVec.y + maxVec.y) / 2,
-//            (minVec.z + maxVec.z) / 2
-//        )
-//        let sizeVec = SCNVector3(
-//            maxVec.x - minVec.x,
-//            maxVec.y - minVec.y,
-//            maxVec.z - minVec.z
-//        )
-//        
-//        // Position camera in front of the bounding box
-//        cameraNode.position = SCNVector3(center.x, center.y, center.z + Float(sizeVec.z * 2.0))
-//        cameraNode.look(at: center)
-//        
-//        // 5) Offscreen SCNView to render
-//        let scnView = SCNView(frame: CGRect(origin: .zero, size: size))
-//        scnView.scene = tempScene
-//        scnView.pointOfView = cameraNode
-//        scnView.backgroundColor = .black
-//        scnView.antialiasingMode = .multisampling4X
-//        
-//        // 6) Snapshot
-//        return scnView.snapshot()
-//    }
-    
-//    func capturePointCloudSnapshot(size: CGSize = CGSize(width: 800, height: 600)) -> UIImage? {
-//        // 1) Create a temporary scene
-//        let tempScene = SCNScene()
-//        tempScene.background.contents = UIColor.black  // black background
-//        
-//        // 2) Clone your pointCloudParentNode from the live AR scene
-//        //    or if you have a reference directly, you can do:
-//        let clone = pointCloudParentNode.clone()
-//        tempScene.rootNode.addChildNode(clone)
-//        
-//        // 3) Add a camera
-//        let cameraNode = SCNNode()
-//        cameraNode.camera = SCNCamera()
-//        cameraNode.camera?.automaticallyAdjustsZRange = true
-//        tempScene.rootNode.addChildNode(cameraNode)
-//        
-//        // 4) Compute bounding box so we can frame all the dots
-//        let (minVec, maxVec) = clone.boundingBox
-//        // If the bounding box is huge or zero, you may need special logic,
-//        // but let’s do a basic approach:
-//        let center = SCNVector3(
-//            (minVec.x + maxVec.x) * 0.5,
-//            (minVec.y + maxVec.y) * 0.5,
-//            (minVec.z + maxVec.z) * 0.5
-//        )
-//        let sizeVec = SCNVector3(
-//            maxVec.x - minVec.x,
-//            maxVec.y - minVec.y,
-//            maxVec.z - minVec.z
-//        )
-//        
-//        // Place camera "in front" of the bounding box
-//        cameraNode.position = SCNVector3(center.x, center.y, center.z + Float(sizeVec.z * 2.0))
-//        cameraNode.look(at: center)
-//        
-//        // 5) Offscreen SCNView to render
-//        let scnView = SCNView(frame: CGRect(origin: .zero, size: size))
-//        scnView.scene = tempScene
-//        scnView.pointOfView = cameraNode
-//        scnView.backgroundColor = .black
-//        scnView.antialiasingMode = .multisampling4X
-//        
-//        // 6) Snapshot
-//        let image = scnView.snapshot()
-//        return image
-//    }
+
 }
 
 extension ARViewContainer {
