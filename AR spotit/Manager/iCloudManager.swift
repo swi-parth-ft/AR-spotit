@@ -108,38 +108,71 @@ class iCloudManager {
         }
     }
     
-    // Load World Map Data from iCloud
-    func loadWorldMap(roomName: String, completion: @escaping (ARWorldMap?) -> Void) {
+    func loadWorldMap(roomName: String, completion: @escaping (Data?, ARWorldMap?) -> Void) {
         let predicate = NSPredicate(format: "roomName == %@", roomName)
         let query = CKQuery(recordType: recordType, predicate: predicate)
         privateDB.perform(query, inZoneWith: nil) { records, error in
             if let error = error {
                 print("Error querying CloudKit: \(error.localizedDescription)")
-                completion(nil)
+                completion(nil, nil)
                 return
             }
             guard let record = records?.first,
                   let asset = record["mapAsset"] as? CKAsset,
                   let assetFileURL = asset.fileURL else {
                 print("No valid record or asset for \(roomName).")
-                completion(nil)
+                completion(nil, nil)
                 return
             }
             do {
                 let data = try Data(contentsOf: assetFileURL)
-                if let container = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMapContainer.self, from: data) {
-                    let worldMap = container.map
-                    completion(worldMap)
+                if let container = try NSKeyedUnarchiver
+                    .unarchivedObject(ofClass: ARWorldMapContainer.self, from: data)
+                {
+                    completion(data, container.map) // Return BOTH raw data + ARWorldMap
                 } else {
                     print("Failed to unarchive ARWorldMapContainer from CloudKit.")
-                    completion(nil)
+                    completion(nil, nil)
                 }
             } catch {
                 print("Error loading CloudKit asset: \(error.localizedDescription)")
-                completion(nil)
+                completion(nil, nil)
             }
         }
     }
+    
+//    // Load World Map Data from iCloud
+//    func loadWorldMap(roomName: String, completion: @escaping (ARWorldMap?) -> Void) {
+//        let predicate = NSPredicate(format: "roomName == %@", roomName)
+//        let query = CKQuery(recordType: recordType, predicate: predicate)
+//        privateDB.perform(query, inZoneWith: nil) { records, error in
+//            if let error = error {
+//                print("Error querying CloudKit: \(error.localizedDescription)")
+//                completion(nil)
+//                return
+//            }
+//            guard let record = records?.first,
+//                  let asset = record["mapAsset"] as? CKAsset,
+//                  let assetFileURL = asset.fileURL else {
+//                print("No valid record or asset for \(roomName).")
+//                completion(nil)
+//                return
+//            }
+//            do {
+//                let data = try Data(contentsOf: assetFileURL)
+//                if let container = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMapContainer.self, from: data) {
+//                    let worldMap = container.map
+//                    completion(worldMap)
+//                } else {
+//                    print("Failed to unarchive ARWorldMapContainer from CloudKit.")
+//                    completion(nil)
+//                }
+//            } catch {
+//                print("Error loading CloudKit asset: \(error.localizedDescription)")
+//                completion(nil)
+//            }
+//        }
+//    }
     
     // Delete World from iCloud
     func deleteWorld(roomName: String, completion: @escaping (Error?) -> Void) {

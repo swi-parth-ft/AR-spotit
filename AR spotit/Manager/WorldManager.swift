@@ -273,10 +273,21 @@ class WorldManager: ObservableObject {
                 if !FileManager.default.fileExists(atPath: world.filePath.path) {
                     print("Fetching missing data for world: \(world.name)")
                     dispatchGroup.enter()
-                    self.iCloudManager.loadWorldMap(roomName: world.name) { _ in
-                        print("Fetched and saved \(world.name) locally.")
-                        dispatchGroup.leave()
-                    }
+                    self.iCloudManager.loadWorldMap(roomName: world.name) { data, arMap in
+                         // Previously you had: { _ in print("Fetched and saved locally.") }
+
+                         // Now we get BOTH the container Data and the ARWorldMap
+                         if let data = data {
+                             // Write that container to disk + restore snapshot
+                             self.saveLocallyAfterCloudDownload(roomName: world.name, data: data, lastModified: world.lastModified)
+                         }
+                         
+                         // If you need the map for anchor reading, you can do that too
+                         // e.g. if let arMap = arMap { ... }
+                         
+                         print("Fetched container for \(world.name) and saved locally.")
+                         dispatchGroup.leave()
+                     }
                 }
             }
             
@@ -343,14 +354,15 @@ class WorldManager: ObservableObject {
         
         if !FileManager.default.fileExists(atPath: world.filePath.path) {
             print("File not found for \(worldName). Trying CloudKit...")
-            iCloudManager.loadWorldMap(roomName: worldName) { cloudMap in
-                guard let cloudMap = cloudMap else {
-                    completion([])
-                    return
-                }
-                let anchorNames = cloudMap.anchors.compactMap { $0.name }.filter { $0 != "unknown" }
-                completion(anchorNames)
-            }
+            // FIX: Use the 2-argument callback now
+                   iCloudManager.loadWorldMap(roomName: worldName) { data, arMap in
+                       guard let arMap = arMap else {
+                           completion([])
+                           return
+                       }
+                       let anchorNames = arMap.anchors.compactMap { $0.name }.filter { $0 != "unknown" }
+                       completion(anchorNames)
+                   }
         } else {
             do {
                 let data = try Data(contentsOf: world.filePath)
@@ -518,22 +530,37 @@ extension WorldManager {
         } catch {
             print("⚠️ Local file not found for \(currentName). Trying to fetch from iCloud...")
             
-            // Fetch from iCloud if local data is unavailable
-            iCloudManager.loadWorldMap(roomName: currentName) { [weak self] map in
-                guard let self = self, let map = map else {
-                    print("❌ Failed to fetch \(currentName) from iCloud.")
-                    completion?()
-                    return
-                }
-                
-                do {
-                    let data = try NSKeyedArchiver.archivedData(withRootObject: map, requiringSecureCoding: true)
-                    self.renameAndSaveWorld(data: data, currentName: currentName, newName: newName, completion: completion)
-                } catch {
-                    print("❌ Error archiving ARWorldMap: \(error.localizedDescription)")
-                    completion?()
-                }
+//            // Fetch from iCloud if local data is unavailable
+//            iCloudManager.loadWorldMap(roomName: currentName) { [weak self] map in
+//                guard let self = self, let map = map else {
+//                    print("❌ Failed to fetch \(currentName) from iCloud.")
+//                    completion?()
+//                    return
+//                }
+//                
+//                do {
+//                    let data = try NSKeyedArchiver.archivedData(withRootObject: map, requiringSecureCoding: true)
+//                    self.renameAndSaveWorld(data: data, currentName: currentName, newName: newName, completion: completion)
+//                } catch {
+//                    print("❌ Error archiving ARWorldMap: \(error.localizedDescription)")
+//                    completion?()
+//                }
+//            }
+        }
+        
+        // 3) If not local, load from iCloud
+        iCloudManager.loadWorldMap(roomName: currentName) { [weak self] data, arMap in
+            guard let self = self else { return }
+            
+            // If no data found, fail
+            guard let data = data else {
+                print("❌ Failed to fetch \(currentName) from iCloud.")
+                completion?()
+                return
             }
+            
+            // Now we have the actual container data from CloudKit
+            self.renameAndSaveWorld(data: data, currentName: currentName, newName: newName, completion: completion)
         }
     }
     
@@ -624,36 +651,40 @@ extension WorldManager {
 //MARK: iCloud CRUD
 extension WorldManager {
 
-    
     func fetchWorldNamesFromCloudKit(completion: @escaping () -> Void) {
         let privateDB = CKContainer.default().privateCloudDatabase
         let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
         
-        privateDB.fetch(withQuery: query, inZoneWith: nil, desiredKeys: ["roomName", "lastModified"], resultsLimit: CKQueryOperation.maximumResults) { result in
+        privateDB.fetch(
+            withQuery: query,
+            inZoneWith: nil,
+            desiredKeys: ["roomName", "lastModified"],
+            resultsLimit: CKQueryOperation.maximumResults
+        ) { (result: Result<(matchResults: [(CKRecord.ID, Result<CKRecord, any Error>)], queryCursor: CKQueryOperation.Cursor?), any Error>) in
+            
             switch result {
-            case .success(let (matchedResults, _)):
+            case .success(let (matchResults, _)):
                 var fetchedWorlds: [WorldModel] = []
                 
-                for (_, recordResult) in matchedResults {
+                // Process the array of matchResults
+                for (recordID, recordResult) in matchResults {
                     switch recordResult {
                     case .success(let record):
                         let roomName = record["roomName"] as? String ?? "Unnamed"
                         let lastModified = record["lastModified"] as? Date ?? Date.distantPast
                         print("Fetched record with roomName: \(roomName)")
                         
-                        
-                        
                         // Check if local data is older than CloudKit data
                         if let localWorld = self.savedWorlds.first(where: { $0.name == roomName }),
                            lastModified > localWorld.lastModified {
                             print("Cloud data for \(roomName) is newer. Downloading...")
-                            self.iCloudManager.loadWorldMap(roomName: roomName) { _ in }
+                            self.iCloudManager.loadWorldMap(roomName: roomName) { _, _ in }
                         } else if !self.savedWorlds.contains(where: { $0.name == roomName }) {
                             // Add new world from CloudKit if it doesn't exist locally
                             fetchedWorlds.append(WorldModel(name: roomName, lastModified: lastModified))
                         }
                     case .failure(let error):
-                        print("Error fetching record: \(error.localizedDescription)")
+                        print("Error fetching record \(recordID): \(error.localizedDescription)")
                     }
                 }
                 
@@ -672,6 +703,54 @@ extension WorldManager {
             }
         }
     }
+    
+//    func fetchWorldNamesFromCloudKit(completion: @escaping () -> Void) {
+//        let privateDB = CKContainer.default().privateCloudDatabase
+//        let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
+//        
+//        privateDB.fetch(withQuery: query, inZoneWith: nil, desiredKeys: ["roomName", "lastModified"], resultsLimit: CKQueryOperation.maximumResults) { (result: Result<([CKRecord.ID: Result<CKRecord, Error>], CKQueryOperation.Cursor?), Error>) in
+//            switch result {
+//            case .success(let (matchedResults, _)):
+//                var fetchedWorlds: [WorldModel] = []
+//                
+//                for (_, recordResult) in matchedResults {
+//                    switch recordResult {
+//                    case .success(let record):
+//                        let roomName = record["roomName"] as? String ?? "Unnamed"
+//                        let lastModified = record["lastModified"] as? Date ?? Date.distantPast
+//                        print("Fetched record with roomName: \(roomName)")
+//                        
+//                        
+//                        
+//                        // Check if local data is older than CloudKit data
+//                        if let localWorld = self.savedWorlds.first(where: { $0.name == roomName }),
+//                           lastModified > localWorld.lastModified {
+//                            print("Cloud data for \(roomName) is newer. Downloading...")
+//                            self.iCloudManager.loadWorldMap(roomName: roomName) { _ in }
+//                        } else if !self.savedWorlds.contains(where: { $0.name == roomName }) {
+//                            // Add new world from CloudKit if it doesn't exist locally
+//                            fetchedWorlds.append(WorldModel(name: roomName, lastModified: lastModified))
+//                        }
+//                    case .failure(let error):
+//                        print("Error fetching record: \(error.localizedDescription)")
+//                    }
+//                }
+//                
+//                DispatchQueue.main.async {
+//                    // Avoid duplicates with savedWorlds
+//                    self.savedWorlds.append(contentsOf: fetchedWorlds.filter { fetchedWorld in
+//                        !self.savedWorlds.contains(where: { $0.name == fetchedWorld.name })
+//                    })
+//                    self.saveWorldList()
+//                    completion()
+//                }
+//                
+//            case .failure(let error):
+//                print("Error fetching world names from CloudKit: \(error.localizedDescription)")
+//                completion()
+//            }
+//        }
+//    }
     
     private func loadFromCloudKit(roomName: String, sceneView: ARSCNView) {
         print("Loading world map from CloudKit for \(roomName).")
@@ -697,11 +776,18 @@ extension WorldManager {
             
             do {
                 let data = try Data(contentsOf: assetFileURL)
-                if let unarchivedMap = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: data) {
+                
+                // 1) Decode ARWorldMapContainer
+                if let container = try NSKeyedUnarchiver
+                    .unarchivedObject(ofClass: ARWorldMapContainer.self, from: data) {
+                    
+                    // 2) Extract the actual ARWorldMap from the container
+                    let unarchivedMap = container.map
+                    
                     DispatchQueue.main.async {
+                        // 3) Save to local + run AR session
                         self?.saveLocallyAfterCloudDownload(roomName: roomName, data: data, lastModified: Date())
                         
-                        // Load into AR session
                         sceneView.session.pause()
                         let configuration = ARWorldTrackingConfiguration()
                         configuration.initialWorldMap = unarchivedMap
@@ -709,13 +795,14 @@ extension WorldManager {
                         configuration.sceneReconstruction = .mesh
                         sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
                         
-                        print("World map for \(roomName) loaded from CloudKit.")
+                        print("World map for \(roomName) loaded from CloudKit (container).")
                     }
+                    
                 } else {
-                    print("Failed to unarchive ARWorldMap from CloudKit.")
+                    print("❌ Failed to unarchive ARWorldMapContainer from CloudKit.")
                 }
             } catch {
-                print("Error reading CloudKit asset: \(error.localizedDescription)")
+                print("❌ Error reading CloudKit asset: \(error.localizedDescription)")
             }
         }
     }
