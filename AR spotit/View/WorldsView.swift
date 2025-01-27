@@ -342,6 +342,15 @@ struct WorldsView: View {
                     if currentName == "" {
                         worldManager.loadSavedWorlds {
                             
+                                NotificationCenter.default.addObserver(forName: Notification.Name("OpenWorldNotification"), object: nil, queue: .main) { notification in
+                                    if let userInfo = notification.userInfo,
+                                       let worldName = userInfo["worldName"] as? String {
+                                        if let world = worldManager.savedWorlds.first(where: { $0.name == worldName }) {
+                                            selectedWorld = world
+                                        }
+                                    }
+                                
+                            }
                         }
                     }
           

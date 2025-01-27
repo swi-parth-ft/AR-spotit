@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import AppIntents
 
 
 class AppState: ObservableObject {
@@ -31,6 +32,7 @@ struct AR_spotitApp: App {
             ZStack {
                             // Main Content View
                             WorldsView()
+                 
                                 // .environmentObject(worldManager)
                                 .onOpenURL { url in
                                     handleIncomingWorldFile(url)

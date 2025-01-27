@@ -8,6 +8,7 @@
 import Foundation
 import CloudKit
 import ARKit
+import Drops
 
 typealias FetchResult = Result<
     (matchResults: [(CKRecord.ID, Result<CKRecord, Error>)],
@@ -44,6 +45,8 @@ class iCloudManager {
             self.privateDB.perform(query, inZoneWith: nil) { records, error in
                 if let error = error {
                     print("Error querying CloudKit: \(error.localizedDescription)")
+                    let drop = Drop(title: "Error querying CloudKit: \(error.localizedDescription)")
+                   // Drops.show(drop)
                     try? FileManager.default.removeItem(at: tempURL) // Cleanup temp file
                     completion?()
                     return
@@ -72,8 +75,12 @@ class iCloudManager {
                         try? FileManager.default.removeItem(at: tempURL)
                         if let error = error {
                             print("Error saving to CloudKit: \(error.localizedDescription)")
+                            let drop = Drop(title: "Error saving to CloudKit: \(error.localizedDescription)")
+                         //   Drops.show(drop)
+
                         } else {
                             print("Uploaded \(roomName) to CloudKit.")
+                           // Drops.show("Uploaded to iCloud")
                         }
                         completion?()
                     }
@@ -103,6 +110,8 @@ class iCloudManager {
                 completion(fetchedWorlds)
             case .failure(let error):
                 print("Error fetching world names from CloudKit: \(error.localizedDescription)")
+                Drops.show("Error fetching world names from iCloud")
+
                 completion([])
             }
         }
@@ -136,6 +145,8 @@ class iCloudManager {
                 }
             } catch {
                 print("Error loading CloudKit asset: \(error.localizedDescription)")
+                Drops.show("Error loading iCloud asset")
+
                 completion(nil, nil)
             }
         }
@@ -198,6 +209,7 @@ class iCloudManager {
                     completion(nil)
                 case .failure(let error):
                     print("Error deleting records: \(error.localizedDescription)")
+                    Drops.show("Error deleting records from iCloud")
                     completion(error)
                 }
             }
@@ -267,6 +279,27 @@ class iCloudManager {
         
         dispatchGroup.notify(queue: .main) {
             completion(finalError)
+        }
+    }
+    
+    func fetchLastModified(for roomName: String, completion: @escaping (Date?) -> Void) {
+        let predicate = NSPredicate(format: "roomName == %@", roomName)
+        let query = CKQuery(recordType: self.recordType, predicate: predicate)
+        
+        privateDB.perform(query, inZoneWith: nil) { records, error in
+            if let error = error {
+                print("❌ fetchLastModified error: \(error.localizedDescription)")
+                completion(nil)
+                return
+            }
+            
+            guard let record = records?.first,
+                  let lastModified = record["lastModified"] as? Date else {
+                completion(nil)
+                return
+            }
+            
+            completion(lastModified)
         }
     }
     

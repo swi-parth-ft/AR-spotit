@@ -194,7 +194,10 @@ class WorldManager: ObservableObject {
             let configuration = ARWorldTrackingConfiguration()
             configuration.initialWorldMap = worldMap
             configuration.planeDetection = [.horizontal, .vertical]
-            configuration.sceneReconstruction = .mesh // Ensure LiDAR reconstruction
+            if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
+                
+                configuration.sceneReconstruction = .mesh // Ensure LiDAR reconstruction
+            }
             
             if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
                 coordinator.worldIsLoaded = false
@@ -878,6 +881,39 @@ extension WorldManager {
         privateDB.add(queryOperation)
     }
 
+}
+
+extension WorldManager {
+    func checkAndSyncIfNewer(for roomName: String, completion: @escaping () -> Void) {
+        // Make sure we know about the local world
+        guard let localWorld = savedWorlds.first(where: { $0.name == roomName }) else {
+            // If not found locally, there's nothing to compare—just finish
+            completion()
+            return
+        }
+        
+        // Fetch the iCloud lastModified
+        iCloudManager.fetchLastModified(for: roomName) { cloudLastModified in
+            // If no record or date in iCloud, or if iCloud date is not newer, we do nothing
+            guard let cloudLastModified = cloudLastModified,
+                  cloudLastModified > localWorld.lastModified else {
+                completion()
+                return
+            }
+            
+            print("⏫ Found newer data in iCloud for \(roomName). Downloading...")
+            
+            // Download the new data from iCloud
+            self.iCloudManager.loadWorldMap(roomName: roomName) { data, arMap in
+                if let data = data {
+                    self.saveLocallyAfterCloudDownload(roomName: roomName,
+                                                       data: data,
+                                                       lastModified: cloudLastModified)
+                }
+                completion()
+            }
+        }
+    }
 }
 
 

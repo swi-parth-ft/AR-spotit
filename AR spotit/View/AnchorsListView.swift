@@ -182,11 +182,14 @@ struct AnchorsListView: View {
                         
                     }
                     print(worldName)
-                    worldManager.getAnchorNames(for: worldName) { fetchedAnchors in
-                        DispatchQueue.main.async {
-                            anchorsByWorld[worldName] = fetchedAnchors
-                        }
-                    }
+                    worldManager.checkAndSyncIfNewer(for: worldName) {
+                          // 2) Now safely fetch anchors
+                          worldManager.getAnchorNames(for: worldName) { fetchedAnchors in
+                              DispatchQueue.main.async {
+                                  anchorsByWorld[worldName] = fetchedAnchors
+                              }
+                          }
+                      }
                     
                 }
                 .sheet(isPresented: $isOpeningWorld, onDismiss: {
