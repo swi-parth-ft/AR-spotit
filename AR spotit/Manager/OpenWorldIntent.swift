@@ -11,7 +11,7 @@ import AppIntents
 struct OpenWorldIntent: ForegroundContinuableIntent {
     static var title: LocalizedStringResource = "Open a World"
 
-    @Parameter(title: "World Name")
+    @Parameter(title: "World Name", optionsProvider: WorldNameOptionsProvider())
     var worldName: String
 
     /// Returning 'some IntentResult & ProvidesDialog' so we can show a success message.
@@ -39,10 +39,24 @@ struct OpenWorldIntent: ForegroundContinuableIntent {
 extension OpenWorldIntent: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
-            intent: Self(),
+            intent: OpenWorldIntent(),
             phrases: ["Open \(\.$worldName) in \(.applicationName)"],
             shortTitle: "Open World",
             systemImageName: "arkit"
         )
+    }
+}
+
+
+struct WorldNameOptionsProvider: DynamicOptionsProvider {
+    func results() async throws -> [String] {
+        // Wait for the saved worlds to load
+        try await withCheckedThrowingContinuation { continuation in
+            WorldManager.shared.loadSavedWorlds {
+                let worlds = WorldManager.shared.savedWorlds.map { $0.name }
+                print(worlds) // Ensure worlds are printed correctly
+                continuation.resume(returning: worlds)
+            }
+        }
     }
 }

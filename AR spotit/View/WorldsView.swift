@@ -380,13 +380,33 @@ struct WorldsView: View {
                 guard let userInfo = notification.userInfo,
                       let worldName = userInfo["worldName"] as? String else { return }
                 
-                // Make sure we have our local list loaded first
-                worldManager.loadSavedWorlds {
-                    // Now we can safely find the matching world
+                Task {
+                    // Use async/await to handle the loading process deterministically
+                    await withCheckedContinuation { continuation in
+                        worldManager.loadSavedWorlds {
+                            continuation.resume() // Signal that loading is complete
+                        }
+                    }
+
+                    // Now find the matching world
                     if let matchingWorld = worldManager.savedWorlds.first(where: { $0.name == worldName }) {
-                        selectedWorld = matchingWorld
+                        // Safely update `selectedWorld` on the main thread
+                        await MainActor.run {
+                            selectedWorld = matchingWorld
+                        }
                     }
                 }
+                
+//                // Make sure we have our local list loaded first
+//                worldManager.loadSavedWorlds {
+//                    // Now we can safely find the matching world
+//                    if let matchingWorld = worldManager.savedWorlds.first(where: { $0.name == worldName }) {
+//                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+//                            
+//                            selectedWorld = matchingWorld
+//                        }
+//                    }
+//                }
             }
             .navigationTitle("it's here.")
             .toolbar {

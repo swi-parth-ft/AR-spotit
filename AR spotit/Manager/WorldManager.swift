@@ -2,6 +2,8 @@ import ARKit
 import CloudKit
 
 class WorldManager: ObservableObject {
+    static let shared = WorldManager()
+
     private lazy var iCloudManager: iCloudManager = {
         return it_s_here_.iCloudManager(worldManager: self)
         }()
