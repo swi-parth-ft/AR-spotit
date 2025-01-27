@@ -919,6 +919,16 @@ extension WorldManager {
 }
 
 
+extension WorldManager {
+    func loadSavedWorldsAsync() async {
+        await withCheckedContinuation { continuation in
+            self.loadSavedWorlds {
+                continuation.resume()
+            }
+        }
+    }
+}
+
 //MARK: Deprecated iCloud Functions
 #if false
 

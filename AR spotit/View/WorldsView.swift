@@ -388,11 +388,13 @@ struct WorldsView: View {
                         }
                     }
 
-                    // Now find the matching world
-                    if let matchingWorld = worldManager.savedWorlds.first(where: { $0.name == worldName }) {
-                        // Safely update `selectedWorld` on the main thread
-                        await MainActor.run {
-                            selectedWorld = matchingWorld
+                    worldManager.loadSavedWorlds {
+                        if let matchingWorld = worldManager.savedWorlds.first(where: { $0.name.lowercased() == worldName.lowercased() }) {
+                            // Safely update `selectedWorld` on the main thread
+                            
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                                selectedWorld = matchingWorld
+                            }
                         }
                     }
                 }

@@ -32,18 +32,33 @@ struct OpenWorldIntent: ForegroundContinuableIntent {
 
         // 3) Once the user accepts, your app is brought to the foreground,
         //    and we resume right here INSIDE your app's process.
-        return .result(dialog: "Searching \(worldName)...")
+        return .result(dialog: "Loading \(worldName)...")
     }
 }
 
-extension OpenWorldIntent: AppShortcutsProvider {
+struct OpenWorldShortcut: AppShortcutsProvider {
+    @AppShortcutsBuilder
     static var appShortcuts: [AppShortcut] {
+        
         AppShortcut(
             intent: OpenWorldIntent(),
-            phrases: ["Open \(\.$worldName) in \(.applicationName)"],
-            shortTitle: "Open World",
+            phrases: [
+                "Search World in \(.applicationName)",
+                "Open Area in \(.applicationName)",
+                "Search Area in \(.applicationName)",
+                "Explore in \(.applicationName)",
+                "Start World in \(.applicationName)",
+                "Find a item in \(.applicationName)",
+                "Launch \(.applicationName) World",
+                "Discover an item in \(.applicationName)",
+                "Unlock World in \(.applicationName)",
+                "Begin Search in \(.applicationName)",
+                "Search in \(.applicationName)"
+            ],
+            shortTitle: "Search Area",
             systemImageName: "arkit"
         )
+        
     }
 }
 
