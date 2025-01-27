@@ -342,15 +342,15 @@ struct WorldsView: View {
                     if currentName == "" {
                         worldManager.loadSavedWorlds {
                             
-                                NotificationCenter.default.addObserver(forName: Notification.Name("OpenWorldNotification"), object: nil, queue: .main) { notification in
-                                    if let userInfo = notification.userInfo,
-                                       let worldName = userInfo["worldName"] as? String {
-                                        if let world = worldManager.savedWorlds.first(where: { $0.name == worldName }) {
-                                            selectedWorld = world
-                                        }
-                                    }
-                                
-                            }
+//                                NotificationCenter.default.addObserver(forName: Notification.Name("OpenWorldNotification"), object: nil, queue: .main) { notification in
+//                                    if let userInfo = notification.userInfo,
+//                                       let worldName = userInfo["worldName"] as? String {
+//                                        if let world = worldManager.savedWorlds.first(where: { $0.name == worldName }) {
+//                                            selectedWorld = world
+//                                        }
+//                                    }
+//                                
+//                            }
                         }
                     }
           
@@ -374,7 +374,20 @@ struct WorldsView: View {
           
             }
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic)) // Add Searchable Modifier
-
+            .onReceive(
+                NotificationCenter.default.publisher(for: Notification.Name("OpenWorldNotification"))
+            ) { notification in
+                guard let userInfo = notification.userInfo,
+                      let worldName = userInfo["worldName"] as? String else { return }
+                
+                // Make sure we have our local list loaded first
+                worldManager.loadSavedWorlds {
+                    // Now we can safely find the matching world
+                    if let matchingWorld = worldManager.savedWorlds.first(where: { $0.name == worldName }) {
+                        selectedWorld = matchingWorld
+                    }
+                }
+            }
             .navigationTitle("it's here.")
             .toolbar {
                 Menu {
