@@ -324,13 +324,17 @@ struct WorldsView: View {
                                     
                                 }
                                 .onAppear {
-                                    // Fetch anchors for this specific world
-                                    if anchorsByWorld[world.name] == nil || anchorsByWorld[world.name]?.isEmpty == true {
-                                        worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
-                                            DispatchQueue.main.async {
-                                                anchorsByWorld[world.name] = fetchedAnchors
-                                            }
-                                        }
+                                    
+                                 
+                                }
+                            }
+                        }
+                        .onAppear {
+                            // Fetch anchors for this specific world
+                            if anchorsByWorld[world.name] == nil || anchorsByWorld[world.name]?.isEmpty == true {
+                                worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
+                                    DispatchQueue.main.async {
+                                        anchorsByWorld[world.name] = fetchedAnchors
                                     }
                                 }
                             }
@@ -381,35 +385,119 @@ struct WorldsView: View {
                       let worldName = userInfo["worldName"] as? String else { return }
                 
                 Task {
-                    // Use async/await to handle the loading process deterministically
-                    await withCheckedContinuation { continuation in
-                        worldManager.loadSavedWorlds {
-                            continuation.resume() // Signal that loading is complete
-                        }
-                    }
+                      // Load saved worlds if necessary
+                      await withCheckedContinuation { continuation in
+                          worldManager.loadSavedWorlds {
+                              continuation.resume()
+                          }
+                      }
 
-                    worldManager.loadSavedWorlds {
-                        if let matchingWorld = worldManager.savedWorlds.first(where: { $0.name.lowercased() == worldName.lowercased() }) {
-                            // Safely update `selectedWorld` on the main thread
-                            
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                                selectedWorld = matchingWorld
-                            }
-                        }
+                      // Assign the matching world
+                      if let matchingWorld = worldManager.savedWorlds.first(where: { $0.name.lowercased() == worldName.lowercased() }) {
+                          await MainActor.run {
+                              let drop = Drop(title: "Loading \(matchingWorld.name)")
+                              Drops.show(drop)
+                              DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                                  
+                                  selectedWorld = matchingWorld
+                              }
+                          }
+                      }
+                  }
+                
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(for: Notification.Name("CreateWorldNotification"))
+            ) { notification in
+                guard let userInfo = notification.userInfo,
+                      let worldName = userInfo["worldName"] as? String else { return }
+                
+                if worldName != "" {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        
+                        selectedWorld = WorldModel(name: worldName)
                     }
                 }
                 
-//                // Make sure we have our local list loaded first
-//                worldManager.loadSavedWorlds {
-//                    // Now we can safely find the matching world
-//                    if let matchingWorld = worldManager.savedWorlds.first(where: { $0.name == worldName }) {
-//                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-//                            
-//                            selectedWorld = matchingWorld
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(for: Notification.Name("FindItemNotification"))
+            ) { notification in
+                Task {
+                    guard let userInfo = notification.userInfo,
+                          let itemName = userInfo["itemName"] as? String else { return }
+                    
+                    // Load anchors for all worlds if not already loaded
+                    for world in worldManager.savedWorlds where anchorsByWorld[world.name] == nil {
+                        await worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
+                            anchorsByWorld[world.name] = fetchedAnchors
+                        }
+                    }
+                    
+                    // Normalize names by removing emojis for comparison
+                    func removeEmojis(from string: String) -> String {
+                        return string.filter { !$0.isEmoji }
+                    }
+                    
+                    if let (worldName, originalAnchorName) = anchorsByWorld.compactMap({ worldEntry -> (String, String)? in
+                        let worldName = worldEntry.key
+                        if let matchingAnchor = worldEntry.value.first(where: { removeEmojis(from: $0).localizedCaseInsensitiveContains(removeEmojis(from: itemName)) }) {
+                            return (worldName, matchingAnchor)
+                        }
+                        return nil
+                    }).first {
+                        // Set findingAnchorName to the original anchor name with emoji
+                        findingAnchorName = originalAnchorName
+                        worldManager.isShowingAll = false
+                        isFindingAnchor = true
+                        await MainActor.run {
+                            let drop = Drop(title: "Anchor \(originalAnchorName) found in \(worldName)")
+                            Drops.show(drop)
+                            if let matchingWorld = worldManager.savedWorlds.first(where: { $0.name == worldName }) {
+                                selectedWorld = matchingWorld
+                            }
+                        }
+                    } else {
+                        await MainActor.run {
+                            let drop = Drop(title: "Anchor \(itemName) not found")
+                            Drops.show(drop)
+                        }
+                    }
+                }
+            }
+//            .onReceive(
+//                NotificationCenter.default.publisher(for: Notification.Name("FindItemNotification"))
+//            ) { notification in
+//                Task {
+//                    guard let userInfo = notification.userInfo,
+//                          let itemName = userInfo["itemName"] as? String else { return }
+//                    
+//                    // Load anchors for all worlds if not already loaded
+//                    for world in worldManager.savedWorlds where anchorsByWorld[world.name] == nil {
+//                        await worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
+//                            anchorsByWorld[world.name] = fetchedAnchors
+//                        }
+//                    }
+//
+//                    if let worldName = anchorsByWorld.first(where: { $0.value.contains(itemName) })?.key {
+//                        findingAnchorName = itemName
+//                        worldManager.isShowingAll = false
+//                        isFindingAnchor = true
+//                        await MainActor.run {
+//                            let drop = Drop(title: "Anchor \(itemName) found in \(worldName)")
+//                            Drops.show(drop)
+//                            if let matchingWorld = worldManager.savedWorlds.first(where: { $0.name == worldName }) {
+//                                selectedWorld = matchingWorld
+//                            }
+//                        }
+//                    } else {
+//                        await MainActor.run {
+//                            let drop = Drop(title: "Anchor \(itemName) not found")
+//                            Drops.show(drop)
 //                        }
 //                    }
 //                }
-            }
+//            }
             .navigationTitle("it's here.")
             .toolbar {
                 Menu {

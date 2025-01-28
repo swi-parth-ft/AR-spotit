@@ -25,7 +25,8 @@ class WorldManager: ObservableObject {
     @Published var isWorldLoaded = false
     @Published var isShowingARGuide = false
 
-    
+    var currentWorldName: String = ""
+
     init() {
 
     }

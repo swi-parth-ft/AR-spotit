@@ -13,10 +13,16 @@ import AppIntents
 class AppState: ObservableObject {
     static let shared = AppState() // Singleton instance
     @Published var isWorldUpdated: Bool = false {
+    
         didSet {
             print("isWorldUpdated changed to: \(isWorldUpdated)")
         }
     }
+    
+    
+    
+    
+    
 }
 
 
@@ -25,7 +31,7 @@ struct AR_spotitApp: App {
 
     // Ideally pass WorldManager down via environment or as a singleton
     @StateObject var worldManager = WorldManager()
-    @State private var isActive = true // Tracks if the splash screen is active
+    @State private var isActive = false // Tracks if the splash screen is active
 
     var body: some Scene {
         WindowGroup {
