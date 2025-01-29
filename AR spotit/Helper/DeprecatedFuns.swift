@@ -189,4 +189,50 @@ func removeArrow() {
     print("Arrow removed.")
 }
 
+
+//MARK: App Intent Funcs
+
+struct WorldNameOptionsProvider: DynamicOptionsProvider {
+    func results() async throws -> [String] {
+        // Wait for the saved worlds to load
+        try await withCheckedThrowingContinuation { continuation in
+            WorldManager.shared.loadSavedWorlds {
+                let worlds = WorldManager.shared.savedWorlds.map { $0.name }
+                print(worlds) // Ensure worlds are printed correctly
+                continuation.resume(returning: worlds)
+            }
+        }
+    }
+}
+struct AnchorNameOptionsProvider: DynamicOptionsProvider {
+    func results() async throws -> [String] {
+        try await withCheckedThrowingContinuation { continuation in
+            WorldManager.shared.loadSavedWorlds {
+                Task {
+                    var items: [String] = []
+
+                    await withTaskGroup(of: [String].self) { group in
+                        for world in WorldManager.shared.savedWorlds {
+                            group.addTask {
+                                await withCheckedContinuation { innerContinuation in
+                                    WorldManager.shared.getAnchorNames(for: world.name) { fetchedAnchors in
+                                        let filteredAnchors = fetchedAnchors.filter { $0.lowercased() != "guide" }
+                                        innerContinuation.resume(returning: filteredAnchors)                                    }
+                                }
+                            }
+                        }
+
+                        // Collect results from all tasks
+                        for await fetchedAnchors in group {
+                            items.append(contentsOf: fetchedAnchors)
+                        }
+                    }
+
+                    continuation.resume(returning: items)
+                }
+            }
+        }
+    }
+}
+
 #endif

@@ -415,7 +415,7 @@ class WorldManager: ObservableObject {
                 try FileManager.default.removeItem(at: filePath)
                 print("Local world file for \(roomName) deleted.")
                 
-                let uniqueIdentifier = "com.parthant.AR-spotit.\(world.id.uuidString)"
+                let uniqueIdentifier = "com.parthant.AR-spotit.\(world.name)"
                    CSSearchableIndex.default().deleteSearchableItems(withIdentifiers: [uniqueIdentifier]) { error in
                        if let error = error {
                            print("Error deleting world from Spotlight index: \(error.localizedDescription)")
@@ -950,6 +950,7 @@ extension WorldManager {
 
 import CoreSpotlight
 import MobileCoreServices
+import SwiftUI
 
 extension WorldManager {
     
@@ -987,6 +988,32 @@ extension WorldManager {
             return uiImage
         }
         return nil
+    }
+    
+    
+    func indexItems(anchors: [String]) {
+        let searchableItems = anchors.map { createSearchableAnchors(for: $0) }
+        CSSearchableIndex.default().indexSearchableItems(searchableItems) { error in
+            if let error = error {
+                print("Indexing error: \(error.localizedDescription)")
+            } else {
+                print("Successfully indexed \(searchableItems.count) items")
+            }
+        }
+    }
+    
+    private func createSearchableAnchors(for item: String) -> CSSearchableItem {
+        let attributeSet = CSSearchableItemAttributeSet(itemContentType: kUTTypeItem as String)
+        attributeSet.title = item
+        attributeSet.contentDescription = "Search for \(item) in it's here."
+        // Optionally, add keywords, thumbnail, etc.
+        // Example: attributeSet.keywords = ["AR", "World", "Spotit"]
+        let snapshotImage = Image(systemName: "arview")
+        
+        let uniqueIdentifier = "com.parthant.AR-spotit.\(item)"
+        let domainIdentifier = "com.parthant.AR-spotit"
+        
+        return CSSearchableItem(uniqueIdentifier: uniqueIdentifier, domainIdentifier: domainIdentifier, attributeSet: attributeSet)
     }
 }
 

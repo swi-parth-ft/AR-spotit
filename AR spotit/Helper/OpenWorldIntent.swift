@@ -37,9 +37,6 @@ struct OpenWorldIntent: ForegroundContinuableIntent {
     }
 }
 
-
-
-
 @available(iOS 16.4, *)
 struct CreateWorldIntent: ForegroundContinuableIntent {
     static var title: LocalizedStringResource = "Create Area"
@@ -69,21 +66,21 @@ struct CreateWorldIntent: ForegroundContinuableIntent {
 struct OpenItemIntent: ForegroundContinuableIntent {
     static var title: LocalizedStringResource = "Search Item"
 
-    @Parameter(title: "Item Name", optionsProvider: AnchorNameOptionsProvider())
-    var itemName: String
+    @Parameter(title: "Item Name", optionsProvider: AnchorEntity.AnchorQuery())
+    var itemName: AnchorEntity
 
     /// Returning 'some IntentResult & ProvidesDialog' so we can show a success message.
     @MainActor
     func perform() async throws -> some IntentResult {
         
 
-        try await requestToContinueInForeground("Ready to search for \(itemName) in it's here.?")
+        try await requestToContinueInForeground("Ready to search for \(itemName.name) in it's here.?")
 
         
         NotificationCenter.default.post(
             name: Notification.Name("FindItemNotification"),
             object: nil,
-            userInfo: ["itemName": itemName]
+            userInfo: ["itemName": itemName.name]
         )
         
         return .result()
@@ -156,18 +153,6 @@ struct OpenWorldShortcut: AppShortcutsProvider {
 }
 
 
-struct WorldNameOptionsProvider: DynamicOptionsProvider {
-    func results() async throws -> [String] {
-        // Wait for the saved worlds to load
-        try await withCheckedThrowingContinuation { continuation in
-            WorldManager.shared.loadSavedWorlds {
-                let worlds = WorldManager.shared.savedWorlds.map { $0.name }
-                print(worlds) // Ensure worlds are printed correctly
-                continuation.resume(returning: worlds)
-            }
-        }
-    }
-}
 
 struct WorldOptionsProvider: DynamicOptionsProvider {
     func results() async throws -> [WorldEntity] {
@@ -176,36 +161,6 @@ struct WorldOptionsProvider: DynamicOptionsProvider {
 }
 
 
-struct AnchorNameOptionsProvider: DynamicOptionsProvider {
-    func results() async throws -> [String] {
-        try await withCheckedThrowingContinuation { continuation in
-            WorldManager.shared.loadSavedWorlds {
-                Task {
-                    var items: [String] = []
-                    
-                    await withTaskGroup(of: [String].self) { group in
-                        for world in WorldManager.shared.savedWorlds {
-                            group.addTask {
-                                await withCheckedContinuation { innerContinuation in
-                                    WorldManager.shared.getAnchorNames(for: world.name) { fetchedAnchors in
-                                        let filteredAnchors = fetchedAnchors.filter { $0.lowercased() != "guide" }
-                                        innerContinuation.resume(returning: filteredAnchors)                                    }
-                                }
-                            }
-                        }
-                        
-                        // Collect results from all tasks
-                        for await fetchedAnchors in group {
-                            items.append(contentsOf: fetchedAnchors)
-                        }
-                    }
-                    
-                    continuation.resume(returning: items)
-                }
-            }
-        }
-    }
-}
 
 
 @available(iOS 16.0, *)
@@ -226,44 +181,10 @@ struct WorldEntity: AppEntity, Identifiable {
     let name: String
     
     var displayRepresentation: DisplayRepresentation {
-      //  DisplayRepresentation(title: "\(name)")
-       // DisplayRepresentation(title: LocalizedStringResource("%@", defaultValue: String.LocalizationValue(name))) // This works
         DisplayRepresentation(stringLiteral: name)
-
-
     }
     
     struct WorldQuery: EntityQuery {
-//        
-//        func suggestedEntities() async throws -> [WorldEntity] {
-////            return [
-////                       WorldEntity(id: UUID(), name: "Dark room"),
-////                       WorldEntity(id: UUID(), name: "Utility Closet")
-//            await loadWorlds()
-//        }
-//        
-//        
-//        
-//        func entities(for identifiers: [UUID]) async throws -> [WorldEntity] {
-//            
-//            
-//            let savedWorlds = await loadWorlds()
-//            return savedWorlds
-//                .filter { identifiers.contains($0.id) }
-//                .map { WorldEntity(id: $0.id, name: $0.name) }
-//        }
-//        
-//      
-//        private func loadWorlds() async -> [WorldEntity] {
-//            await withCheckedContinuation { continuation in
-//                WorldManager.shared.loadSavedWorlds {
-//                    let worlds = WorldManager.shared.savedWorlds.map {
-//                        WorldEntity(id: $0.id, name: $0.name)
-//                    }
-//                    continuation.resume(returning: worlds)
-//                }
-//            }
-//        }
         
         /// Return all entities matching a set of identifiers.
         func entities(for identifiers: [UUID]) async throws -> [WorldEntity] {
@@ -302,6 +223,83 @@ struct WorldEntity: AppEntity, Identifiable {
 
 
 extension WorldEntity: IndexedEntity {
+    
+
+}
+
+@available(iOS 16.0, *)
+struct AnchorEntity: AppEntity, Identifiable {
+    
+    static let defaultQuery = AnchorQuery()
+
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(
+        name: "Item"
+    )
+    
+    let id: UUID
+    let name: String
+    let worldName: String  // Keep track of which world this item belongs to
+
+    var persistentIdentifier: UUID {
+        id
+    }
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(stringLiteral: "\(name) in \(worldName)")
+    }
+
+    struct AnchorQuery: EntityQuery {
+        
+        /// Return all entities matching a set of identifiers.
+        func entities(for identifiers: [UUID]) async throws -> [AnchorEntity] {
+            let allAnchors = try await fetchAllAnchors()
+            return allAnchors.filter { identifiers.contains($0.id) }
+        }
+
+        /// Return a list of suggested (or "all") entities.
+        func suggestedEntities() async throws -> [AnchorEntity] {
+            return try await fetchAllAnchors()
+        }
+
+        /// Fetches all saved anchors (items) from all worlds.
+        private func fetchAllAnchors() async throws -> [AnchorEntity] {
+            let allWorlds = try await withCheckedThrowingContinuation { continuation in
+                WorldManager.shared.loadSavedWorlds {
+                    continuation.resume(returning: WorldManager.shared.savedWorlds)
+                }
+            }
+
+            var anchors: [AnchorEntity] = []
+            await withTaskGroup(of: [AnchorEntity].self) { group in
+                for world in allWorlds {
+                    group.addTask {
+                        await withCheckedContinuation { innerContinuation in
+                            WorldManager.shared.getAnchorNames(for: world.name) { fetchedAnchors in
+                                let filteredAnchors = fetchedAnchors
+                                    .filter { $0.lowercased() != "guide" } // Exclude "guide"
+                                    .map { anchorName -> AnchorEntity in
+                                        // Retrieve or assign a persistent UUID
+                                        let uuid = AnchorUUIDManager.shared.uuid(for: world.name, anchorName: anchorName)
+                                        return AnchorEntity(id: uuid, name: anchorName, worldName: world.name)
+                                    }
+
+                                innerContinuation.resume(returning: filteredAnchors)
+                            }
+                        }
+                    }
+                }
+
+                for await fetchedAnchors in group {
+                    anchors.append(contentsOf: fetchedAnchors)
+                }
+            }
+            
+            return anchors
+        }
+    }
+}
+
+extension AnchorEntity: IndexedEntity {
     
 
 }
