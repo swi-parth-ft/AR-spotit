@@ -5,6 +5,8 @@
 //  Created by Parth Antala on 2025-01-26.
 //
 import AppIntents
+import CoreSpotlight
+import MobileCoreServices
 
 /// This requires iOS 16.4 or newer
 @available(iOS 16.4, *)
@@ -12,21 +14,23 @@ struct OpenWorldIntent: ForegroundContinuableIntent {
     static var title: LocalizedStringResource = "Search Area"
     
     
-    @Parameter(title: "Area Name", optionsProvider: WorldNameOptionsProvider())
-    var worldName: String
+    @Parameter(
+        title: "World",
+        optionsProvider: WorldOptionsProvider() // Add this
+    ) var worldName: WorldEntity
 
     /// Returning 'some IntentResult & ProvidesDialog' so we can show a success message.
     @MainActor
     func perform() async throws -> some IntentResult {
 
 
-        try await requestToContinueInForeground("Ready to open \(worldName) in it's here.?")
+        try await requestToContinueInForeground("Ready to open \(worldName.name) in it's here.?")
 
         
         NotificationCenter.default.post(
             name: Notification.Name("OpenWorldNotification"),
             object: nil,
-            userInfo: ["worldName": worldName]
+            userInfo: ["worldName": worldName.name]
         )
         
         return .result()
@@ -106,7 +110,10 @@ struct OpenWorldShortcut: AppShortcutsProvider {
                 "Unlock World in \(.applicationName)",
                 "Begin Search in \(.applicationName)",
                 "Search in \(.applicationName)",
-                "Open Area \(\.$worldName) in \(.applicationName)"
+                "Open Area \(\.$worldName) in \(.applicationName)",
+                "Launch \(\.$worldName) in \(.applicationName)",
+                "View \(\.$worldName) in AR with \(.applicationName)",
+                "Browse \(\.$worldName) with \(.applicationName)"
             ],
             shortTitle: "Search Area",
             systemImageName: "arkit"
@@ -162,6 +169,12 @@ struct WorldNameOptionsProvider: DynamicOptionsProvider {
     }
 }
 
+struct WorldOptionsProvider: DynamicOptionsProvider {
+    func results() async throws -> [WorldEntity] {
+        try await WorldEntity.WorldQuery().suggestedEntities()
+    }
+}
+
 
 struct AnchorNameOptionsProvider: DynamicOptionsProvider {
     func results() async throws -> [String] {
@@ -192,4 +205,103 @@ struct AnchorNameOptionsProvider: DynamicOptionsProvider {
             }
         }
     }
+}
+
+
+@available(iOS 16.0, *)
+struct WorldEntity: AppEntity, Identifiable {
+    
+    static let defaultQuery = WorldQuery()
+    
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(
+        name: "World"
+    )
+    let id: UUID
+    
+    
+    var persistentIdentifier: UUID {
+        id
+    }
+    
+    let name: String
+    
+    var displayRepresentation: DisplayRepresentation {
+      //  DisplayRepresentation(title: "\(name)")
+       // DisplayRepresentation(title: LocalizedStringResource("%@", defaultValue: String.LocalizationValue(name))) // This works
+        DisplayRepresentation(stringLiteral: name)
+
+
+    }
+    
+    struct WorldQuery: EntityQuery {
+//        
+//        func suggestedEntities() async throws -> [WorldEntity] {
+////            return [
+////                       WorldEntity(id: UUID(), name: "Dark room"),
+////                       WorldEntity(id: UUID(), name: "Utility Closet")
+//            await loadWorlds()
+//        }
+//        
+//        
+//        
+//        func entities(for identifiers: [UUID]) async throws -> [WorldEntity] {
+//            
+//            
+//            let savedWorlds = await loadWorlds()
+//            return savedWorlds
+//                .filter { identifiers.contains($0.id) }
+//                .map { WorldEntity(id: $0.id, name: $0.name) }
+//        }
+//        
+//      
+//        private func loadWorlds() async -> [WorldEntity] {
+//            await withCheckedContinuation { continuation in
+//                WorldManager.shared.loadSavedWorlds {
+//                    let worlds = WorldManager.shared.savedWorlds.map {
+//                        WorldEntity(id: $0.id, name: $0.name)
+//                    }
+//                    continuation.resume(returning: worlds)
+//                }
+//            }
+//        }
+        
+        /// Return all entities matching a set of identifiers.
+        func entities(for identifiers: [UUID]) async throws -> [WorldEntity] {
+            // 1) Wait for WorldManager to finish loading.
+            let allWorlds = try await withCheckedThrowingContinuation { continuation in
+                WorldManager.shared.loadSavedWorlds {
+                    // This closure is called when loading is complete
+                    let savedWorlds = WorldManager.shared.savedWorlds
+                    continuation.resume(returning: savedWorlds)
+                }
+            }
+            
+            // 2) Filter based on the identifiers
+            let matchedWorlds = allWorlds
+                .filter { identifiers.contains($0.id) }
+                .map { WorldEntity(id: $0.id, name: $0.name) }
+            
+            return matchedWorlds
+        }
+        
+        /// Return a list of suggested (or "all") entities.
+        func suggestedEntities() async throws -> [WorldEntity] {
+            // 1) Wait for WorldManager to finish loading.
+            let allWorlds = try await withCheckedThrowingContinuation { continuation in
+                WorldManager.shared.loadSavedWorlds {
+                    let savedWorlds = WorldManager.shared.savedWorlds
+                    continuation.resume(returning: savedWorlds)
+                }
+            }
+            
+            // 2) Transform them into WorldEntity
+            return allWorlds.map { WorldEntity(id: $0.id, name: $0.name) }
+        }
+    }
+}
+
+
+extension WorldEntity: IndexedEntity {
+    
+
 }

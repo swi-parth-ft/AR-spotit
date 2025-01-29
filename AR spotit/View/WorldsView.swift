@@ -1,5 +1,8 @@
 import SwiftUI
 import Drops
+import AppIntents
+import CoreSpotlight
+import MobileCoreServices
 
 struct WorldsView: View {
     
@@ -79,7 +82,9 @@ struct WorldsView: View {
         return (anchorsByWorld[worldName]?.filter { $0.localizedCaseInsensitiveContains(searchText) }) ?? []
     }
     
-    init() {
+    init()  {
+        
+            
             var titleFont = UIFont.preferredFont(forTextStyle: .largeTitle) /// the default large title font
             titleFont = UIFont(
                 descriptor:
