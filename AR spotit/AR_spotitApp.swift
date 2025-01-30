@@ -84,7 +84,6 @@ struct AR_spotitApp: App {
         worldManager.importWorldFromURL(url) 
     }
     
-    
     func handleSpotlightActivity(_ userActivity: NSUserActivity) {
         print("Handling Spotlight user activity")
 
@@ -93,25 +92,75 @@ struct AR_spotitApp: App {
             return
         }
 
-        let prefix = "com.parthant.AR-spotit."
-        guard uniqueIdentifier.hasPrefix(prefix) else {
-            print("Unique identifier does not match prefix")
-            return
-        }
+        let worldPrefix = "com.parthant.AR-spotit."
+        let itemPrefix = "item.com.parthant.AR-spotit."
 
-        let worldName = String(uniqueIdentifier.dropFirst(prefix.count))
-        // No longer treating it as UUID
+        if uniqueIdentifier.hasPrefix(worldPrefix) {
+            let worldName = String(uniqueIdentifier.dropFirst(worldPrefix.count))
+            Task {
+                if worldManager.savedWorlds.isEmpty {
+                    print("savedWorlds is empty. Waiting for worlds to load...")
+                    await worldManager.loadSavedWorldsAsync()
+                }
 
-        // Ensure that savedWorlds are loaded
-        Task {
-            if worldManager.savedWorlds.isEmpty {
-                print("savedWorlds is empty. Waiting for worlds to load...")
-                await worldManager.loadSavedWorldsAsync()
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(
+                        name: Notification.Name("OpenWorldNotification"),
+                        object: nil,
+                        userInfo: ["worldName": worldName]
+                    )
+                    print("Selected world set to \(worldName) via Spotlight")
+                }
             }
-            
-            navigateToWorld(with: worldName)
+        } else if uniqueIdentifier.hasPrefix(itemPrefix) {
+            let itemName = String(uniqueIdentifier.dropFirst(itemPrefix.count))
+            Task {
+                if worldManager.savedWorlds.isEmpty {
+                    print("savedWorlds is empty. Waiting for worlds to load...")
+                    await worldManager.loadSavedWorldsAsync()
+                }
+
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(
+                        name: Notification.Name("FindItemNotification"),
+                        object: nil,
+                        userInfo: ["itemName": itemName]
+                    )
+                    print("Selected item set to \(itemName) via Spotlight")
+                }
+            }
+        } else {
+            print("Unique identifier does not match known prefixes")
         }
     }
+    
+//    func handleSpotlightActivity(_ userActivity: NSUserActivity) {
+//        print("Handling Spotlight user activity")
+//
+//        guard let uniqueIdentifier = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String else {
+//            print("No unique identifier found in user activity")
+//            return
+//        }
+//
+//        let prefix = "com.parthant.AR-spotit."
+//        guard uniqueIdentifier.hasPrefix(prefix) else {
+//            print("Unique identifier does not match prefix")
+//            return
+//        }
+//
+//        let worldName = String(uniqueIdentifier.dropFirst(prefix.count))
+//        // No longer treating it as UUID
+//
+//        // Ensure that savedWorlds are loaded
+//        Task {
+//            if worldManager.savedWorlds.isEmpty {
+//                print("savedWorlds is empty. Waiting for worlds to load...")
+//                await worldManager.loadSavedWorldsAsync()
+//            }
+//            
+//            navigateToWorld(with: worldName)
+//        }
+//    }
 
     private func navigateToWorld(with worldName: String) {
         print("Navigating to world with name: \(worldName)")

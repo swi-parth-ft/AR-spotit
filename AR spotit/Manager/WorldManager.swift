@@ -1008,9 +1008,9 @@ extension WorldManager {
         attributeSet.contentDescription = "Search for \(item) in it's here."
         // Optionally, add keywords, thumbnail, etc.
         // Example: attributeSet.keywords = ["AR", "World", "Spotit"]
-        let snapshotImage = Image(systemName: "arview")
+       
         
-        let uniqueIdentifier = "com.parthant.AR-spotit.\(item)"
+        let uniqueIdentifier = "item.com.parthant.AR-spotit.\(item)"
         let domainIdentifier = "com.parthant.AR-spotit"
         
         return CSSearchableItem(uniqueIdentifier: uniqueIdentifier, domainIdentifier: domainIdentifier, attributeSet: attributeSet)
