@@ -108,8 +108,20 @@ struct AnchorsListView: View {
                         
                     }
                     .frame(width: UIScreen.main.bounds.width, height: 400)
-                    
-                    
+                    if let anchors = anchorsByWorld[worldName], anchors.filter({ $0 != "guide" }).isEmpty {
+                        VStack {
+                            ContentUnavailableView {
+                                Label("No Items found", systemImage: "exclamationmark.warninglight.fill")
+                                    .font(.system(.title2, design: .rounded))
+                                
+                            } description: {
+                                Text("Open Area to add new items.")
+                                //   .font(.system(design: .rounded))
+                                
+                            }
+                        }
+
+                    }
                     
                     LazyVGrid(columns: columns, spacing: 10) {
                         if let anchors = anchorsByWorld[worldName], !anchors.isEmpty {
@@ -155,10 +167,7 @@ struct AnchorsListView: View {
                             }
                             
                         } else {
-                            Text("No anchors found.")
-                                .foregroundColor(.secondary)
-                                .padding()
-                                .frame(maxWidth: .infinity)
+                          
                         }
                     }
                     .padding()

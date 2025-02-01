@@ -1006,6 +1006,7 @@ extension WorldManager {
         let attributeSet = CSSearchableItemAttributeSet(itemContentType: kUTTypeItem as String)
         attributeSet.title = item
         attributeSet.contentDescription = "Search for \(item) in it's here."
+        
         // Optionally, add keywords, thumbnail, etc.
         // Example: attributeSet.keywords = ["AR", "World", "Spotit"]
        
@@ -1016,11 +1017,4 @@ extension WorldManager {
         return CSSearchableItem(uniqueIdentifier: uniqueIdentifier, domainIdentifier: domainIdentifier, attributeSet: attributeSet)
     }
 }
-
-
-
-//MARK: Deprecated iCloud Functions
-#if false
-
-#endif
 

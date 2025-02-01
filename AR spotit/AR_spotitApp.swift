@@ -133,50 +133,5 @@ struct AR_spotitApp: App {
             print("Unique identifier does not match known prefixes")
         }
     }
-    
-//    func handleSpotlightActivity(_ userActivity: NSUserActivity) {
-//        print("Handling Spotlight user activity")
-//
-//        guard let uniqueIdentifier = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String else {
-//            print("No unique identifier found in user activity")
-//            return
-//        }
-//
-//        let prefix = "com.parthant.AR-spotit."
-//        guard uniqueIdentifier.hasPrefix(prefix) else {
-//            print("Unique identifier does not match prefix")
-//            return
-//        }
-//
-//        let worldName = String(uniqueIdentifier.dropFirst(prefix.count))
-//        // No longer treating it as UUID
-//
-//        // Ensure that savedWorlds are loaded
-//        Task {
-//            if worldManager.savedWorlds.isEmpty {
-//                print("savedWorlds is empty. Waiting for worlds to load...")
-//                await worldManager.loadSavedWorldsAsync()
-//            }
-//            
-//            navigateToWorld(with: worldName)
-//        }
-//    }
-
-    private func navigateToWorld(with worldName: String) {
-        print("Navigating to world with name: \(worldName)")
-        if let world = worldManager.savedWorlds.first(where: { $0.name == worldName }) {
-            DispatchQueue.main.async {
-                // Post the same notification as OpenWorldIntent
-                NotificationCenter.default.post(
-                    name: Notification.Name("OpenWorldNotification"),
-                    object: nil,
-                    userInfo: ["worldName": world.name]
-                )
-                print("Selected world set to \(world.name) via Spotlight")
-            }
-        } else {
-            print("No world found with name: \(worldName)")
-        }
-    }
    
 }

@@ -105,6 +105,50 @@ struct WorldsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading) {
+                    
+                  
+                    if filteredWorlds.isEmpty && searchText.isEmpty {
+                        VStack {
+                            Spacer()
+                            ContentUnavailableView {
+                                Label("No Area saved yet!", systemImage: "viewfinder")
+                                    .font(.system(.title2, design: .rounded))
+                                
+                            } description: {
+                                Text("Start adding a area by tapping the plus \(Image(systemName: "plus.circle")) button.")
+                                //   .font(.system(design: .rounded))
+                                
+                            }
+                            Spacer()
+                        }
+                        .frame(height: UIScreen.main.bounds.height * 0.7)
+
+                    }
+                    
+                        
+                        
+                        if !searchText.isEmpty && filteredWorlds.isEmpty{
+                            VStack {
+                                Spacer()
+                                ContentUnavailableView {
+                                Label("No Results for '\(searchText)'", systemImage: "magnifyingglass")
+                                    .font(.system(.title2, design: .rounded))
+                                
+                            } description: {
+                                Text("Check spelling or try new search.")
+                                //   .font(.system(design: .rounded))
+                                
+                            }
+                                
+                            
+                            Spacer()
+                            
+                        }
+                            .frame(height: UIScreen.main.bounds.height * 0.7)
+
+                    }
+                    
+                    
                     ForEach(filteredWorlds) { world in
                         VStack(alignment: .leading) {
                             
@@ -349,6 +393,7 @@ struct WorldsView: View {
               
                     }
                 }
+             
                 .onAppear {
                     if currentName == "" {
                         worldManager.loadSavedWorlds {
@@ -395,10 +440,10 @@ struct WorldsView: View {
                           await MainActor.run {
                               let drop = Drop(title: "Loading \(matchingWorld.name)")
                               Drops.show(drop)
-                              DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                            //  DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                   
                                   selectedWorld = matchingWorld
-                              }
+                              //}
                           }
                       }
                   }
@@ -411,10 +456,10 @@ struct WorldsView: View {
                       let worldName = userInfo["worldName"] as? String else { return }
                 
                 if worldName != "" {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                 //   DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         
                         selectedWorld = WorldModel(name: worldName)
-                    }
+                   // }
                 }
                 
             }
