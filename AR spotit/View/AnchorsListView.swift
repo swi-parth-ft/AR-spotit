@@ -21,6 +21,8 @@ struct AnchorsListView: View {
     @State private var isOpeningWorld = false
     @State private var showFocusedAnchor: Bool = false
     @Binding var isOpeningFromAnchorListView: Bool
+    @State private var isLoading = true
+    
     let columns = [
         GridItem(.flexible(), spacing: 10),
         GridItem(.flexible(), spacing: 10),
@@ -108,6 +110,13 @@ struct AnchorsListView: View {
                         
                     }
                     .frame(width: UIScreen.main.bounds.width, height: 400)
+                    if isLoading {
+                        ProgressView() {
+                            Text("Loading items for \(worldName)")
+                                .font(.system(.headline, design: .rounded))
+
+                        }
+                    }
                     if let anchors = anchorsByWorld[worldName], anchors.filter({ $0 != "guide" }).isEmpty {
                         VStack {
                             ContentUnavailableView {
@@ -196,6 +205,7 @@ struct AnchorsListView: View {
                           worldManager.getAnchorNames(for: worldName) { fetchedAnchors in
                               DispatchQueue.main.async {
                                   anchorsByWorld[worldName] = fetchedAnchors
+                                  isLoading = false
                               }
                           }
                       }

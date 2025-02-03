@@ -74,13 +74,16 @@ struct OpenItemIntent: ForegroundContinuableIntent {
     func perform() async throws -> some IntentResult {
         
 
-        try await requestToContinueInForeground("Ready to search for \(itemName.name) in it's here.?")
-
+        do {
+            try await requestToContinueInForeground("Ready to search for \(itemName.name) in it's here.?")
+        } catch {
+            print("Error requesting foreground continuation: \(error)")
+        }
         
         NotificationCenter.default.post(
             name: Notification.Name("FindItemNotification"),
             object: nil,
-            userInfo: ["itemName": itemName.name]
+            userInfo: ["itemName": itemName.name, "worldName": itemName.worldName]
         )
         
         return .result()
