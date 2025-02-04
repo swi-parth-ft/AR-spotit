@@ -384,9 +384,12 @@ struct WorldsView: View {
                                 worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
                                     DispatchQueue.main.async {
                                         anchorsByWorld[world.name] = fetchedAnchors
-                                            worldManager.indexItems(anchors: fetchedAnchors)
+                                        
+                                        let tupleAnchors = fetchedAnchors.map { (anchorName: $0, worldName: world.name) }
+                                        worldManager.indexItems(anchors: tupleAnchors)
                                         
                                     }
+                                   
                                 }
                             }
                         }
@@ -484,6 +487,45 @@ struct WorldsView: View {
                             let drop = Drop(title: "Anchor \(itemName) found in \(providedWorldName)")
                             Drops.show(drop)
                             selectedWorld = matchingWorld
+                        }
+                    } else {
+                        // Option 2: Fallback to the logic that searches for an anchor if the world name isn’t provided
+                        // Load anchors for all worlds if not already loaded
+                        for world in worldManager.savedWorlds where anchorsByWorld[world.name] == nil {
+                            await worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
+                                anchorsByWorld[world.name] = fetchedAnchors
+                            }
+                        }
+                        
+                        // Normalize names by removing emojis for comparison
+                        func removeEmojis(from string: String) -> String {
+                            return string.filter { !$0.isEmoji }
+                        }
+                        
+                        if let (worldName, originalAnchorName) = anchorsByWorld.compactMap({ worldEntry -> (String, String)? in
+                            let worldName = worldEntry.key
+                            if let matchingAnchor = worldEntry.value.first(where: { removeEmojis(from: $0)
+                                .localizedCaseInsensitiveContains(removeEmojis(from: itemName)) }) {
+                                return (worldName, matchingAnchor)
+                            }
+                            return nil
+                        }).first {
+                            // Set findingAnchorName to the original anchor name with emoji
+                            findingAnchorName = originalAnchorName
+                            worldManager.isShowingAll = false
+                            isFindingAnchor = true
+                            await MainActor.run {
+                                let drop = Drop(title: "Anchor \(originalAnchorName) found in \(worldName)")
+                                Drops.show(drop)
+                                if let matchingWorld = worldManager.savedWorlds.first(where: { $0.name == worldName }) {
+                                    selectedWorld = matchingWorld
+                                }
+                            }
+                        } else {
+                            await MainActor.run {
+                                let drop = Drop(title: "Anchor \(itemName) not found")
+                                Drops.show(drop)
+                            }
                         }
                     }
                 }

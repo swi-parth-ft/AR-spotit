@@ -113,22 +113,30 @@ struct AR_spotitApp: App {
                 }
             }
         } else if uniqueIdentifier.hasPrefix(itemPrefix) {
-            let itemName = String(uniqueIdentifier.dropFirst(itemPrefix.count))
-            Task {
-                if worldManager.savedWorlds.isEmpty {
-                    print("savedWorlds is empty. Waiting for worlds to load...")
-                    await worldManager.loadSavedWorldsAsync()
-                }
-
-                DispatchQueue.main.async {
-                    NotificationCenter.default.post(
-                        name: Notification.Name("FindItemNotification"),
-                        object: nil,
-                        userInfo: ["itemName": itemName]
-                    )
-                    print("Selected item set to \(itemName) via Spotlight")
-                }
-            }
+            // Remove the prefix, then split the remaining string at the first "."
+                  let remaining = uniqueIdentifier.dropFirst(itemPrefix.count)
+                  let components = remaining.split(separator: ".", maxSplits: 1)
+                  guard components.count == 2 else {
+                      print("Could not parse searchable item identifier: \(uniqueIdentifier)")
+                      return
+                  }
+                  let worldName = String(components[0])
+                  let itemName = String(components[1])
+                  
+                  Task {
+                      if worldManager.savedWorlds.isEmpty {
+                          print("savedWorlds is empty. Waiting for worlds to load...")
+                          await worldManager.loadSavedWorldsAsync()
+                      }
+                      DispatchQueue.main.async {
+                          NotificationCenter.default.post(
+                              name: Notification.Name("FindItemNotification"),
+                              object: nil,
+                              userInfo: ["itemName": itemName, "worldName": worldName]
+                          )
+                          print("Selected item \(itemName) in world \(worldName) via Spotlight")
+                      }
+                  }
         } else {
             print("Unique identifier does not match known prefixes")
         }
