@@ -312,12 +312,22 @@ struct ARViewContainer: UIViewRepresentable {
                     return
                 }
                 
+                // Use a default name if the text field is empty.
+                       let baseName = parent.anchorName.isEmpty ? "defaultAnchor" : parent.anchorName
+                       
+                       // Get the list of current anchor names.
+                       let currentAnchorNames = sceneView.session.currentFrame?.anchors.compactMap { $0.name } ?? []
+                       
+                       // Generate a unique name (e.g. "flag 🏴‍☠️" becomes "flag1 🏴‍☠️" if needed).
+                       let uniqueName = getUniqueAnchorName(baseName: baseName, existingNames: currentAnchorNames)
+                       
+                
                 // Place anchor at the raycast result's position
                 let name = parent.anchorName.isEmpty ? "defaultAnchor" : parent.anchorName
-                let anchor = ARAnchor(name: name, transform: result.worldTransform)
+                let anchor = ARAnchor(name: uniqueName, transform: result.worldTransform)
                 sceneView.session.add(anchor: anchor)
-                print("Placed anchor with name: \(name) at position: \(result.worldTransform.columns.3)")
-                let drop = Drop.init(title: "\(name) placed")
+                print("Placed anchor with name: \(uniqueName) at position: \(result.worldTransform.columns.3)")
+                let drop = Drop.init(title: "\(uniqueName) placed")
                 Drops.show(drop)
                 if parent.findAnchor == "" {
                     HapticManager.shared.notification(type: .success)
@@ -397,6 +407,43 @@ struct ARViewContainer: UIViewRepresentable {
             }
 
             print("No anchor hit detected in node hierarchy.")
+        }
+        
+        /// Returns a unique name by checking against the provided list of existing names.
+        /// If the base name ends with an emoji, the number is inserted before it.
+        /// For example, "flag 🏴‍☠️" becomes "flag1 🏴‍☠️" if "flag 🏴‍☠️" already exists.
+        func getUniqueAnchorName(baseName: String, existingNames: [String]) -> String {
+            // If the base name is not already used, return it immediately.
+            if !existingNames.contains(baseName) {
+                return baseName
+            }
+            
+            // Try to detect an emoji at the end of the base name.
+            // (This assumes your emoji is the very last character.)
+            let trimmedBaseName: String
+            let trailingEmoji: String?
+            if let lastChar = baseName.last, lastChar.isEmoji {
+                trailingEmoji = String(lastChar)
+                // Remove the emoji and any trailing whitespace.
+                trimmedBaseName = String(baseName.dropLast()).trimmingCharacters(in: .whitespaces)
+            } else {
+                trailingEmoji = nil
+                trimmedBaseName = baseName
+            }
+            
+            // Append a counter until we find a name that isn’t used.
+            var counter = 1
+            var newName: String
+            repeat {
+                if let emoji = trailingEmoji {
+                    newName = "\(trimmedBaseName)\(counter) \(emoji)"
+                } else {
+                    newName = "\(trimmedBaseName)\(counter)"
+                }
+                counter += 1
+            } while existingNames.contains(newName)
+            
+            return newName
         }
         
         func deleteAnchor(anchorName: String) {

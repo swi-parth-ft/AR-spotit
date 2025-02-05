@@ -17,7 +17,13 @@ extension String {
 }
 
 extension Character {
+    
+    
+    
+    
     var isEmoji: Bool {
+        
+        if self.isNumber { return false }
         return self.unicodeScalars.contains { scalar in
             scalar.properties.isEmoji ||
             (scalar.value >= 0x1F600 && scalar.value <= 0x1F64F) || // Emoticons

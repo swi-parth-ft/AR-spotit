@@ -191,7 +191,7 @@ struct ContentView: View {
                                             .foregroundStyle(Color.white)
                                             .bold()
                                             .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                            .animation(.smooth, value: distance)
+                                            .contentTransition(.numericText(value: distance))
                                             .onAppear {
                                                 itshere = ""
                                             }

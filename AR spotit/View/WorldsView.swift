@@ -624,8 +624,20 @@ struct WorldsView: View {
             }
             .sheet(isPresented: $isAddingNewRoom, onDismiss: {
                 if roomName != "" {
-                    selectedWorld = WorldModel(name: roomName)
-                }
+                       // Start with the entered room name.
+                       var newRoomName = roomName
+                       var counter = 1
+                       
+                       // Check if the room name already exists (case-insensitive).
+                       while worldManager.savedWorlds.contains(where: { $0.name.lowercased() == newRoomName.lowercased() }) {
+                           // Append a counter to the original name to create a new candidate.
+                           newRoomName = "\(roomName)\(counter)"
+                           counter += 1
+                       }
+                       
+                       // Create a new world with the unique name.
+                       selectedWorld = WorldModel(name: newRoomName)
+                   }
             }) {
                 
 //                    RoomScanGuideView()
