@@ -89,6 +89,8 @@ struct ARViewContainer: UIViewRepresentable {
         
         configureCoachingOverlay(for: sceneView, coordinator: context.coordinator)
 
+        let arrow3D = create3DArrowNode()
+          sceneView.scene.rootNode.addChildNode(arrow3D)
        // setupAudio()
         
         return sceneView
@@ -98,7 +100,40 @@ struct ARViewContainer: UIViewRepresentable {
     }
     
     
- 
+    func create3DArrowNode() -> SCNNode {
+        let arrowNode = SCNNode()
+        
+        // --- Arrow Shaft ---
+        let shaftHeight: CGFloat = 0.1
+        let shaftRadius: CGFloat = 0.01
+        let shaftGeometry = SCNCylinder(radius: shaftRadius, height: shaftHeight)
+        shaftGeometry.firstMaterial?.diffuse.contents = UIColor.red
+        let shaftNode = SCNNode(geometry: shaftGeometry)
+        // Position the shaft so that its base is at the origin (y = 0)
+        shaftNode.position = SCNVector3(0, Float(shaftHeight/2), 0)
+        
+        // --- Arrow Tip ---
+        let tipHeight: CGFloat = 0.05
+        let tipBottomRadius: CGFloat = 0.015
+        let tipGeometry = SCNCone(topRadius: 0, bottomRadius: tipBottomRadius, height: tipHeight)
+        tipGeometry.firstMaterial?.diffuse.contents = UIColor.red
+        let tipNode = SCNNode(geometry: tipGeometry)
+        // Place the tip on top of the shaft
+        tipNode.position = SCNVector3(0, Float(shaftHeight + tipHeight/2), 0)
+        
+        // Add shaft and tip to the arrow node
+        arrowNode.addChildNode(shaftNode)
+        arrowNode.addChildNode(tipNode)
+        
+        // Name the node so you can retrieve it later
+        arrowNode.name = "arrow3D"
+        
+        // Optional: Force the arrow to always render on top (adjust rendering order)
+        arrowNode.renderingOrder = 1000
+        arrowNode.geometry?.firstMaterial?.readsFromDepthBuffer = false
+        
+        return arrowNode
+    }
     
     func makeCoordinator() -> Coordinator {
         let coordinator = Coordinator(self, worldManager: worldManager)
@@ -189,7 +224,7 @@ struct ARViewContainer: UIViewRepresentable {
         private var nodeJumpHeights = [String: Float]()
         private var isAudioPlaying = true
     //    private var pointCloudParentNode = SCNNode()
-
+        var arrowWasOffScreen = false
 
         
         init(_ parent: ARViewContainer, worldManager: WorldManager) {
@@ -957,28 +992,9 @@ struct ARViewContainer: UIViewRepresentable {
                 updateAudioPan(with: smoothedAngle)
 
 
-//                // Update the listener's position to match the camera position
-//                parent.audioEnvironmentNode.listenerPosition = AVAudio3DPoint(
-//                    x: cameraPosition.x,
-//                    y: cameraPosition.y,
-//                    z: cameraPosition.z
-//                )
-//
-//                // Update the audio source's position to match the anchor position
-//                parent.audioPlayer.position = AVAudio3DPoint(
-//                    x: anchorPosition.x,
-//                    y: anchorPosition.y,
-//                    z: anchorPosition.z
-//                )
-
                 // Adjust volume based on distance
                 parent.audioPlayer.volume = max(0.1, 1.0 - Float(distance) / 10.0)
-//                
-//                // Configure distance attenuation parameters
-//                parent.audioEnvironmentNode.distanceAttenuationParameters.distanceAttenuationModel = .exponential
-//                parent.audioEnvironmentNode.distanceAttenuationParameters.referenceDistance = 1.0
-//                parent.audioEnvironmentNode.distanceAttenuationParameters.maximumDistance = 20.0
-//                parent.audioEnvironmentNode.distanceAttenuationParameters.rolloffFactor = 2.0
+//
             } else {
                 if isAudioPlaying {
                     isAudioPlaying = false
@@ -989,10 +1005,102 @@ struct ARViewContainer: UIViewRepresentable {
             guard let node = anchorNodes[anchor.name ?? ""] else {
                 return
             }
+//            DispatchQueue.main.async {
+//                self.addJumpingAnimation(to: node, basedOn: clampedDistance)
+//            }
+            
             DispatchQueue.main.async {
-                self.addJumpingAnimation(to: node, basedOn: clampedDistance)
-            }
-        }
+                // Ensure a target anchor exists.
+                guard !self.parent.findAnchor.isEmpty,
+                      let anchor = session.currentFrame?.anchors.first(where: { $0.name == self.parent.findAnchor })
+                else {
+                    if let arrow3D = self.parent.sceneView.scene.rootNode.childNode(withName: "arrow3D", recursively: false) {
+                        arrow3D.isHidden = true
+                    }
+                    return
+                }
+                
+                // Retrieve the 3D arrow node.
+                guard let arrow3D = self.parent.sceneView.scene.rootNode.childNode(withName: "arrow3D", recursively: false) else {
+                    return
+                }
+                arrow3D.isHidden = false
+                
+                // Get the anchor’s world position.
+                let anchorWorldPosition = SCNVector3(anchor.transform.columns.3.x,
+                                                     anchor.transform.columns.3.y,
+                                                     anchor.transform.columns.3.z)
+                
+                // Project the anchor’s 3D position to 2D screen coordinates.
+                let projected = self.parent.sceneView.projectPoint(anchorWorldPosition)
+                let anchorScreenPoint = CGPoint(x: CGFloat(projected.x), y: CGFloat(projected.y))
+                let bounds = self.parent.sceneView.bounds
+                
+                // Determine if the anchor is on-screen.
+                let isOnScreen = bounds.contains(anchorScreenPoint) && projected.z > 0
+                
+                if isOnScreen {
+                    // When the anchor is visible, position the arrow 20 cm above the anchor.
+                    // Note: 0.20 meters == 20 centimeters.
+                    let target3D = SCNVector3(
+                        anchorWorldPosition.x,
+                        anchorWorldPosition.y + 0.30,
+                        anchorWorldPosition.z
+                    )
+                    
+                    SCNTransaction.begin()
+                    SCNTransaction.animationDuration = 0.7
+                    arrow3D.position = target3D
+                    // Rotate the arrow so its tip (originally pointing up along +y) now points down.
+                    arrow3D.eulerAngles = SCNVector3(Float.pi, 0, 0)
+                    SCNTransaction.commit()
+                    
+                    // Update the stored base position for the jump animation so it always uses the latest target.
+                    // (The addJumpingAnimation function uses the node’s name as a key in nodeBasePositions.)
+                    let arrowKey = arrow3D.name ?? "arrow3D"
+                    self.nodeBasePositions[arrowKey] = target3D
+                    
+                    // Only start the jump animation if it isn’t already running.
+                    if self.arrowWasOffScreen || arrow3D.action(forKey: "jumping") == nil {
+                          arrow3D.removeAction(forKey: "jumping")
+                          self.addJumpingAnimation(to: arrow3D, basedOn: clampedDistance)
+                          self.arrowWasOffScreen = false  // reset the flag
+                      }
+
+                } else {
+                    // Off-screen branch remains unchanged.
+                    if let cameraNode = self.parent.sceneView.pointOfView {
+                        let arrowDistance: Float = 0.5  // Adjust as needed.
+                        let camPos = cameraNode.position
+                        let forwardVector = SCNVector3(
+                            -cameraNode.transform.m31,
+                            -cameraNode.transform.m32,
+                            -cameraNode.transform.m33
+                        )
+                        let newPos = SCNVector3(
+                            camPos.x + forwardVector.x * arrowDistance,
+                            camPos.y + forwardVector.y * arrowDistance,
+                            camPos.z + forwardVector.z * arrowDistance
+                        )
+                        
+                        // Compute the heading angle on the horizontal plane.
+                        let anchorPosHorizontal = SIMD3<Float>(anchorWorldPosition.x, 0, anchorWorldPosition.z)
+                        let camPosHorizontal    = SIMD3<Float>(camPos.x, 0, camPos.z)
+                        let direction = anchorPosHorizontal - camPosHorizontal
+                        let headingRadians = atan2(direction.z, direction.x) - Float.pi/2
+                        
+                        SCNTransaction.begin()
+                        SCNTransaction.animationDuration = 0.5
+                        arrow3D.position = newPos
+                        arrow3D.eulerAngles = SCNVector3(-Float.pi/2, headingRadians, 0)
+                        SCNTransaction.commit()
+                        arrow3D.removeAction(forKey: "jumping")
+                        self.arrowWasOffScreen = true
+
+
+                    }
+                }
+            }        }
         
         private func updateAudioPan(with angle: Double) {
             let normalizedAngle = angle.truncatingRemainder(dividingBy: 360)
