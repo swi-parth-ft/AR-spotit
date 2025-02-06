@@ -89,7 +89,7 @@ struct ARViewContainer: UIViewRepresentable {
         
         configureCoachingOverlay(for: sceneView, coordinator: context.coordinator)
 
-        let arrow3D = create3DArrowNode()
+        let arrow3D = createSymbolPlaneNode(symbolName: "arrow.down")
           sceneView.scene.rootNode.addChildNode(arrow3D)
        // setupAudio()
         
@@ -99,105 +99,86 @@ struct ARViewContainer: UIViewRepresentable {
     func updateUIView(_ uiView: ARSCNView, context: Context) {
     }
     
-    //MARK: 3dArrow
-    func create3DArrowNode() -> SCNNode {
+    func imageFromSFSymbolStroke(
+        symbolName: String,
+        pointSize: CGFloat,
+        strokeColor: UIColor = .black,
+        strokeWidth: CGFloat = 12,
+        fillColor: UIColor = .white,
+        size: CGSize
+    ) -> UIImage? {
+        // Build an attributed string with a stroke
+        let config = UIImage.SymbolConfiguration(pointSize: pointSize)
+        guard let uiImage = UIImage(systemName: symbolName, withConfiguration: config) else { return nil }
         
-        // 1) Define a sleek arrow shape via UIBezierPath (2D)
-        let arrowPath = UIBezierPath()
-        arrowPath.lineJoinStyle = .round  // Rounded corners
-        arrowPath.lineCapStyle = .round
-           arrowPath.move(to: CGPoint(x: 0, y: 0))          // Bottom center
-           arrowPath.addLine(to: CGPoint(x: 1.0, y: 3.0))  // Right shaft edge
-           arrowPath.addLine(to: CGPoint(x: 0.5, y: 3.0))  // Indentation before arrowhead
-           arrowPath.addLine(to: CGPoint(x: 2.0, y: 6.0))  // Right arrow tip
-           arrowPath.addLine(to: CGPoint(x: 0, y: 5.0))    // Top center tip
-           arrowPath.addLine(to: CGPoint(x: -2.0, y: 6.0)) // Left arrow tip
-           arrowPath.addLine(to: CGPoint(x: -0.5, y: 3.0)) // Indentation before left shaft edge
-           arrowPath.addLine(to: CGPoint(x: -1.0, y: 3.0)) // Left shaft edge
-           arrowPath.close()
+        // If you want a tinted fill:
+        let tinted = uiImage.withTintColor(fillColor, renderingMode: .alwaysOriginal)
 
-           // 2) Create a 3D shape by extruding the 2D path
-        let arrowShape = SCNShape(path: arrowPath, extrusionDepth: 1.0)
-           arrowShape.chamferRadius = 10.0  // Rounded edges
-
-           // 3) Configure a friendly, white+glowing material
-           let arrowMaterial = SCNMaterial()
-           arrowMaterial.diffuse.contents  = UIColor.white
-           arrowMaterial.emission.contents = UIColor(white: 1.0, alpha: 0.8) // Mild glow
-           arrowMaterial.lightingModel     = .physicallyBased
-           arrowMaterial.metalness.contents  = 0.0
-           arrowMaterial.roughness.contents = 0.2
-        arrowShape.materials = [arrowMaterial] // Front, Chamfer (Border), Back
-        let borderShape = SCNShape(path: arrowPath, extrusionDepth: 0.5) // Slightly thicker
-           borderShape.chamferRadius = 0.1  // Roun
-           // You could add a “bloom” post-processing effect in SceneKit for extra glow,
-           // but a strong .emission is often enough for a minimalistic style.
-        let borderMaterial = SCNMaterial()
-          borderMaterial.diffuse.contents = UIColor.black
-          borderMaterial.lightingModel = .physicallyBased
-          borderShape.materials = [borderMaterial]
-           // Assign materials: one for the chamfer (border), another for the front and back
-          
-           
-
-           
-           let arrowNode = SCNNode(geometry: arrowShape)
-        let borderNode = SCNNode(geometry: borderShape)
-
-        // 5) Slightly adjust the border's position to prevent overlap
-        borderNode.position = SCNVector3(0, 0, -0.1) // Push the border slightly behind the arrow
-
-        // 6) Combine the border and arrow into a single node
-        let combinedNode = SCNNode()
-        combinedNode.addChildNode(borderNode) // Add border first (background layer)
-        combinedNode.addChildNode(arrowNode) // Add arrow second (foreground layer)
-        combinedNode.name = "arrow3D"
-        // 7) Scale down the combined node to fit your AR scene
-        let baseScale: Float = 0.03
-        combinedNode.scale = SCNVector3(baseScale, baseScale, baseScale)
-
-        return combinedNode
-//           arrowNode.name = "arrow3D"
-//           
-//        let baseScale: Float = 0.03
-//           arrowNode.scale = SCNVector3(baseScale, baseScale, baseScale)
-//        arrowNode.eulerAngles.x = .pi
-//
-//
-//           return arrowNode
-//        let arrowNode = SCNNode()
-//        
-//        // --- Arrow Shaft ---
-//        let shaftHeight: CGFloat = 0.1
-//        let shaftRadius: CGFloat = 0.01
-//        let shaftGeometry = SCNCylinder(radius: shaftRadius, height: shaftHeight)
-//        shaftGeometry.firstMaterial?.diffuse.contents = UIColor.red
-//        let shaftNode = SCNNode(geometry: shaftGeometry)
-//        // Position the shaft so that its base is at the origin (y = 0)
-//        shaftNode.position = SCNVector3(0, Float(shaftHeight/2), 0)
-//        
-//        // --- Arrow Tip ---
-//        let tipHeight: CGFloat = 0.05
-//        let tipBottomRadius: CGFloat = 0.015
-//        let tipGeometry = SCNCone(topRadius: 0, bottomRadius: tipBottomRadius, height: tipHeight)
-//        tipGeometry.firstMaterial?.diffuse.contents = UIColor.red
-//        let tipNode = SCNNode(geometry: tipGeometry)
-//        // Place the tip on top of the shaft
-//        tipNode.position = SCNVector3(0, Float(shaftHeight + tipHeight/2), 0)
-//        
-//        // Add shaft and tip to the arrow node
-//        arrowNode.addChildNode(shaftNode)
-//        arrowNode.addChildNode(tipNode)
-//        
-//        // Name the node so you can retrieve it later
-//        arrowNode.name = "arrow3D"
-//        
-//        // Optional: Force the arrow to always render on top (adjust rendering order)
-//        arrowNode.renderingOrder = 1000
-//        arrowNode.geometry?.firstMaterial?.readsFromDepthBuffer = false
-//        
-//        return arrowNode
+        // Set up your NSAttributedString with stroke
+        // (This is easiest if you draw text, but with SF Symbols you need a little more bridging:
+        //  Typically you'd just do something like:
+        //     let attString = NSAttributedString(string: "", attributes: [
+        //        .strokeColor: strokeColor,
+        //        .strokeWidth: -strokeWidth,
+        //        .foregroundColor: fillColor,
+        //        .font: yourFont
+        //     ])
+        //  But for SF Symbols as UIImage, you usually do the “offset” approach or a custom Core Graphics pass.)
+        //
+        //   => If you really want to keep SF Symbol as raster, you can do a shadow approach:
+        
+        UIGraphicsBeginImageContextWithOptions(size, false, 0)
+        defer { UIGraphicsEndImageContext() }
+        let ctx = UIGraphicsGetCurrentContext()!
+        
+        // Example: draw tinted symbol with a shadow simulating an outline
+        ctx.setShadow(offset: .zero, blur: strokeWidth, color: strokeColor.cgColor)
+        
+        let rect = CGRect(origin: .zero, size: size)
+        tinted.draw(in: rect)
+        
+        return UIGraphicsGetImageFromCurrentImageContext()
     }
+    
+    func createSymbolPlaneNode(symbolName: String) -> SCNNode {
+        // 1) Generate the SF Symbol as a UIImage
+        let desiredSize = CGSize(width: 200, height: 200)  // Adjust as needed
+        guard let symbolImage = imageFromSFSymbolStroke(
+               symbolName: symbolName,
+               pointSize: 80,
+               
+               size: desiredSize
+           ) else {
+               return SCNNode()
+           }
+        
+        // 2) Create the plane
+        let planeWidth: CGFloat  = 0.2  // Real-world meters in AR
+        let planeHeight: CGFloat = 0.2
+        let planeGeometry = SCNPlane(width: planeWidth, height: planeHeight)
+        
+        // 3) Create material with the SF Symbol image
+        let material = SCNMaterial()
+        material.diffuse.contents = symbolImage
+        material.isDoubleSided = true
+        material.lightingModel = .constant // So it appears bright & unlit if desired
+        planeGeometry.materials = [material]
+        
+        // 4) Make a node from the geometry
+        let planeNode = SCNNode(geometry: planeGeometry)
+        planeNode.name = "arrow3D"
+        
+        // 5) Constrain it to face the camera
+        let billboardConstraint = SCNBillboardConstraint()
+        billboardConstraint.freeAxes = .Y  // or .all if you want total facing
+        planeNode.constraints = [billboardConstraint]
+        
+        // 6) Optionally set a small offset in front or above an anchor
+        planeNode.position = SCNVector3(0, 0.1, 0)
+        
+        return planeNode
+    }
+    
     
     func makeCoordinator() -> Coordinator {
         let coordinator = Coordinator(self, worldManager: worldManager)
@@ -1102,7 +1083,7 @@ struct ARViewContainer: UIViewRepresentable {
                     if let existingArrow = self.parent.sceneView.scene.rootNode.childNode(withName: "arrow3D", recursively: false) {
                         arrow3D = existingArrow
                     } else {
-                        arrow3D = self.parent.create3DArrowNode()
+                        arrow3D = self.parent.createSymbolPlaneNode(symbolName: "arrow.down")
                         arrow3D.opacity = 0 // start invisible
                         self.parent.sceneView.scene.rootNode.addChildNode(arrow3D)
                         
@@ -1122,7 +1103,7 @@ struct ARViewContainer: UIViewRepresentable {
                     // Position the arrow above the anchor.
                     let target3D = SCNVector3(
                         anchorWorldPosition.x,
-                        anchorWorldPosition.y + 0.10, // 30 cm above the anchor
+                        anchorWorldPosition.y + 0.20, // 30 cm above the anchor
                         anchorWorldPosition.z
                     )
                     

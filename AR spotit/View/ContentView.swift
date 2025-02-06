@@ -103,14 +103,15 @@ struct ContentView: View {
                     }
                     
                     .edgesIgnoringSafeArea(.all)
-                    
-                    VStack {
-                        Spacer()
-                        VisualEffectBlur(blurStyle: .systemUltraThinMaterialDark)
-                            .frame(width: UIScreen.main.bounds.width, height: 200)
-                            .cornerRadius(22)
+                    if worldManager.isRelocalizationComplete {
+                        VStack {
+                            Spacer()
+                            VisualEffectBlur(blurStyle: .systemUltraThinMaterialDark)
+                                .frame(width: UIScreen.main.bounds.width, height: 200)
+                                .cornerRadius(22)
+                        }
+                        .ignoresSafeArea()
                     }
-                    .ignoresSafeArea()
                     
                     
                     
@@ -228,7 +229,6 @@ struct ContentView: View {
                                                 .resizable()
                                                 .frame(width: 80, height: 80)
                                                 .foregroundStyle(.white)
-                                                .bold()
                                                 .matchedGeometryEffect(id: "arrow", in: arrowNamespace)
                                                 .rotationEffect(.degrees(-angle))
                                                 .transition(.asymmetric(
