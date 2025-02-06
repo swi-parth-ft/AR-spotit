@@ -335,11 +335,12 @@ struct ContentView: View {
                                 
                                 if findAnchor != "" {
                                     if !worldManager.is3DArrowActive {
-                                                       Image(systemName: "arrow.up.circle.fill")
+                                                       Image(systemName: "arrow.up")
                                            
                                                             .resizable()
                                                            .frame(width: 80, height: 80)
                                                            .foregroundStyle(.white)
+                                                           .bold()
                                                            .matchedGeometryEffect(id: "arrow", in: arrowNamespace)
                                                            .rotationEffect(.degrees(-angle))
                                                            .transition(.asymmetric(

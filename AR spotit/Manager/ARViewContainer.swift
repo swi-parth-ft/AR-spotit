@@ -99,40 +99,104 @@ struct ARViewContainer: UIViewRepresentable {
     func updateUIView(_ uiView: ARSCNView, context: Context) {
     }
     
-    
+    //MARK: 3dArrow
     func create3DArrowNode() -> SCNNode {
-        let arrowNode = SCNNode()
         
-        // --- Arrow Shaft ---
-        let shaftHeight: CGFloat = 0.1
-        let shaftRadius: CGFloat = 0.01
-        let shaftGeometry = SCNCylinder(radius: shaftRadius, height: shaftHeight)
-        shaftGeometry.firstMaterial?.diffuse.contents = UIColor.red
-        let shaftNode = SCNNode(geometry: shaftGeometry)
-        // Position the shaft so that its base is at the origin (y = 0)
-        shaftNode.position = SCNVector3(0, Float(shaftHeight/2), 0)
-        
-        // --- Arrow Tip ---
-        let tipHeight: CGFloat = 0.05
-        let tipBottomRadius: CGFloat = 0.015
-        let tipGeometry = SCNCone(topRadius: 0, bottomRadius: tipBottomRadius, height: tipHeight)
-        tipGeometry.firstMaterial?.diffuse.contents = UIColor.red
-        let tipNode = SCNNode(geometry: tipGeometry)
-        // Place the tip on top of the shaft
-        tipNode.position = SCNVector3(0, Float(shaftHeight + tipHeight/2), 0)
-        
-        // Add shaft and tip to the arrow node
-        arrowNode.addChildNode(shaftNode)
-        arrowNode.addChildNode(tipNode)
-        
-        // Name the node so you can retrieve it later
-        arrowNode.name = "arrow3D"
-        
-        // Optional: Force the arrow to always render on top (adjust rendering order)
-        arrowNode.renderingOrder = 1000
-        arrowNode.geometry?.firstMaterial?.readsFromDepthBuffer = false
-        
-        return arrowNode
+        // 1) Define a sleek arrow shape via UIBezierPath (2D)
+        let arrowPath = UIBezierPath()
+        arrowPath.lineJoinStyle = .round  // Rounded corners
+        arrowPath.lineCapStyle = .round
+           arrowPath.move(to: CGPoint(x: 0, y: 0))          // Bottom center
+           arrowPath.addLine(to: CGPoint(x: 1.0, y: 3.0))  // Right shaft edge
+           arrowPath.addLine(to: CGPoint(x: 0.5, y: 3.0))  // Indentation before arrowhead
+           arrowPath.addLine(to: CGPoint(x: 2.0, y: 6.0))  // Right arrow tip
+           arrowPath.addLine(to: CGPoint(x: 0, y: 5.0))    // Top center tip
+           arrowPath.addLine(to: CGPoint(x: -2.0, y: 6.0)) // Left arrow tip
+           arrowPath.addLine(to: CGPoint(x: -0.5, y: 3.0)) // Indentation before left shaft edge
+           arrowPath.addLine(to: CGPoint(x: -1.0, y: 3.0)) // Left shaft edge
+           arrowPath.close()
+
+           // 2) Create a 3D shape by extruding the 2D path
+        let arrowShape = SCNShape(path: arrowPath, extrusionDepth: 1.0)
+           arrowShape.chamferRadius = 10.0  // Rounded edges
+
+           // 3) Configure a friendly, white+glowing material
+           let arrowMaterial = SCNMaterial()
+           arrowMaterial.diffuse.contents  = UIColor.white
+           arrowMaterial.emission.contents = UIColor(white: 1.0, alpha: 0.8) // Mild glow
+           arrowMaterial.lightingModel     = .physicallyBased
+           arrowMaterial.metalness.contents  = 0.0
+           arrowMaterial.roughness.contents = 0.2
+        arrowShape.materials = [arrowMaterial] // Front, Chamfer (Border), Back
+        let borderShape = SCNShape(path: arrowPath, extrusionDepth: 0.5) // Slightly thicker
+           borderShape.chamferRadius = 0.1  // Roun
+           // You could add a “bloom” post-processing effect in SceneKit for extra glow,
+           // but a strong .emission is often enough for a minimalistic style.
+        let borderMaterial = SCNMaterial()
+          borderMaterial.diffuse.contents = UIColor.black
+          borderMaterial.lightingModel = .physicallyBased
+          borderShape.materials = [borderMaterial]
+           // Assign materials: one for the chamfer (border), another for the front and back
+          
+           
+
+           
+           let arrowNode = SCNNode(geometry: arrowShape)
+        let borderNode = SCNNode(geometry: borderShape)
+
+        // 5) Slightly adjust the border's position to prevent overlap
+        borderNode.position = SCNVector3(0, 0, -0.1) // Push the border slightly behind the arrow
+
+        // 6) Combine the border and arrow into a single node
+        let combinedNode = SCNNode()
+        combinedNode.addChildNode(borderNode) // Add border first (background layer)
+        combinedNode.addChildNode(arrowNode) // Add arrow second (foreground layer)
+        combinedNode.name = "arrow3D"
+        // 7) Scale down the combined node to fit your AR scene
+        let baseScale: Float = 0.03
+        combinedNode.scale = SCNVector3(baseScale, baseScale, baseScale)
+
+        return combinedNode
+//           arrowNode.name = "arrow3D"
+//           
+//        let baseScale: Float = 0.03
+//           arrowNode.scale = SCNVector3(baseScale, baseScale, baseScale)
+//        arrowNode.eulerAngles.x = .pi
+//
+//
+//           return arrowNode
+//        let arrowNode = SCNNode()
+//        
+//        // --- Arrow Shaft ---
+//        let shaftHeight: CGFloat = 0.1
+//        let shaftRadius: CGFloat = 0.01
+//        let shaftGeometry = SCNCylinder(radius: shaftRadius, height: shaftHeight)
+//        shaftGeometry.firstMaterial?.diffuse.contents = UIColor.red
+//        let shaftNode = SCNNode(geometry: shaftGeometry)
+//        // Position the shaft so that its base is at the origin (y = 0)
+//        shaftNode.position = SCNVector3(0, Float(shaftHeight/2), 0)
+//        
+//        // --- Arrow Tip ---
+//        let tipHeight: CGFloat = 0.05
+//        let tipBottomRadius: CGFloat = 0.015
+//        let tipGeometry = SCNCone(topRadius: 0, bottomRadius: tipBottomRadius, height: tipHeight)
+//        tipGeometry.firstMaterial?.diffuse.contents = UIColor.red
+//        let tipNode = SCNNode(geometry: tipGeometry)
+//        // Place the tip on top of the shaft
+//        tipNode.position = SCNVector3(0, Float(shaftHeight + tipHeight/2), 0)
+//        
+//        // Add shaft and tip to the arrow node
+//        arrowNode.addChildNode(shaftNode)
+//        arrowNode.addChildNode(tipNode)
+//        
+//        // Name the node so you can retrieve it later
+//        arrowNode.name = "arrow3D"
+//        
+//        // Optional: Force the arrow to always render on top (adjust rendering order)
+//        arrowNode.renderingOrder = 1000
+//        arrowNode.geometry?.firstMaterial?.readsFromDepthBuffer = false
+//        
+//        return arrowNode
     }
     
     func makeCoordinator() -> Coordinator {
@@ -1058,7 +1122,7 @@ struct ARViewContainer: UIViewRepresentable {
                     // Position the arrow above the anchor.
                     let target3D = SCNVector3(
                         anchorWorldPosition.x,
-                        anchorWorldPosition.y + 0.30, // 30 cm above the anchor
+                        anchorWorldPosition.y + 0.10, // 30 cm above the anchor
                         anchorWorldPosition.z
                     )
                     
@@ -1066,7 +1130,7 @@ struct ARViewContainer: UIViewRepresentable {
                     SCNTransaction.animationDuration = 0.7
                     arrow3D.position = target3D
                     // Set arrow rotation as needed. For example, if you want it to point down when on-screen:
-                    arrow3D.eulerAngles = SCNVector3(Float.pi, 0, 0)
+                    arrow3D.eulerAngles = SCNVector3(0, 0, 0)
                     SCNTransaction.commit()
                     
                     // (Optional) Update any stored positions or start animations here.
