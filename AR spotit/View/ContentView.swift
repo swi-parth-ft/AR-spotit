@@ -62,6 +62,8 @@ struct ContentView: View {
     @State private var distance: Double = 0.0
     @State private var itshere = ""
     @State private var animatedAngle = ""
+    @Namespace private var arrowNamespace
+
     var body: some View {
         NavigationStack {
             
@@ -332,13 +334,26 @@ struct ContentView: View {
                             VStack {
                                 
                                 if findAnchor != "" {
-                                    
-                                    Image(systemName: "arrow.up.circle.fill")
-                                        .font(.system(size: 80))
-                                        .foregroundColor(.white)
-                                        .rotationEffect(.degrees(-angle))
-                                        .animation(.easeInOut, value: angle)
-                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                    if !worldManager.is3DArrowActive {
+                                                       Image(systemName: "arrow.up.circle.fill")
+                                           
+                                                            .resizable()
+                                                           .frame(width: 80, height: 80)
+                                                           .foregroundStyle(.white)
+                                                           .matchedGeometryEffect(id: "arrow", in: arrowNamespace)
+                                                           .rotationEffect(.degrees(-angle))
+                                                           .transition(.asymmetric(
+                                                               insertion: .scale.combined(with: .opacity),
+                                                               removal: .scale.combined(with: .opacity)))
+                                                           .animation(.easeInOut(duration: 0.7), value: angle)
+                                                           .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                                   }
+//                                    Image(systemName: "arrow.up.circle.fill")
+//                                        .font(.system(size: 80))
+//                                        .foregroundColor(.white)
+//                                        .rotationEffect(.degrees(-angle))
+//                                        .animation(.easeInOut, value: angle)
+//                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
                                        
                                 }
                                 

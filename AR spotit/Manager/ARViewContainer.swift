@@ -35,12 +35,12 @@ struct ARViewContainer: UIViewRepresentable {
 //            // This method is called when the coaching overlay completes its goal
 //            print("Coaching overlay deactivated")
 //        }
-//        
+//
 //        func coachingOverlayViewWillActivate(_ coachingOverlayView: ARCoachingOverlayView) {
 //            // This method is called before the coaching overlay becomes active
 //            print("Coaching overlay will activate")
 //        }
-//        
+//
 //        func coachingOverlayViewDidRequestSessionReset(_ coachingOverlayView: ARCoachingOverlayView) {
 //            // Handle session reset if needed
 //            print("Coaching overlay requested session reset")
@@ -682,7 +682,7 @@ struct ARViewContainer: UIViewRepresentable {
 //
 //            let cleanName = anchorName.filter { !$0.isEmoji }
 //             guard !cleanName.isEmpty else { return }
-//             
+//
 //            //  Create the 3D text node
 //             let textNode = create3DTextNode(
 //                 cleanName,
@@ -692,7 +692,7 @@ struct ARViewContainer: UIViewRepresentable {
 //                 color: .white   // or your favorite color
 //             )
 //             textNode.position = SCNVector3(0, 0.07, 0)
-//             
+//
 //             // Make text face the camera (if desired)
 //             let billboardConstraint = SCNBillboardConstraint()
 //             billboardConstraint.freeAxes = .Y
@@ -718,7 +718,7 @@ struct ARViewContainer: UIViewRepresentable {
 //                let audioSource = SCNAudioSource(fileNamed: "Morse.aiff")!
 //                audioSource.loops = true
 //                audioSource.isPositional = true
-//                
+//
 //                // Decode the audio from disk ahead of time to prevent a delay in playback
 //                audioSource.load()
 //                node.addAudioPlayer(SCNAudioPlayer(source: audioSource))
@@ -909,33 +909,34 @@ struct ARViewContainer: UIViewRepresentable {
             }
         }
         
+        //MARK: Did update ARFrame
         func session(_ session: ARSession, didUpdate frame: ARFrame) {
             
             
             
             if let lightEstimate = frame.lightEstimate {
-                   if lightEstimate.ambientIntensity < 100.0 { // Example threshold for low light
-                     //  Drops.show("Low light detected. Turn on flash.")
-                   }
-               }
+                if lightEstimate.ambientIntensity < 100.0 { // Example threshold for low light
+                    //  Drops.show("Low light detected. Turn on flash.")
+                }
+            }
             
             
             // Throttle updates to avoid excessive computation
-               let currentTime = Date()
-               guard currentTime.timeIntervalSince(lastAnimationUpdateTime) > 0.2 else { return } // Update every 0.2 seconds
-               lastAnimationUpdateTime = currentTime
+            let currentTime = Date()
+            guard currentTime.timeIntervalSince(lastAnimationUpdateTime) > 0.2 else { return } // Update every 0.2 seconds
+            lastAnimationUpdateTime = currentTime
             // Retrieve light estimation
-              if let lightEstimate = frame.lightEstimate {
-                  let ambientIntensity = lightEstimate.ambientIntensity // Brightness
-                  let ambientColorTemperature = lightEstimate.ambientColorTemperature // Kelvin
-                  updateAnchorLighting(intensity: ambientIntensity, temperature: ambientColorTemperature)
-              }
+            if let lightEstimate = frame.lightEstimate {
+                let ambientIntensity = lightEstimate.ambientIntensity // Brightness
+                let ambientColorTemperature = lightEstimate.ambientColorTemperature // Kelvin
+                updateAnchorLighting(intensity: ambientIntensity, temperature: ambientColorTemperature)
+            }
             
             // Look for the anchor to track
             guard let anchor = session.currentFrame?.anchors.first(where: { $0.name == parent.findAnchor }) else {
                 return
             }
-
+            
             // Get distance from camera
             let cameraTransform = frame.camera.transform
             let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x,
@@ -947,36 +948,36 @@ struct ARViewContainer: UIViewRepresentable {
             let distance = simd_distance(cameraPosition, anchorPosition)
             let clampedDistance = max(0.1, min(distance, 5.0)) // Clamp distance
             let direction = anchorPosition - cameraPosition
-          
             
             
-          //  let direction = anchorPosition - cameraPosition
+            
+            //  let direction = anchorPosition - cameraPosition
             print("Direction Vector: \(direction)")
-
+            
             // Project onto the horizontal plane
             let horizontalDirection = SIMD3<Float>(direction.x, 0, direction.z)
             print("Horizontal Direction: \(horizontalDirection)")
-
+            
             // Normalize Direction
             let normalizedDirection = normalize(horizontalDirection)
             print("Normalized Direction: \(normalizedDirection)")
-
+            
             // Calculate Angle
-           
+            
             
             let smoothedAngle = calculateAngleBetweenVectors(cameraTransform: cameraTransform, anchorPosition: anchorPosition)
-
+            
             print("Normalized Angle in Degrees: \(smoothedAngle)")
-                // Update the angle in the parent view
-                DispatchQueue.main.async {
-                    self.parent.angle = smoothedAngle
-                                    print("Angle in Degrees: \(smoothedAngle)")
-                    
-                    self.parent.distanceForUI = Double(distance)
-                }
+            // Update the angle in the parent view
+            DispatchQueue.main.async {
+                self.parent.angle = smoothedAngle
+                print("Angle in Degrees: \(smoothedAngle)")
+                
+                self.parent.distanceForUI = Double(distance)
+            }
             // Turn distance into a pulsing interval
             let interval = pulseInterval(for: clampedDistance)
-
+            
             // Trigger haptic feedback if it's time
             if Date() >= nextPulseTime {
                 playDub()
@@ -990,117 +991,114 @@ struct ARViewContainer: UIViewRepresentable {
                 }
                 
                 updateAudioPan(with: smoothedAngle)
-
-
+                
+                
                 // Adjust volume based on distance
                 parent.audioPlayer.volume = max(0.1, 1.0 - Float(distance) / 10.0)
-//
+                //
             } else {
                 if isAudioPlaying {
                     isAudioPlaying = false
-                      DispatchQueue.global(qos: .background).async {
-                          self.parent.stopAudio()
-                      }
-                  }            }
+                    DispatchQueue.global(qos: .background).async {
+                        self.parent.stopAudio()
+                    }
+                }            }
             guard let node = anchorNodes[anchor.name ?? ""] else {
                 return
             }
-//            DispatchQueue.main.async {
-//                self.addJumpingAnimation(to: node, basedOn: clampedDistance)
-//            }
+            //            DispatchQueue.main.async {
+            //                self.addJumpingAnimation(to: node, basedOn: clampedDistance)
+            //            }
             
+            //MARK: 3DArrow handling
             DispatchQueue.main.async {
                 // Ensure a target anchor exists.
                 guard !self.parent.findAnchor.isEmpty,
                       let anchor = session.currentFrame?.anchors.first(where: { $0.name == self.parent.findAnchor })
                 else {
+                    // Remove the arrow if no target anchor is available.
                     if let arrow3D = self.parent.sceneView.scene.rootNode.childNode(withName: "arrow3D", recursively: false) {
-                        arrow3D.isHidden = true
+                        arrow3D.removeFromParentNode()
                     }
                     return
                 }
                 
-                // Retrieve the 3D arrow node.
-                guard let arrow3D = self.parent.sceneView.scene.rootNode.childNode(withName: "arrow3D", recursively: false) else {
-                    return
-                }
-                arrow3D.isHidden = false
-                
-                // Get the anchor’s world position.
+                // Project the anchor’s 3D position to 2D screen coordinates.
                 let anchorWorldPosition = SCNVector3(anchor.transform.columns.3.x,
                                                      anchor.transform.columns.3.y,
                                                      anchor.transform.columns.3.z)
-                
-                // Project the anchor’s 3D position to 2D screen coordinates.
                 let projected = self.parent.sceneView.projectPoint(anchorWorldPosition)
                 let anchorScreenPoint = CGPoint(x: CGFloat(projected.x), y: CGFloat(projected.y))
                 let bounds = self.parent.sceneView.bounds
-                
-                // Determine if the anchor is on-screen.
                 let isOnScreen = bounds.contains(anchorScreenPoint) && projected.z > 0
-                
+
                 if isOnScreen {
-                    // When the anchor is visible, position the arrow 20 cm above the anchor.
-                    // Note: 0.20 meters == 20 centimeters.
+                    // If the arrow doesn't exist, create and add it.
+                    var arrow3D: SCNNode
+                    if let existingArrow = self.parent.sceneView.scene.rootNode.childNode(withName: "arrow3D", recursively: false) {
+                        arrow3D = existingArrow
+                    } else {
+                        arrow3D = self.parent.create3DArrowNode()
+                        arrow3D.opacity = 0 // start invisible
+                        self.parent.sceneView.scene.rootNode.addChildNode(arrow3D)
+                        
+                        // Update state so the overlay arrow hides.
+                        withAnimation(.easeInOut(duration: 0.7)) {
+                            
+                            self.parent.worldManager.is3DArrowActive = true
+                        }
+                        
+                        // Animate a fade-in.
+                        arrow3D.runAction(SCNAction.fadeIn(duration: 0.7)) {
+                            // **Restart the jumping animation** once fade-in completes.
+                            self.addJumpingAnimation(to: arrow3D, basedOn: clampedDistance)
+                        }
+                    }
+                    
+                    // Position the arrow above the anchor.
                     let target3D = SCNVector3(
                         anchorWorldPosition.x,
-                        anchorWorldPosition.y + 0.30,
+                        anchorWorldPosition.y + 0.30, // 30 cm above the anchor
                         anchorWorldPosition.z
                     )
                     
                     SCNTransaction.begin()
                     SCNTransaction.animationDuration = 0.7
                     arrow3D.position = target3D
-                    // Rotate the arrow so its tip (originally pointing up along +y) now points down.
+                    // Set arrow rotation as needed. For example, if you want it to point down when on-screen:
                     arrow3D.eulerAngles = SCNVector3(Float.pi, 0, 0)
                     SCNTransaction.commit()
                     
-                    // Update the stored base position for the jump animation so it always uses the latest target.
-                    // (The addJumpingAnimation function uses the node’s name as a key in nodeBasePositions.)
+                    // (Optional) Update any stored positions or start animations here.
                     let arrowKey = arrow3D.name ?? "arrow3D"
                     self.nodeBasePositions[arrowKey] = target3D
                     
-                    // Only start the jump animation if it isn’t already running.
+                    // Optionally restart any arrow animations if needed.
                     if self.arrowWasOffScreen || arrow3D.action(forKey: "jumping") == nil {
-                          arrow3D.removeAction(forKey: "jumping")
-                          self.addJumpingAnimation(to: arrow3D, basedOn: clampedDistance)
-                          self.arrowWasOffScreen = false  // reset the flag
-                      }
-
-                } else {
-                    // Off-screen branch remains unchanged.
-                    if let cameraNode = self.parent.sceneView.pointOfView {
-                        let arrowDistance: Float = 0.5  // Adjust as needed.
-                        let camPos = cameraNode.position
-                        let forwardVector = SCNVector3(
-                            -cameraNode.transform.m31,
-                            -cameraNode.transform.m32,
-                            -cameraNode.transform.m33
-                        )
-                        let newPos = SCNVector3(
-                            camPos.x + forwardVector.x * arrowDistance,
-                            camPos.y + forwardVector.y * arrowDistance,
-                            camPos.z + forwardVector.z * arrowDistance
-                        )
-                        
-                        // Compute the heading angle on the horizontal plane.
-                        let anchorPosHorizontal = SIMD3<Float>(anchorWorldPosition.x, 0, anchorWorldPosition.z)
-                        let camPosHorizontal    = SIMD3<Float>(camPos.x, 0, camPos.z)
-                        let direction = anchorPosHorizontal - camPosHorizontal
-                        let headingRadians = atan2(direction.z, direction.x) - Float.pi/2
-                        
-                        SCNTransaction.begin()
-                        SCNTransaction.animationDuration = 0.5
-                        arrow3D.position = newPos
-                        arrow3D.eulerAngles = SCNVector3(-Float.pi/2, headingRadians, 0)
-                        SCNTransaction.commit()
                         arrow3D.removeAction(forKey: "jumping")
-                        self.arrowWasOffScreen = true
-
-
+                        self.addJumpingAnimation(to: arrow3D, basedOn: max(0.1, min(simd_distance(
+                            SIMD3<Float>(anchor.transform.columns.3.x, anchor.transform.columns.3.y, anchor.transform.columns.3.z),
+                            SIMD3<Float>(session.currentFrame!.camera.transform.columns.3.x,
+                                         session.currentFrame!.camera.transform.columns.3.y,
+                                         session.currentFrame!.camera.transform.columns.3.z)
+                        ), 5.0)))
+                        self.arrowWasOffScreen = false
                     }
+                } else {
+                    if let arrow3D = self.parent.sceneView.scene.rootNode.childNode(withName: "arrow3D", recursively: false) {
+                                    arrow3D.runAction(SCNAction.fadeOut(duration: 0.7)) {
+                                        arrow3D.removeFromParentNode()
+                                        DispatchQueue.main.async {
+                                            withAnimation(.easeInOut(duration: 0.7)) {
+                                                
+                                                self.parent.worldManager.is3DArrowActive = false
+                                            }
+                                        }
+                                    }
+                                }
                 }
-            }        }
+            }
+        }
         
         private func updateAudioPan(with angle: Double) {
             let normalizedAngle = angle.truncatingRemainder(dividingBy: 360)
@@ -1346,7 +1344,7 @@ struct ARViewContainer: UIViewRepresentable {
             let delta = abs(newJump - oldJump)
             // If too small a difference, skip re-starting the animation.
             if delta < 0.05 {
-                return
+              //  return
             }
             // Update the recorded jump height.
             nodeJumpHeights[anchorName] = newJump

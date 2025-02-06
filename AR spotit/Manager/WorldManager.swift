@@ -26,6 +26,7 @@ class WorldManager: ObservableObject {
     @Published var isShowingARGuide = false
 
     var currentWorldName: String = ""
+    @Published var is3DArrowActive = false
 
   //  @Published var selectedWorld: WorldModel? = nil // Added property
 
