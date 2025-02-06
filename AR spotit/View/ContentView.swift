@@ -104,6 +104,13 @@ struct ContentView: View {
                     
                     .edgesIgnoringSafeArea(.all)
                     
+                    VStack {
+                        Spacer()
+                        VisualEffectBlur(blurStyle: .systemUltraThinMaterialDark)
+                            .frame(width: UIScreen.main.bounds.width, height: 200)
+                            .cornerRadius(22)
+                    }
+                    .ignoresSafeArea()
                     
                     
                     
@@ -173,6 +180,7 @@ struct ContentView: View {
                                     .padding(.bottom, 20)
                             }
                             
+                            
                             if findAnchor != "" {
                                 
                                     HStack {
@@ -211,13 +219,40 @@ struct ContentView: View {
                                         Spacer()
                                     }
                                     .padding()
+                                
+                                HStack {
+                                    if findAnchor != "" {
+                                        if !worldManager.is3DArrowActive {
+                                            Image(systemName: "arrow.up")
+                                            
+                                                .resizable()
+                                                .frame(width: 80, height: 80)
+                                                .foregroundStyle(.white)
+                                                .bold()
+                                                .matchedGeometryEffect(id: "arrow", in: arrowNamespace)
+                                                .rotationEffect(.degrees(-angle))
+                                                .transition(.asymmetric(
+                                                    insertion: .scale.combined(with: .opacity),
+                                                    removal: .scale.combined(with: .opacity)))
+                                                .animation(.easeInOut(duration: 0.7), value: angle)
+                                                .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                        }
+                                        
+                                    }
+                                        
+                                    
+                                    Spacer()
+                                }
+                                .padding(.horizontal)
                             }
                             
                             
-                            
                             Spacer()
-                            HStack {
-                                VStack(spacing: 10) {
+                            VStack {
+                                
+                            
+                                
+                                HStack(spacing: 10) {
                                     
                                     Button {
                                         //   worldManager.isAddingAnchor.toggle()
@@ -326,37 +361,6 @@ struct ContentView: View {
                                     }
                                 }
                                 .padding()
-                                
-                                Spacer()
-                            }
-                            Spacer()
-                            
-                            VStack {
-                                
-                                if findAnchor != "" {
-                                    if !worldManager.is3DArrowActive {
-                                                       Image(systemName: "arrow.up")
-                                           
-                                                            .resizable()
-                                                           .frame(width: 80, height: 80)
-                                                           .foregroundStyle(.white)
-                                                           .bold()
-                                                           .matchedGeometryEffect(id: "arrow", in: arrowNamespace)
-                                                           .rotationEffect(.degrees(-angle))
-                                                           .transition(.asymmetric(
-                                                               insertion: .scale.combined(with: .opacity),
-                                                               removal: .scale.combined(with: .opacity)))
-                                                           .animation(.easeInOut(duration: 0.7), value: angle)
-                                                           .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                                   }
-//                                    Image(systemName: "arrow.up.circle.fill")
-//                                        .font(.system(size: 80))
-//                                        .foregroundColor(.white)
-//                                        .rotationEffect(.degrees(-angle))
-//                                        .animation(.easeInOut, value: angle)
-//                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                       
-                                }
                                 
                                 HStack {
                                     
