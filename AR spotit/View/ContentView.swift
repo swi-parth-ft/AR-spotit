@@ -224,18 +224,16 @@ struct ContentView: View {
                                 HStack {
                                     if findAnchor != "" {
                                         if !worldManager.is3DArrowActive {
-                                            Image(systemName: "arrow.up")
-                                            
-                                                .resizable()
-                                                .frame(width: 80, height: 80)
-                                                .foregroundStyle(.white)
+                                            PaperPlane3DView(angle: -angle)
+                                                .frame(width: 200, height: 70, alignment: .leading)
+                                                // Keep the same matchedGeometryEffect if desired:
                                                 .matchedGeometryEffect(id: "arrow", in: arrowNamespace)
-                                                .rotationEffect(.degrees(-angle))
                                                 .transition(.asymmetric(
                                                     insertion: .scale.combined(with: .opacity),
                                                     removal: .scale.combined(with: .opacity)))
                                                 .animation(.easeInOut(duration: 0.7), value: angle)
                                                 .shadow(color: Color.white.opacity(0.5), radius: 10)
+
                                         }
                                         
                                     }
@@ -244,6 +242,7 @@ struct ContentView: View {
                                     Spacer()
                                 }
                                 .padding(.horizontal)
+                                .padding(.top, -20)
                             }
                             
                             

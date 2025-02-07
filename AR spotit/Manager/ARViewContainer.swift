@@ -89,8 +89,6 @@ struct ARViewContainer: UIViewRepresentable {
         
         configureCoachingOverlay(for: sceneView, coordinator: context.coordinator)
 
-        let arrow3D = createSymbolPlaneNode(symbolName: "arrow.down")
-          sceneView.scene.rootNode.addChildNode(arrow3D)
        // setupAudio()
         
         return sceneView
@@ -114,18 +112,7 @@ struct ARViewContainer: UIViewRepresentable {
         // If you want a tinted fill:
         let tinted = uiImage.withTintColor(fillColor, renderingMode: .alwaysOriginal)
 
-        // Set up your NSAttributedString with stroke
-        // (This is easiest if you draw text, but with SF Symbols you need a little more bridging:
-        //  Typically you'd just do something like:
-        //     let attString = NSAttributedString(string: "", attributes: [
-        //        .strokeColor: strokeColor,
-        //        .strokeWidth: -strokeWidth,
-        //        .foregroundColor: fillColor,
-        //        .font: yourFont
-        //     ])
-        //  But for SF Symbols as UIImage, you usually do the “offset” approach or a custom Core Graphics pass.)
-        //
-        //   => If you really want to keep SF Symbol as raster, you can do a shadow approach:
+
         
         UIGraphicsBeginImageContextWithOptions(size, false, 0)
         defer { UIGraphicsEndImageContext() }
@@ -138,6 +125,47 @@ struct ARViewContainer: UIViewRepresentable {
         tinted.draw(in: rect)
         
         return UIGraphicsGetImageFromCurrentImageContext()
+    }
+    
+    func createPaperPlaneNode() -> SCNNode {
+        // Load the .usdz scene from your bundle
+        guard let paperPlaneScene = SCNScene(named: "Paper_Plane.usdz") else {
+            // If it fails, return an empty node or handle gracefully
+            print("Could not load Paper_Plane.usdz")
+            return SCNNode()
+        }
+        
+        // A container node to hold all children of the loaded scene
+        let containerNode = SCNNode()
+        
+        // Move all children of the scene’s root into containerNode
+        for child in paperPlaneScene.rootNode.childNodes {
+            containerNode.addChildNode(child.clone())
+        }
+        
+        containerNode.enumerateChildNodes { (node, _) in
+              if let geometry = node.geometry {
+                  // Create a new material with a matte black appearance
+                  let matteBlackMaterial = SCNMaterial()
+                  matteBlackMaterial.diffuse.contents = UIColor.white
+                  matteBlackMaterial.lightingModel = .physicallyBased
+                  matteBlackMaterial.metalness.contents = 0.0
+                  matteBlackMaterial.roughness.contents = 1.0
+                  
+                  // Replace all existing materials with our matte black material
+                  geometry.materials = [matteBlackMaterial]
+              }
+          }
+        
+        // Give it the same name you used for your arrow code
+        // so the rest of your logic still recognizes "arrow3D".
+        containerNode.name = "arrow3D"
+        
+        // Optionally adjust scale
+        containerNode.scale = SCNVector3(0.0001, 0.0001, 0.0001) // tweak as needed
+        containerNode.eulerAngles.z = Float.pi / 2
+
+        return containerNode
     }
     
     func createSymbolPlaneNode(symbolName: String) -> SCNNode {
@@ -1083,7 +1111,7 @@ struct ARViewContainer: UIViewRepresentable {
                     if let existingArrow = self.parent.sceneView.scene.rootNode.childNode(withName: "arrow3D", recursively: false) {
                         arrow3D = existingArrow
                     } else {
-                        arrow3D = self.parent.createSymbolPlaneNode(symbolName: "arrow.down")
+                        arrow3D = self.parent.createPaperPlaneNode()
                         arrow3D.opacity = 0 // start invisible
                         self.parent.sceneView.scene.rootNode.addChildNode(arrow3D)
                         
@@ -1103,7 +1131,7 @@ struct ARViewContainer: UIViewRepresentable {
                     // Position the arrow above the anchor.
                     let target3D = SCNVector3(
                         anchorWorldPosition.x,
-                        anchorWorldPosition.y + 0.20, // 30 cm above the anchor
+                        anchorWorldPosition.y + 0.10, // 30 cm above the anchor
                         anchorWorldPosition.z
                     )
                     
@@ -1111,7 +1139,7 @@ struct ARViewContainer: UIViewRepresentable {
                     SCNTransaction.animationDuration = 0.7
                     arrow3D.position = target3D
                     // Set arrow rotation as needed. For example, if you want it to point down when on-screen:
-                    arrow3D.eulerAngles = SCNVector3(0, 0, 0)
+                    arrow3D.eulerAngles = SCNVector3(Float.pi / 2, 0, -Float.pi / 2)
                     SCNTransaction.commit()
                     
                     // (Optional) Update any stored positions or start animations here.
