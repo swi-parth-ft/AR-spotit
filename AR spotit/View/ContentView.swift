@@ -231,7 +231,7 @@ struct ContentView: View {
                                                 .transition(.asymmetric(
                                                     insertion: .scale.combined(with: .opacity),
                                                     removal: .scale.combined(with: .opacity)))
-                                                .animation(.easeInOut(duration: 0.7), value: angle)
+                                            //    .animation(.easeInOut(duration: 0.7), value: angle)
                                                 .shadow(color: Color.white.opacity(0.5), radius: 10)
 
                                         }
@@ -259,14 +259,22 @@ struct ContentView: View {
                                         HapticManager.shared.impact(style: .medium)
                                         
                                     } label: {
-                                        Image(systemName: "plus")
-                                            .foregroundStyle(.black)
-                                            .frame(width: 50, height: 50)
-                                            .background(Color.white)
-                                            .cornerRadius(25)
-                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                        ZStack {
+                                         
+                                                // Solid white background when flashlight is OFF
+                                                Circle()
+                                                    .fill(Color.white)
+                                                    .frame(width: 56, height: 56)
+                                            
+                                            // Flashlight icon
+                                            Image(systemName: "plus")
+                                                .foregroundStyle(.black)
+                                                .font(.title)
+                                        }
                                         
                                     }
+                                    .shadow(color: Color.white.opacity(0.5), radius: 10)
+
                                     
                                     
                                     
@@ -280,16 +288,17 @@ struct ContentView: View {
                                                 // White ring when flashlight is ON
                                                 Circle()
                                                     .stroke(Color.white, lineWidth: 4)
-                                                    .frame(width: 48, height: 48)
+                                                    .frame(width: 54, height: 54)
                                             } else {
                                                 // Solid white background when flashlight is OFF
                                                 Circle()
                                                     .fill(Color.white)
-                                                    .frame(width: 50, height: 50)
+                                                    .frame(width: 56, height: 56)
                                             }
                                             // Flashlight icon
                                             Image(systemName: isFlashlightOn ? "flashlight.on.fill" : "flashlight.off.fill")
                                                 .foregroundStyle(isFlashlightOn ? .black : .white)
+                                                .font(.title)
                                         }
                                     }
                                     .shadow(color: Color.white.opacity(0.5), radius: 10)
@@ -316,16 +325,17 @@ struct ContentView: View {
                                                     // White ring when flashlight is ON
                                                     Circle()
                                                         .stroke(Color.white, lineWidth: 4)
-                                                        .frame(width: 48, height: 48)
+                                                        .frame(width: 54, height: 54)
                                                 } else {
                                                     // Solid white background when flashlight is OFF
                                                     Circle()
                                                         .fill(Color.white)
-                                                        .frame(width: 50, height: 50)
+                                                        .frame(width: 56, height: 56)
                                                 }
                                                 // Flashlight icon
                                                 Image(systemName: worldManager.isShowingAll ? "circle.hexagongrid.fill" : "circle.hexagongrid")
                                                     .foregroundStyle(worldManager.isShowingAll ? .black : .white)
+                                                    .font(.title)
                                             }
                                         }
                                         .shadow(color: Color.white.opacity(0.5), radius: 10)
@@ -337,20 +347,21 @@ struct ContentView: View {
                                         } label: {
                                             
                                             ZStack {
-                                                if !shouldPlay {
+                                                if !shouldPlay  {
                                                     // White ring when flashlight is ON
                                                     Circle()
                                                         .stroke(Color.white, lineWidth: 4)
-                                                        .frame(width: 48, height: 48)
+                                                        .frame(width: 54, height: 54)
                                                 } else {
                                                     // Solid white background when flashlight is OFF
                                                     Circle()
                                                         .fill(Color.white)
-                                                        .frame(width: 50, height: 50)
+                                                        .frame(width: 56, height: 56)
                                                 }
                                                 // Flashlight icon
                                                 Image(systemName: shouldPlay ? "speaker.2.fill" : "speaker.2")
                                                     .foregroundStyle(shouldPlay ? .black : .white)
+                                                    .font(.title)
                                             }
                                             
                                             

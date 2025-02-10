@@ -72,10 +72,10 @@ struct PaperPlane3DView: UIViewRepresentable {
         // If your "paper_plane.usdz" has multiple children, adjust accordingly.
         if let planeNode = scnView.scene?.rootNode.childNodes.first {
             // Convert degrees to radians for SceneKit
-            planeNode.eulerAngles.x = Float.pi / 6
+//            planeNode.eulerAngles.x = Float.pi / 6
             SCNTransaction.begin()
                    // Set an animation duration (in seconds); adjust as needed.
-                   SCNTransaction.animationDuration = 0.2
+                   SCNTransaction.animationDuration = 0.3
             
             planeNode.eulerAngles.y = Float((-angle * .pi / 180) + (3.14 / 2))
             

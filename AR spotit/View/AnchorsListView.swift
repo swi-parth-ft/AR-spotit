@@ -200,6 +200,7 @@ struct AnchorsListView: View {
                         
                     }
                     print(worldName)
+                    worldManager.inspectLocalArchive(for: worldName)
                     worldManager.checkAndSyncIfNewer(for: worldName) {
                           // 2) Now safely fetch anchors
                           worldManager.getAnchorNames(for: worldName) { fetchedAnchors in
@@ -271,6 +272,20 @@ struct AnchorsListView: View {
                             HStack {
                                 Text("Share")
                                 Image(systemName: "square.and.arrow.up")
+                                    .font(.title2)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                
+                            }
+                            .font(.title2)
+                            
+                        }
+                        
+                        Button {
+                            worldManager.shareWorldViaCloudKit(roomName: worldName)
+                        } label: {
+                            HStack {
+                                Text("Share link")
+                                Image(systemName: "link.icloud.fill")
                                     .font(.title2)
                                     .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 

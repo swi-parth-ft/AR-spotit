@@ -7,7 +7,13 @@ struct WorldModel: Identifiable, Codable {
 
     // Computed property for dynamic file path
     var filePath: URL {
-        return WorldModel.appSupportDirectory.appendingPathComponent("\(name)_worldMap")
+        let fileName: String
+        if self.name.hasSuffix("_worldMap") {
+            fileName = self.name
+        } else {
+            fileName = "\(self.name)_worldMap"
+        }
+        return WorldModel.appSupportDirectory.appendingPathComponent(fileName)
     }
 
     init(name: String, lastModified: Date = Date()) {

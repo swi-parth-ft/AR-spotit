@@ -86,7 +86,7 @@ class WorldManager: ObservableObject {
                 let container = ARWorldMapContainer(map: map, imageData: snapshotData)
                 let containerData = try NSKeyedArchiver.archivedData(
                     withRootObject: container,
-                    requiringSecureCoding: true
+                    requiringSecureCoding: false
                 )
                 
                 try containerData.write(to: filePath)
@@ -171,6 +171,7 @@ class WorldManager: ObservableObject {
         }
         
         let filePath = world.filePath
+        print(filePath)
         guard FileManager.default.fileExists(atPath: filePath.path) else {
             print("File not found at path: \(filePath.path). Trying CloudKit...")
             loadFromCloudKit(roomName: roomName, sceneView: sceneView)
@@ -185,12 +186,11 @@ class WorldManager: ObservableObject {
 //            let unarchivedMap = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: data)
             
             // Unarchive the container instead of just ARWorldMap
-                guard let container = try NSKeyedUnarchiver
-                    .unarchivedObject(ofClass: ARWorldMapContainer.self, from: data)
-                else {
-                    print("Failed to unarchive ARWorldMapContainer.")
-                    return
-                }
+            guard let container = NSKeyedUnarchiver.unarchiveObject(with: data) as? ARWorldMapContainer else {
+                print("Failed to unarchive ARWorldMapContainer using legacy method.")
+                return
+            } 
+               
                 
                 // Grab the ARWorldMap
                 let worldMap = container.map
@@ -621,10 +621,13 @@ extension WorldManager {
     }
     
     func importWorldFromURL(_ url: URL) {
+        DispatchQueue.main.async {
+            self.importWorldURL = url
+            self.tempWorldName = url.deletingPathExtension().lastPathComponent // Default name
+            self.isImportingWorld = true
+        }
         // Store the URL and show the sheet for naming
-        self.importWorldURL = url
-        self.tempWorldName = url.deletingPathExtension().lastPathComponent // Default name
-        self.isImportingWorld = true
+       
     }
     
     func saveImportedWorld(data: Data, worldName: String) {
@@ -1044,3 +1047,100 @@ extension WorldManager {
 //    }
 }
 
+
+
+extension WorldManager {
+    
+    
+    func inspectLocalArchive(for roomName: String) {
+        let filePath = WorldModel.appSupportDirectory.appendingPathComponent("\(roomName)_worldMap")
+        do {
+            let data = try Data(contentsOf: filePath)
+            let unarchiver = try NSKeyedUnarchiver(forReadingFrom: data)
+            unarchiver.requiresSecureCoding = false
+            // Decode the root object without casting it, then print its class description.
+            if let rootObject = unarchiver.decodeObject(forKey: NSKeyedArchiveRootObjectKey) {
+                print("Local archive root object class: \(type(of: rootObject))")
+            } else {
+                print("Failed to decode local archive root object")
+            }
+            unarchiver.finishDecoding()
+        } catch {
+            print("Error inspecting local archive: \(error.localizedDescription)")
+        }
+    }
+    
+    
+    func shareWorldViaCloudKit(roomName: String) {
+        it_s_here_.iCloudManager(worldManager: self).createShareLink(for: roomName) { shareURL in
+            guard let shareURL = shareURL else {
+                print("Failed to create share URL.")
+                return
+            }
+            
+            // Present a share sheet with the share URL.
+            DispatchQueue.main.async {
+                let activityController = UIActivityViewController(activityItems: [shareURL], applicationActivities: nil)
+                
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                   let rootViewController = windowScene.windows.first?.rootViewController {
+                    if let presentedVC = rootViewController.presentedViewController {
+                        presentedVC.dismiss(animated: false) {
+                            rootViewController.present(activityController, animated: true, completion: nil)
+                        }
+                    } else {
+                        rootViewController.present(activityController, animated: true, completion: nil)
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+extension WorldManager {
+    func duplicateSharedWorld(from sharedRecord: CKRecord, using container: ARWorldMapContainer, archiveData: Data) {
+        // Determine a new world name by appending " Copy"
+        let originalName = sharedRecord["roomName"] as? String ?? "Unnamed"
+        let newName = originalName + " Copy"
+        
+        // Get your custom zone from your iCloudManager
+        let customZoneID = it_s_here_.iCloudManager(worldManager: self).customZoneID
+        let newRecordID = CKRecord.ID(recordName: "\(newName)_Record", zoneID: customZoneID)
+        
+        // Create a new CKRecord of the same type
+        let newRecord = CKRecord(recordType: sharedRecord.recordType, recordID: newRecordID)
+        newRecord["roomName"] = newName as CKRecordValue
+        newRecord["lastModified"] = Date() as CKRecordValue
+        
+        do {
+            // **Set the class name mapping before archiving.**
+            NSKeyedArchiver.setClassName("ARWorldMapContainer", for: ARWorldMapContainer.self)
+            // Archive using the same settings as your local save
+            let newArchiveData = try NSKeyedArchiver.archivedData(withRootObject: container, requiringSecureCoding: false)
+            
+            // Write the archive data to the same file path/extension used for local saves.
+            let localFilePath = WorldModel.appSupportDirectory.appendingPathComponent("\(newName)_worldMap")
+            try newArchiveData.write(to: localFilePath)
+            
+            // Create a CKAsset from that file.
+            let asset = CKAsset(fileURL: localFilePath)
+            newRecord["mapAsset"] = asset
+            
+            // Save the new record to your private CloudKit database.
+            let privateDB = CKContainer.default().privateCloudDatabase
+            privateDB.save(newRecord) { record, error in
+                if let error = error {
+                    print("Error saving duplicated record: \(error.localizedDescription)")
+                } else if let record = record {
+                    print("Successfully duplicated shared world: \(record.recordID.recordName)")
+                    DispatchQueue.main.async {
+                        self.savedWorlds.append(WorldModel(name: newName, lastModified: Date()))
+                        self.saveWorldList()
+                    }
+                }
+            }
+        } catch {
+            print("Error writing archive data for duplicate: \(error.localizedDescription)")
+        }
+    }}

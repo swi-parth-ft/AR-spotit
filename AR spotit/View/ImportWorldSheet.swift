@@ -67,35 +67,89 @@ struct ImportWorldSheet: View {
             }
         }
     }
-
     private func saveWorld() {
-        guard let url = worldManager.importWorldURL else {
+        // Ensure we have a valid URL from which to import the world.
+        guard let sourceURL = worldManager.importWorldURL else {
             print("No URL to import from.")
             return
         }
-
-        // (1) Try to start security-scoped access if the URL requires it
-        guard url.startAccessingSecurityScopedResource() else {
-            print("❌ Failed to gain security-scoped access to the file.")
-            return
-        }
-        defer {
-            // (2) Always stop accessing when done
-            url.stopAccessingSecurityScopedResource()
-        }
-
+        
+        // Determine the new world name.
         let newWorldName = worldManager.tempWorldName.isEmpty ? "Untitled World" : worldManager.tempWorldName
         
+        var fileData: Data?
+        
+        // First, try to read directly from the source URL.
         do {
-            // (3) Now reading the file will not fail due to sandbox restrictions
-            let data = try Data(contentsOf: url)
+            // For file provider URLs, attempt security-scoped access.
+            if sourceURL.startAccessingSecurityScopedResource() {
+                defer { sourceURL.stopAccessingSecurityScopedResource() }
+                fileData = try Data(contentsOf: sourceURL)
+                print("✅ Successfully read data directly from the file URL.")
+            } else {
+                print("❌ Failed to gain security-scoped access to the file.")
+            }
+        } catch {
+            print("❌ Error reading data directly from URL: \(error.localizedDescription)")
+        }
+        
+        // If reading directly failed (e.g. due to permission errors), try copying the file into your container.
+        if fileData == nil {
+            // Define a destination URL inside your app’s container.
+            // Use the same naming convention as your local load functions.
+            let destinationURL = WorldModel.appSupportDirectory.appendingPathComponent("\(newWorldName)_imported")
+            // (If your working local files have no extension, leave it out. Otherwise, add an extension if needed.)
             
+            do {
+                // Copy the file from the source URL to your container.
+                try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+                print("✅ File copied to local container: \(destinationURL.path)")
+                fileData = try Data(contentsOf: destinationURL)
+                print("✅ Successfully read data from the copied file.")
+            } catch {
+                print("❌ Failed to copy or read file: \(error.localizedDescription)")
+            }
+        }
+        
+        // If we have data, pass it to your world manager to save/import the world.
+        if let data = fileData {
             worldManager.saveImportedWorld(data: data, worldName: newWorldName)
             print("✅ Imported file read successfully.")
-        } catch {
-            print("❌ Error reading data from URL: \(error.localizedDescription)")
+        } else {
+            print("❌ Could not read file data from imported URL.")
         }
-
-        dismiss() // Close the sheet
-    }
+        
+        // Dismiss the sheet.
+        dismiss()
+    }    //        guard let url = worldManager.importWorldURL else {
+//            print("No URL to import from.")
+//            return
+//        }
+//        let newWorldName = worldManager.tempWorldName.isEmpty ? "Untitled World" : worldManager.tempWorldName
+//        // (1) Try to start security-scoped access if the URL requires it
+//        // Since the file is in the app's sandbox, no need for security-scoped access.
+//      
+//        guard url.startAccessingSecurityScopedResource() else {
+//            print("❌ Failed to gain security-scoped access to the file.")
+//            return
+//        }
+//        defer {
+//            // (2) Always stop accessing when done
+//            url.stopAccessingSecurityScopedResource()
+//        }
+//
+//       
+//        
+//        do {
+//            // (3) Now reading the file will not fail due to sandbox restrictions
+//            let data = try Data(contentsOf: url)
+//            
+//            worldManager.saveImportedWorld(data: data, worldName: newWorldName)
+//            print("✅ Imported file read successfully.")
+//        } catch {
+//            print("❌ Error reading data from URL: \(error.localizedDescription)")
+//        }
+//
+//        dismiss() // Close the sheet
+//    }
 }
