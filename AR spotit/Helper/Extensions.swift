@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import ARKit
+import CryptoKit
 
 extension String {
     var containsEmoji: Bool {
@@ -63,5 +64,29 @@ extension BinaryInteger {
 extension Double {
     func smoothed(to target: Double, factor: Double) -> Double {
         return self + (target - self) * factor
+    }
+}
+
+
+func sha256Hash(of data: Data) -> String {
+    let hash = SHA256.hash(data: data)
+    return hash.map { String(format: "%02x", $0) }.joined()
+}
+
+
+func inspectLocalArchive(for roomName: String) {
+    let filePath = WorldModel.appSupportDirectory.appendingPathComponent("\(roomName)_worldMap")
+    do {
+        let data = try Data(contentsOf: filePath)
+        let unarchiver = try NSKeyedUnarchiver(forReadingFrom: data)
+        unarchiver.requiresSecureCoding = false
+        if let rootObject = unarchiver.decodeObject(forKey: NSKeyedArchiveRootObjectKey) {
+            print("Local archive root object class: \(type(of: rootObject))")
+        } else {
+            print("Failed to decode local archive root object")
+        }
+        unarchiver.finishDecoding()
+    } catch {
+        print("Error inspecting local archive: \(error.localizedDescription)")
     }
 }

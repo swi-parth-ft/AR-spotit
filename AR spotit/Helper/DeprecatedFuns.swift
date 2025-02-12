@@ -235,4 +235,48 @@ struct AnchorNameOptionsProvider: DynamicOptionsProvider {
     }
 }
 
+
+// MARK: - Delete All Records
+func deleteAllRecords(completion: @escaping (Error?) -> Void) {
+    let recordTypes = ["ARWorldMapRecord", "WorldListRecord"]
+    let dispatchGroup = DispatchGroup()
+    var finalError: Error?
+    for recordType in recordTypes {
+        dispatchGroup.enter()
+        let zoneID: CKRecordZone.ID? = (recordType == "ARWorldMapRecord") ? customZoneID : nil
+        CloudKitService.shared.performQuery(recordType: recordType,
+                                            predicate: NSPredicate(value: true),
+                                            zoneID: zoneID,
+                                            desiredKeys: nil) { [weak self] result in
+            guard let self = self else { return }
+            switch result {
+            case .success(let records):
+                let recordIDs = records.map { $0.recordID }
+                if recordIDs.isEmpty {
+                    print("No records found for \(recordType).")
+                    dispatchGroup.leave()
+                    return
+                }
+                CloudKitService.shared.deleteRecords(with: recordIDs) { deleteResult in
+                    switch deleteResult {
+                    case .success:
+                        print("Successfully deleted all records of type \(recordType).")
+                    case .failure(let error):
+                        print("Error deleting records for \(recordType): \(error.localizedDescription)")
+                        finalError = error
+                    }
+                    dispatchGroup.leave()
+                }
+            case .failure(let error):
+                print("Error fetching records for \(recordType): \(error.localizedDescription)")
+                finalError = error
+                dispatchGroup.leave()
+            }
+        }
+    }
+    dispatchGroup.notify(queue: .main) {
+        completion(finalError)
+    }
+}
+
 #endif

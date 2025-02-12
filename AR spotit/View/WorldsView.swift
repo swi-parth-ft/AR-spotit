@@ -254,6 +254,20 @@ struct WorldsView: View {
                                                 
                                             }
                                             
+                                            Button {
+                                                worldManager.shareWorldViaCloudKit(roomName: world.name)
+                                            } label: {
+                                                HStack {
+                                                    Text("Share iCloud link")
+                                                    Image(systemName: "link.icloud")
+                                                        .font(.title2)
+                                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                                    
+                                                }
+                                                .font(.title2)
+                                                
+                                            }
+                                            
                                             Button(role: .destructive) {
                                                 worldManager.deleteWorld(roomName: world.name) {
                                                     print("Deletion process completed.")
@@ -425,7 +439,7 @@ struct WorldsView: View {
             }
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic)) // Add Searchable Modifier
             .onReceive(
-                NotificationCenter.default.publisher(for: Notification.Name("OpenWorldNotification"))
+                NotificationCenter.default.publisher(for: Notifications.openWorldNotification)
             ) { notification in
                 guard let userInfo = notification.userInfo,
                       let worldName = userInfo["worldName"] as? String else { return }
@@ -453,7 +467,7 @@ struct WorldsView: View {
                 
             }
             .onReceive(
-                NotificationCenter.default.publisher(for: Notification.Name("CreateWorldNotification"))
+                NotificationCenter.default.publisher(for: Notifications.createWorldNotification)
             ) { notification in
                 guard let userInfo = notification.userInfo,
                       let worldName = userInfo["worldName"] as? String else { return }
@@ -467,7 +481,13 @@ struct WorldsView: View {
                 
             }
             .onReceive(
-                NotificationCenter.default.publisher(for: Notification.Name("FindItemNotification"))
+                       NotificationCenter.default.publisher(for: Notifications.incomingShareMapReady),
+                       perform: { _ in
+                           selectedWorld = WorldModel(name: WorldManager.shared.sharedWorldName ?? "")
+                       }
+                   )
+            .onReceive(
+                NotificationCenter.default.publisher(for: Notifications.findItemNotification)
             ) { notification in
                 Task {
                     guard let userInfo = notification.userInfo,
@@ -530,39 +550,7 @@ struct WorldsView: View {
                     }
                 }
             }
-//            .onReceive(
-//                NotificationCenter.default.publisher(for: Notification.Name("FindItemNotification"))
-//            ) { notification in
-//                Task {
-//                    guard let userInfo = notification.userInfo,
-//                          let itemName = userInfo["itemName"] as? String else { return }
-//                    
-//                    // Load anchors for all worlds if not already loaded
-//                    for world in worldManager.savedWorlds where anchorsByWorld[world.name] == nil {
-//                        await worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
-//                            anchorsByWorld[world.name] = fetchedAnchors
-//                        }
-//                    }
-//
-//                    if let worldName = anchorsByWorld.first(where: { $0.value.contains(itemName) })?.key {
-//                        findingAnchorName = itemName
-//                        worldManager.isShowingAll = false
-//                        isFindingAnchor = true
-//                        await MainActor.run {
-//                            let drop = Drop(title: "Anchor \(itemName) found in \(worldName)")
-//                            Drops.show(drop)
-//                            if let matchingWorld = worldManager.savedWorlds.first(where: { $0.name == worldName }) {
-//                                selectedWorld = matchingWorld
-//                            }
-//                        }
-//                    } else {
-//                        await MainActor.run {
-//                            let drop = Drop(title: "Anchor \(itemName) not found")
-//                            Drops.show(drop)
-//                        }
-//                    }
-//                }
-//            }
+
             .navigationTitle("it's here.")
             .toolbar {
                 Menu {

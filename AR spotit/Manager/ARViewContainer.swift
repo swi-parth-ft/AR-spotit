@@ -9,7 +9,7 @@ struct ARViewContainer: UIViewRepresentable {
     let sceneView: ARSCNView
     @Binding var anchorName: String
     @ObservedObject var worldManager: WorldManager
-    var findAnchor: String
+    @Binding var findAnchor: String
     @State private var tempAnchor: ARAnchor? // For moving the anchor
     @Binding var showFocusedAnchor: Bool
     @Binding var shouldPlay: Bool
@@ -162,7 +162,7 @@ struct ARViewContainer: UIViewRepresentable {
     }
     
     //MARK: Coordinator Class
-    class Coordinator: NSObject, ARSCNViewDelegate, ARSessionDelegate, Sendable, ARCoachingOverlayViewDelegate {
+    class Coordinator: NSObject, ARSCNViewDelegate, @preconcurrency ARSessionDelegate, Sendable, ARCoachingOverlayViewDelegate {
         private var lastAnimationUpdateTime: Date = Date()
         private var hapticEngine: CHHapticEngine?
         private var lastHapticTriggerTime: Date = Date()
@@ -215,7 +215,7 @@ struct ARViewContainer: UIViewRepresentable {
                     DispatchQueue.main.async {
                         // withAnimation(.easeIn(duration: 1)) {
                         self.worldManager.isRelocalizationComplete = true
-                        
+                        self.worldManager.isShowingARGuide = true
                         // }
                     }
                 case .limited(.relocalizing):
@@ -234,7 +234,7 @@ struct ARViewContainer: UIViewRepresentable {
         }
         
         //MARK: Did add anchor
-        func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+        @MainActor func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
             
             
             
@@ -440,9 +440,16 @@ struct ARViewContainer: UIViewRepresentable {
         }
         
         //MARK: Did update ARFrame
-        func session(_ session: ARSession, didUpdate frame: ARFrame) {
-            
-            
+        @MainActor func session(_ session: ARSession, didUpdate frame: ARFrame) {
+            if self.worldManager.isRelocalizationComplete == true {
+                
+                if WorldManager.shared.sharedWorldsAnchors.isEmpty {
+                    if let anchors = parent.sceneView.session.currentFrame?.anchors {
+                        WorldManager.shared.sharedWorldsAnchors = anchors.compactMap { $0.name }
+                            .filter { $0 != "guide" }
+                    }
+                }
+            }
             
             if let lightEstimate = frame.lightEstimate {
                 if lightEstimate.ambientIntensity < 100.0 { // Example threshold for low light
@@ -648,14 +655,14 @@ struct ARViewContainer: UIViewRepresentable {
         }
         
         
-        func updateNodeVisibility(in sceneView: ARSCNView) {
+        @MainActor func updateNodeVisibility(in sceneView: ARSCNView) {
             let allNodes = sceneView.scene.rootNode.childNodes
             for node in allNodes {
                 refreshVisibilityRecursive(node: node)
             }
         }
         
-        private func refreshVisibilityRecursive(node: SCNNode) {
+        @MainActor private func refreshVisibilityRecursive(node: SCNNode) {
             // If the ARKit anchor's name is stored in `node.name`, we can rely on it here.
             guard let nodeName = node.name else {
                 // Recur into children anyway, in case sub-nodes have meaningful names
@@ -758,7 +765,7 @@ struct ARViewContainer: UIViewRepresentable {
         }
         
         //MARK: Handle tap gestures
-        @objc func handleTap(_ sender: UITapGestureRecognizer) {
+        @MainActor @objc func handleTap(_ sender: UITapGestureRecognizer) {
             
             if worldManager.isAddingAnchor {
                 let sceneView = parent.sceneView
@@ -993,7 +1000,7 @@ struct ARViewContainer: UIViewRepresentable {
             }
         }
         
-        func checkZoneCoverage(for position: SIMD3<Float>) {
+        @MainActor func checkZoneCoverage(for position: SIMD3<Float>) {
             for (zoneName, zoneTransform) in worldManager.scanningZones {
                 let zonePosition = SIMD3<Float>(zoneTransform.columns.3.x,
                                                 zoneTransform.columns.3.y,

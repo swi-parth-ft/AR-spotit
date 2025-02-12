@@ -1,0 +1,452 @@
+//
+//  WorldManager.swift
+//  AR spotit
+//
+//  Created by Parth Antala on 2025-01-03.
+//
+import Foundation
+import ARKit
+import CloudKit
+import SwiftUI
+import CoreSpotlight
+
+@MainActor
+class WorldManager: ObservableObject {
+    static let shared = WorldManager()
+    
+    lazy var iCloudManager: iCloudManager = {
+        return it_s_here_.iCloudManager(worldManager: self)
+    }()
+    
+    let recordType = "ARWorldMapRecord"
+    var anchorMapping: [String: ARAnchor] = [:]
+    var currentWorldName: String = ""
+    
+    @Published var sharedARWorldMap: ARWorldMap?
+    @Published var sharedWorldName: String?
+    @Published var sharedWorldsAnchors: [String] = []
+    
+    @Published var savedWorlds: [WorldModel] = []
+    @Published var cachedAnchorNames: [String: [String]] = [:]
+    @Published var isShowingAll = true
+    @Published var isRelocalizationComplete: Bool = false
+    @Published var scanningZones: [String: simd_float4x4] = [:]
+    @Published var scannedZones: Set<String> = []
+    @Published var isAddingAnchor = false
+    @Published var deletedAnchors: [ARAnchor] = []
+    @Published var isImportingWorld: Bool = false
+    @Published var importWorldURL: URL?
+    @Published var tempWorldName = ""
+    @Published var reload = false
+    @Published var isWorldLoaded = false
+    @Published var isShowingARGuide = false
+    @Published var is3DArrowActive = false
+
+    init() { }
+    
+    // MARK: - Save World Map
+    func saveWorldMap(for roomName: String, sceneView: ARSCNView) {
+        sceneView.session.getCurrentWorldMap { [weak self] worldMap, error in
+            guard let self = self, let map = worldMap else { return }
+            let timestamp = Date()
+            var isNew = true
+            if let index = self.savedWorlds.firstIndex(where: { $0.name == roomName }) {
+                isNew = false
+                self.savedWorlds[index].lastModified = timestamp
+            } else {
+                self.savedWorlds.append(WorldModel(name: roomName, lastModified: timestamp))
+            }
+            
+            let filePath = WorldModel.appSupportDirectory.appendingPathComponent("\(roomName)_worldMap")
+            sceneView.session.pause()
+            var snapshotData: Data? = nil
+            
+            if isNew {
+                if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator,
+                   let snapshotImage = coordinator.capturePointCloudSnapshotOffscreenClone() {
+                    let imageURL = WorldModel.appSupportDirectory.appendingPathComponent("\(roomName)_snapshot.png")
+                    try? snapshotImage.pngData()?.write(to: imageURL, options: .atomic)
+                    snapshotData = snapshotImage.pngData()
+                }
+            } else {
+                if FileManager.default.fileExists(atPath: filePath.path) {
+                    do {
+                        let oldData = try Data(contentsOf: filePath)
+                        if let oldContainer = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMapContainer.self, from: oldData) {
+                            snapshotData = oldContainer.imageData
+                        }
+                    } catch {
+                        print("Failed to read old container for existing world: \(error.localizedDescription)")
+                    }
+                }
+            }
+            
+            do {
+                let container = ARWorldMapContainer(map: map, imageData: snapshotData)
+                let containerData = try NSKeyedArchiver.archivedData(withRootObject: container, requiringSecureCoding: true)
+                // Use helper extension for file writing if desired.
+                try containerData.write(to: filePath, options: .atomic)
+               
+                self.saveWorldList()
+                self.iCloudManager.uploadWorldMap(roomName: roomName, data: containerData, lastModified: timestamp) {
+                    print("Synced \(roomName) to CloudKit.")
+                }
+            } catch {
+                print("Error saving container for \(roomName): \(error.localizedDescription)")
+            }
+        }
+    }
+ 
+    // MARK: - Load World Map
+    func loadWorldMap(for roomName: String, sceneView: ARSCNView) {
+        print("Attempting to load world map for room: \(roomName)")
+        guard let world = savedWorlds.first(where: { $0.name == roomName }) else {
+            print("No saved world found with the name: \(roomName)")
+            isShowingARGuide = true
+            return
+        }
+        let filePath = world.filePath
+        print("Loading from file: \(filePath)")
+        guard FileManager.default.fileExists(atPath: filePath.path) else {
+            print("File not found at path: \(filePath.path). Trying CloudKit...")
+            iCloudManager.loadWorldMap(roomName: roomName) { data, arMap in }
+            return
+        }
+        
+        do {
+            let data = try Data(contentsOf: filePath)
+            if let container = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMapContainer.self, from: data) {
+                let worldMap = container.map
+                sceneView.session.pause()
+                let configuration = ARWorldTrackingConfiguration()
+                configuration.initialWorldMap = worldMap
+                configuration.planeDetection = [.horizontal, .vertical]
+                if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
+                    configuration.sceneReconstruction = .mesh
+                }
+                if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
+                    coordinator.worldIsLoaded = false
+                    coordinator.isLoading = true
+                }
+                sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
+                if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
+                    coordinator.worldIsLoaded = true
+                    print("World loaded. Ready to add new guide anchors.")
+                }
+                self.isWorldLoaded = true
+                self.isShowingARGuide = true
+                print("World map for \(roomName) loaded successfully.")
+            } else {
+                print("Failed to unarchive ARWorldMapContainer using secure method.")
+            }
+        } catch {
+            print("Error loading ARWorldMap for \(roomName): \(error.localizedDescription)")
+        }
+    }
+    
+    // MARK: - Save World List
+    func saveWorldList() {
+        let fileURL = WorldModel.appSupportDirectory.appendingPathComponent("worldsList.json")
+        do {
+            let data = try JSONEncoder().encode(savedWorlds)
+            try data.write(to: fileURL, options: .atomic)
+            indexWorlds()
+        } catch {
+            print("Error saving world list: \(error.localizedDescription)")
+        }
+    }
+    
+    // MARK: - Load Saved Worlds
+    func loadSavedWorlds(completion: @escaping () -> Void) {
+        let fileURL = WorldModel.appSupportDirectory.appendingPathComponent("worldsList.json")
+        do {
+            let data = try Data(contentsOf: fileURL)
+            let decodedWorlds = try JSONDecoder().decode([WorldModel].self, from: data)
+            let uniqueWorlds = Array(Dictionary(grouping: decodedWorlds, by: { $0.name }).compactMap { $0.value.first })
+            DispatchQueue.main.async {
+                self.savedWorlds = uniqueWorlds
+                self.indexWorlds()
+            }
+        } catch {
+            DispatchQueue.main.async {
+                self.savedWorlds = []
+                print("No saved world list found or failed to decode: \(error.localizedDescription)")
+            }
+        }
+        fetchWorldNamesFromCloudKit {
+            print("Data synced with CloudKit.")
+            let dispatchGroup = DispatchGroup()
+            for world in self.savedWorlds {
+                dispatchGroup.enter()
+                self.getAnchorNames(for: world.name) { anchorNames in
+                    DispatchQueue.main.async {
+                        self.cachedAnchorNames[world.name] = anchorNames
+                    }
+                    dispatchGroup.leave()
+                }
+                if !FileManager.default.fileExists(atPath: world.filePath.path) {
+                    print("Fetching missing data for world: \(world.name)")
+                    dispatchGroup.enter()
+                    self.iCloudManager.loadWorldMap(roomName: world.name) { data, arMap in
+                        if let data = data {
+                            self.saveLocallyAfterCloudDownload(roomName: world.name, data: data, lastModified: world.lastModified)
+                        }
+                        print("Fetched container for \(world.name) and saved locally.")
+                        dispatchGroup.leave()
+                    }
+                }
+            }
+            dispatchGroup.notify(queue: .main) {
+                completion()
+            }
+        }
+    }
+    
+    @MainActor
+    func loadSavedWorldsAsyncForIntents() async throws -> [WorldModel] {
+        let fileURL = WorldModel.appSupportDirectory.appendingPathComponent("worldsList.json")
+        let data = try Data(contentsOf: fileURL)
+        let decodedWorlds = try JSONDecoder().decode([WorldModel].self, from: data)
+        let uniqueWorlds = Array(Dictionary(grouping: decodedWorlds, by: { $0.name }).compactMap { $0.value.first })
+        self.savedWorlds = uniqueWorlds
+        self.indexWorlds()
+        return uniqueWorlds
+    }
+    
+    // MARK: - Get Anchor Names
+    func getAnchorNames(for worldName: String, completion: @escaping ([String]) -> Void) {
+        guard let world = savedWorlds.first(where: { $0.name == worldName }) else {
+            print("No saved world found with the name: \(worldName)")
+            completion([])
+            return
+        }
+        if !FileManager.default.fileExists(atPath: world.filePath.path) {
+            print("File not found for \(worldName). Trying CloudKit...")
+            iCloudManager.loadWorldMap(roomName: worldName) { data, arMap in
+                guard let arMap = arMap else {
+                    completion([])
+                    return
+                }
+                let anchorNames = arMap.anchors.compactMap { $0.name }.filter { $0 != "unknown" }
+                completion(anchorNames)
+            }
+        } else {
+            do {
+                let data = try Data(contentsOf: world.filePath)
+                if let container = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMapContainer.self, from: data) {
+                    let anchorNames = container.map.anchors.compactMap { $0.name }.filter { $0 != "unknown" }
+                    completion(anchorNames)
+                } else {
+                    print("Failed to unarchive ARWorldMapContainer for \(worldName).")
+                    completion([])
+                }
+            } catch {
+                print("Error loading ARWorldMap for \(worldName): \(error.localizedDescription)")
+                completion([])
+            }
+        }
+    }
+    
+    // MARK: - Delete World
+    func deleteWorld(roomName: String, completion: (() -> Void)? = nil) {
+        guard let index = savedWorlds.firstIndex(where: { $0.name == roomName }) else {
+            print("No world found with name \(roomName)")
+            completion?()
+            return
+        }
+        let world = savedWorlds[index]
+        let filePath = world.filePath
+        if FileManager.default.fileExists(atPath: filePath.path) {
+            do {
+                try FileManager.default.removeItem(at: filePath)
+                print("Local world file for \(roomName) deleted.")
+                let uniqueIdentifier = "com.parthant.AR-spotit.\(world.name)"
+                CSSearchableIndex.default().deleteSearchableItems(withIdentifiers: [uniqueIdentifier]) { error in
+                    if let error = error {
+                        print("Error deleting world from Spotlight index: \(error.localizedDescription)")
+                    } else {
+                        print("Successfully removed \(roomName) from Spotlight index.")
+                    }
+                }
+                DispatchQueue.main.async {
+                    self.cachedAnchorNames[roomName] = nil
+                    completion?()
+                }
+            } catch {
+                print("Error deleting local world file: \(error.localizedDescription)")
+            }
+        }
+        savedWorlds.remove(at: index)
+        saveWorldList()
+        iCloudManager.deleteWorld(roomName: roomName) { error in
+            if let error = error {
+                print("Error deleting world from CloudKit: \(error.localizedDescription)")
+            } else {
+                print("Deleted world \(roomName) from CloudKit.")
+            }
+        }
+    }
+    
+    // MARK: - Save Locally After Cloud Download
+    func saveLocallyAfterCloudDownload(roomName: String, data: Data, lastModified: Date) {
+        let filePath = WorldModel.appSupportDirectory.appendingPathComponent("\(roomName)_worldMap")
+        do {
+            try data.write(to: filePath, options: .atomic)
+            if let index = savedWorlds.firstIndex(where: { $0.name == roomName }) {
+                savedWorlds[index].lastModified = lastModified
+            } else {
+                DispatchQueue.main.async {
+                    self.savedWorlds.append(WorldModel(name: roomName, lastModified: lastModified))
+
+                }
+            }
+            saveWorldList()
+            print("World \(roomName) saved locally after CloudKit sync.")
+        } catch {
+            print("Error saving locally after CloudKit sync: \(error.localizedDescription)")
+        }
+        do {
+            if let container = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMapContainer.self, from: data),
+               let snapshotData = container.imageData {
+                let snapshotURL = WorldModel.appSupportDirectory.appendingPathComponent("\(roomName)_snapshot.png")
+                try snapshotData.write(to: snapshotURL, options: .atomic)
+                print("✅ Restored snapshot for \(roomName) from iCloud at: \(snapshotURL.path)")
+            }
+        } catch {
+            print("❌ Could not restore snapshot: \(error)")
+        }
+    }
+    
+    // MARK: - Share World via Local File
+    func shareWorld(currentRoomName: String) {
+        guard let world = savedWorlds.first(where: { $0.name == currentRoomName }) else {
+            print("No world found with name \(currentRoomName).")
+            return
+        }
+        let sourceFilePath = world.filePath
+        guard FileManager.default.fileExists(atPath: sourceFilePath.path) else {
+            print("World map file not found.")
+            return
+        }
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let destinationURL = documentsURL.appendingPathComponent("\(currentRoomName)_worldMap.worldmap")
+        do {
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                try FileManager.default.removeItem(at: destinationURL)
+            }
+            try FileManager.default.copyItem(at: sourceFilePath, to: destinationURL)
+            print("File ready for sharing at: \(destinationURL)")
+            let activityController = UIActivityViewController(activityItems: [destinationURL], applicationActivities: nil)
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let rootViewController = windowScene.windows.first?.rootViewController {
+                DispatchQueue.main.async {
+                    if let presentedVC = rootViewController.presentedViewController {
+                        presentedVC.dismiss(animated: false) {
+                            rootViewController.present(activityController, animated: true, completion: nil)
+                        }
+                    } else {
+                        rootViewController.present(activityController, animated: true, completion: nil)
+                    }
+                }
+            }
+        } catch {
+            print("Error preparing file for sharing: \(error.localizedDescription)")
+        }
+    }
+    
+    // MARK: - Check And Sync If Newer
+    func checkAndSyncIfNewer(for roomName: String, completion: @escaping () -> Void) {
+        guard let localWorld = savedWorlds.first(where: { $0.name == roomName }) else {
+            completion()
+            return
+        }
+        iCloudManager.fetchLastModified(for: roomName) { cloudLastModified in
+            guard let cloudLastModified = cloudLastModified,
+                  cloudLastModified > localWorld.lastModified else {
+                completion()
+                return
+            }
+            print("⏫ Found newer data in iCloud for \(roomName). Downloading...")
+            self.iCloudManager.loadWorldMap(roomName: roomName) { data, arMap in
+                if let data = data {
+                    self.saveLocallyAfterCloudDownload(roomName: roomName, data: data, lastModified: cloudLastModified)
+                }
+                completion()
+            }
+        }
+    }
+    
+    // MARK: - Load Saved Worlds Async
+    func loadSavedWorldsAsync() async {
+        await withCheckedContinuation { continuation in
+            self.loadSavedWorlds {
+                continuation.resume()
+            }
+        }
+    }
+    
+    //MARK: Share iCloud Link
+    func shareWorldViaCloudKit(roomName: String) {
+        it_s_here_.iCloudManager(worldManager: self).createShareLink(for: roomName) { shareURL in
+            guard let shareURL = shareURL else {
+                print("Failed to create share URL.")
+                return
+            }
+            DispatchQueue.main.async {
+                let activityController = UIActivityViewController(activityItems: [shareURL], applicationActivities: nil)
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                   let rootViewController = windowScene.windows.first?.rootViewController {
+                    if let presentedVC = rootViewController.presentedViewController {
+                        presentedVC.dismiss(animated: false) {
+                            rootViewController.present(activityController, animated: true, completion: nil)
+                        }
+                    } else {
+                        rootViewController.present(activityController, animated: true, completion: nil)
+                    }
+                }
+            }
+        }
+    }
+
+    //MARK: Fetch names from cloudKit
+    func fetchWorldNamesFromCloudKit(completion: @escaping () -> Void) {
+        let privateDB = CKContainer.default().privateCloudDatabase
+        let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
+        
+        privateDB.fetch(withQuery: query,
+                        inZoneWith: nil,
+                        desiredKeys: ["roomName", "lastModified"],
+                        resultsLimit: CKQueryOperation.maximumResults) { (result: Result<(matchResults: [(CKRecord.ID, Result<CKRecord, Error>)], queryCursor: CKQueryOperation.Cursor?), Error>) in
+            switch result {
+            case .success(let (matchResults, _)):
+                var fetchedWorlds: [WorldModel] = []
+                for (recordID, recordResult) in matchResults {
+                    switch recordResult {
+                    case .success(let record):
+                        let roomName = record["roomName"] as? String ?? "Unnamed"
+                        let lastModified = record["lastModified"] as? Date ?? Date.distantPast
+                        print("Fetched record \(recordID.recordName) with roomName: \(roomName)")
+                        
+                        // Compare with local data if necessary; for now, simply append if not already present.
+                        if !self.savedWorlds.contains(where: { $0.name == roomName }) {
+                            fetchedWorlds.append(WorldModel(name: roomName, lastModified: lastModified))
+                        }
+                    case .failure(let error):
+                        print("Error fetching record \(recordID.recordName): \(error.localizedDescription)")
+                    }
+                }
+                DispatchQueue.main.async {
+                    self.savedWorlds.append(contentsOf: fetchedWorlds)
+                    self.saveWorldList()
+                    completion()
+                }
+            case .failure(let error):
+                print("Error fetching world names from CloudKit: \(error.localizedDescription)")
+                completion()
+            }
+        }
+    }
+
+}
+
+

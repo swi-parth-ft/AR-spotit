@@ -9,7 +9,7 @@ class MySceneDelegate: NSObject, UIWindowSceneDelegate {
     func windowScene(_ windowScene: UIWindowScene, userDidAcceptCloudKitShareWith cloudKitShareMetadata: CKShare.Metadata) {
         print("MySceneDelegate received share metadata: \(cloudKitShareMetadata)")
         // Post a notification for share URLs.
-        NotificationCenter.default.post(name: Notification.Name("IncomingShareURL"), object: cloudKitShareMetadata)
+        NotificationCenter.default.post(name: Notifications.incomingShareURL, object: cloudKitShareMetadata)
         
         // Forward the callback to the original delegate (if it implements it).
         (originalDelegate as? UIWindowSceneDelegate)?.windowScene?(windowScene, userDidAcceptCloudKitShareWith: cloudKitShareMetadata)
@@ -25,7 +25,7 @@ class MySceneDelegate: NSObject, UIWindowSceneDelegate {
             print("MySceneDelegate openURLContexts received: \(url.absoluteString)")
             // If the URL contains "ckshare", treat it as a CloudKit share URL.
             if url.absoluteString.contains("ckshare") {
-                NotificationCenter.default.post(name: Notification.Name("IncomingShareURL"), object: url)
+                NotificationCenter.default.post(name: Notifications.incomingShareURL, object: url)
             }
             // Otherwise, assume it’s a local file URL.
             else if url.isFileURL && (url.pathExtension.lowercased() == "worldmap" || url.pathExtension.lowercased() == "arworld") {
@@ -43,7 +43,7 @@ class MySceneDelegate: NSObject, UIWindowSceneDelegate {
         
         // Also post notifications so your SwiftUI code can handle them.
         for context in fileURLContexts {
-            NotificationCenter.default.post(name: Notification.Name("IncomingURL"), object: context.url)
+            NotificationCenter.default.post(name: Notifications.incomingURL, object: context.url)
         }
     }
     

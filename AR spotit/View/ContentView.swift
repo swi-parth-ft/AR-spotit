@@ -62,8 +62,12 @@ struct ContentView: View {
     @State private var distance: Double = 0.0
     @State private var itshere = ""
     @State private var animatedAngle = ""
+    @State private var isOpeningSharedWorld = false
+    @State private var showAnchorListSheet = false
+
     @Namespace private var arrowNamespace
 
+    
     var body: some View {
         NavigationStack {
             
@@ -75,7 +79,7 @@ struct ContentView: View {
                     ARViewContainer(sceneView: sceneView,
                                     anchorName: $currentAnchorName,
                                     worldManager: worldManager,
-                                    findAnchor: findAnchor,
+                                    findAnchor: $findAnchor,
                                     showFocusedAnchor: $isShowingFocusedAnchor,
                                     shouldPlay: $shouldPlay,
                                     isEditingAnchor: $isEditingAnchor,
@@ -187,7 +191,8 @@ struct ContentView: View {
                                     HStack {
                                         
                                         if distance < 0.9 {
-                                            AnimateText<ATOffsetEffect>($itshere)                                                                                           .font(.system(.largeTitle, design: .rounded))
+                                            AnimateText<ATOffsetEffect>($itshere)
+                                                .font(.system(.largeTitle, design: .rounded))
                                                 .foregroundStyle(.white)
                                                 .bold()
                                                 .shadow(color: Color.white.opacity(0.5), radius: 10)
@@ -208,7 +213,8 @@ struct ContentView: View {
                                             }
                                             
                                             
-                                            AnimateText<ATOffsetEffect>($animatedAngle)                                                                                           .font(.system(.largeTitle, design: .rounded))
+                                            AnimateText<ATOffsetEffect>($animatedAngle)
+                                                .font(.system(.largeTitle, design: .rounded))
                                                 .foregroundStyle(.white)
                                                 .bold()
                                                 .shadow(color: Color.white.opacity(0.5), radius: 10)
@@ -253,28 +259,29 @@ struct ContentView: View {
                                 
                                 HStack(spacing: 10) {
                                     
-                                    Button {
-                                        //   worldManager.isAddingAnchor.toggle()
-                                        isAddingNewAnchor.toggle()
-                                        HapticManager.shared.impact(style: .medium)
-                                        
-                                    } label: {
-                                        ZStack {
-                                         
+                                    if !isOpeningSharedWorld {
+                                        Button {
+                                            //   worldManager.isAddingAnchor.toggle()
+                                            isAddingNewAnchor.toggle()
+                                            HapticManager.shared.impact(style: .medium)
+                                            
+                                        } label: {
+                                            ZStack {
+                                                
                                                 // Solid white background when flashlight is OFF
                                                 Circle()
                                                     .fill(Color.white)
                                                     .frame(width: 56, height: 56)
+                                                
+                                                // Flashlight icon
+                                                Image(systemName: "plus")
+                                                    .foregroundStyle(.black)
+                                                    .font(.title)
+                                            }
                                             
-                                            // Flashlight icon
-                                            Image(systemName: "plus")
-                                                .foregroundStyle(.black)
-                                                .font(.title)
                                         }
-                                        
+                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
                                     }
-                                    .shadow(color: Color.white.opacity(0.5), radius: 10)
-
                                     
                                     
                                     
@@ -303,9 +310,50 @@ struct ContentView: View {
                                     }
                                     .shadow(color: Color.white.opacity(0.5), radius: 10)
                                     
-                                    
-                                    
-                                    
+                                    if findAnchor == "" {
+                                        Button {
+                                            
+                                            showAnchorListSheet = true
+                                            
+                                        } label: {
+                                            ZStack {
+                                                
+                                                    // White ring when flashlight is ON
+                                                    Circle()
+                                                        .stroke(Color.white, lineWidth: 4)
+                                                        .frame(width: 54, height: 54)
+                                                
+                                                // Flashlight icon
+                                                Image(systemName: "magnifyingglass")
+                                                    .foregroundStyle(.white)
+                                                    .font(.title)
+                                            }
+                                        }
+                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                        
+                                    } else {
+                                        Button {
+                                            withAnimation {
+                                                findAnchor = ""
+                                            }
+                                            worldManager.isShowingAll = true
+
+                                        } label: {
+                                            ZStack {
+                                                
+                                                    // Solid white background when flashlight is OFF
+                                                    Circle()
+                                                        .fill(Color.white)
+                                                        .frame(width: 56, height: 56)
+                                                
+                                                // Flashlight icon
+                                                Image(systemName: "xmark")
+                                                    .foregroundStyle(.black)
+                                                    .font(.title)
+                                            }
+                                        }
+                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                    }
                                     
                                     
                                     
@@ -386,13 +434,17 @@ struct ContentView: View {
                                             audioEngine.reset()
                                         }
                                         guard !currentRoomName.isEmpty else { return }
-                                        worldManager.saveWorldMap(for: currentRoomName, sceneView: sceneView)
                                         
-                                        let drop = Drop.init(title: "\(currentRoomName) saved")
-                                        Drops.show(drop)
-                                        
-                                        HapticManager.shared.notification(type: .success)
-                                        
+                                        if !isOpeningSharedWorld {
+                                            worldManager.saveWorldMap(for: currentRoomName, sceneView: sceneView)
+                                            
+                                            let drop = Drop.init(title: "\(currentRoomName) saved")
+                                            Drops.show(drop)
+                                            
+                                            HapticManager.shared.notification(type: .success)
+                                            
+                                           
+                                        }
                                         dismiss()
                                     } label: {
                                         Text("Done")
@@ -422,16 +474,49 @@ struct ContentView: View {
                 }
                 
                 
+                
             }
             .onAppear {
-                worldManager.loadSavedWorlds {
-                    guard directLoading, !currentRoomName.isEmpty, !hasLoadedWorldMap else { return }
-                    hasLoadedWorldMap = true
+
+                    // 1) If we have an iCloud-shared map, load it right away
+                if let arWorldMap = WorldManager.shared.sharedARWorldMap {
+           
+                        
+                        isOpeningSharedWorld = true
+                    sceneView.session.pause()
+                    let configuration = ARWorldTrackingConfiguration()
+                    configuration.initialWorldMap = arWorldMap
+                    configuration.planeDetection = [.horizontal, .vertical]
+                    if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
+                        configuration.sceneReconstruction = .mesh
+                    }
+                    if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
+                        coordinator.worldIsLoaded = false
+                        coordinator.isLoading = true
+                    }
+                    sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
+                    if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
+                        coordinator.worldIsLoaded = true
+                        print("World loaded. Ready to add new guide anchors.")
+                    }
+                    worldManager.isWorldLoaded = true
+                    worldManager.isShowingARGuide = true
+                    print("World map for loaded successfully.")
+                        
+                        print("✅ AR session started with the iCloud-shared map!")
+                        
+                        // If you only want to load it once, clear it out:
+                        WorldManager.shared.sharedARWorldMap = nil
                     
-                    worldManager.loadWorldMap(for: currentRoomName, sceneView: sceneView)
-                }
-                
-                
+                    } else {
+                        isOpeningSharedWorld = false
+                        // 2) If there's NO shared map, do local “directLoading” stuff
+                        worldManager.loadSavedWorlds {
+                            guard directLoading, !currentRoomName.isEmpty, !hasLoadedWorldMap else { return }
+                            hasLoadedWorldMap = true
+                            worldManager.loadWorldMap(for: currentRoomName, sceneView: sceneView)
+                        }
+                    }
                 
             }
             .onChange(of: worldManager.scannedZones) {
@@ -443,7 +528,16 @@ struct ContentView: View {
                     coordinator.updateNodeVisibility(in: sceneView)
                 }
             }
-            
+            .sheet(isPresented: $showAnchorListSheet) {
+                    AnchorListSheet(sceneView: sceneView, onSelectAnchor: { selectedAnchorName in
+                        // For instance, make it your findAnchor
+                        findAnchor = selectedAnchorName
+                        print(findAnchor)
+                        worldManager.isShowingAll = false
+                        showAnchorListSheet = false
+                    })
+                    .presentationDetents([.medium, .large])
+                }
             .sheet(isPresented: $isAddingNewAnchor) {
                 AddAnchorView(anchorName: $currentAnchorName, worldManager: worldManager)
                     .presentationDetents([.fraction(0.6)])

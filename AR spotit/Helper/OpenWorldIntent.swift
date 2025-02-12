@@ -28,7 +28,7 @@ struct OpenWorldIntent: ForegroundContinuableIntent {
 
         
         NotificationCenter.default.post(
-            name: Notification.Name("OpenWorldNotification"),
+            name: Notifications.openWorldNotification,
             object: nil,
             userInfo: ["worldName": worldName.name]
         )
@@ -53,7 +53,7 @@ struct CreateWorldIntent: ForegroundContinuableIntent {
 
         
         NotificationCenter.default.post(
-            name: Notification.Name("CreateWorldNotification"),
+            name: Notifications.createWorldNotification,
             object: nil,
             userInfo: ["worldName": worldName]
         )
@@ -81,7 +81,7 @@ struct OpenItemIntent: ForegroundContinuableIntent {
         }
         
         NotificationCenter.default.post(
-            name: Notification.Name("FindItemNotification"),
+            name: Notifications.findItemNotification,
             object: nil,
             userInfo: ["itemName": itemName.name, "worldName": itemName.worldName]
         )
@@ -191,36 +191,18 @@ struct WorldEntity: AppEntity, Identifiable {
         
         /// Return all entities matching a set of identifiers.
         func entities(for identifiers: [UUID]) async throws -> [WorldEntity] {
-            // 1) Wait for WorldManager to finish loading.
-            let allWorlds = try await withCheckedThrowingContinuation { continuation in
-                WorldManager.shared.loadSavedWorlds {
-                    // This closure is called when loading is complete
-                    let savedWorlds = WorldManager.shared.savedWorlds
-                    continuation.resume(returning: savedWorlds)
+                    // Use the new async version of loadSavedWorlds
+                    let allWorlds = try await WorldManager.shared.loadSavedWorldsAsyncForIntents()
+                    let matchedWorlds = allWorlds.filter { identifiers.contains($0.id) }
+                        .map { WorldEntity(id: $0.id, name: $0.name) }
+                    return matchedWorlds
                 }
-            }
-            
-            // 2) Filter based on the identifiers
-            let matchedWorlds = allWorlds
-                .filter { identifiers.contains($0.id) }
-                .map { WorldEntity(id: $0.id, name: $0.name) }
-            
-            return matchedWorlds
-        }
-        
-        /// Return a list of suggested (or "all") entities.
-        func suggestedEntities() async throws -> [WorldEntity] {
-            // 1) Wait for WorldManager to finish loading.
-            let allWorlds = try await withCheckedThrowingContinuation { continuation in
-                WorldManager.shared.loadSavedWorlds {
-                    let savedWorlds = WorldManager.shared.savedWorlds
-                    continuation.resume(returning: savedWorlds)
+                
+                /// Return a list of suggested (or "all") entities.
+                func suggestedEntities() async throws -> [WorldEntity] {
+                    let allWorlds: [WorldModel] = try await WorldManager.shared.loadSavedWorldsAsyncForIntents()
+                       return allWorlds.map { WorldEntity(id: $0.id, name: $0.name) }
                 }
-            }
-            
-            // 2) Transform them into WorldEntity
-            return allWorlds.map { WorldEntity(id: $0.id, name: $0.name) }
-        }
     }
 }
 
@@ -266,27 +248,25 @@ struct AnchorEntity: AppEntity, Identifiable {
 
         /// Fetches all saved anchors (items) from all worlds.
         private func fetchAllAnchors() async throws -> [AnchorEntity] {
-            let allWorlds = try await withCheckedThrowingContinuation { continuation in
-                WorldManager.shared.loadSavedWorlds {
-                    continuation.resume(returning: WorldManager.shared.savedWorlds)
-                }
-            }
+            let allWorlds: [WorldModel] = try await WorldManager.shared.loadSavedWorldsAsyncForIntents()
 
             var anchors: [AnchorEntity] = []
             await withTaskGroup(of: [AnchorEntity].self) { group in
                 for world in allWorlds {
                     group.addTask {
                         await withCheckedContinuation { innerContinuation in
-                            WorldManager.shared.getAnchorNames(for: world.name) { fetchedAnchors in
-                                let filteredAnchors = fetchedAnchors
-                                    .filter { $0.lowercased() != "guide" } // Exclude "guide"
-                                    .map { anchorName -> AnchorEntity in
-                                        // Retrieve or assign a persistent UUID
-                                        let uuid = AnchorUUIDManager.shared.uuid(for: world.name, anchorName: anchorName)
-                                        return AnchorEntity(id: uuid, name: anchorName, worldName: world.name)
-                                    }
-
-                                innerContinuation.resume(returning: filteredAnchors)
+                            Task { @MainActor in
+                                WorldManager.shared.getAnchorNames(for: world.name) { fetchedAnchors in
+                                    let filteredAnchors = fetchedAnchors
+                                        .filter { $0.lowercased() != "guide" } // Exclude "guide"
+                                        .map { anchorName -> AnchorEntity in
+                                            // Retrieve or assign a persistent UUID
+                                            let uuid = AnchorUUIDManager.shared.uuid(for: world.name, anchorName: anchorName)
+                                            return AnchorEntity(id: uuid, name: anchorName, worldName: world.name)
+                                        }
+                                    
+                                    innerContinuation.resume(returning: filteredAnchors)
+                                }
                             }
                         }
                     }
