@@ -35,6 +35,8 @@ struct WorldsView: View {
     @State private var isOpeningFromAnchorListView = false
     
     @Namespace private var animationNamespace
+    @State private var isShowingQR = false
+
     enum SortingOption {
          case name
          case lastModified
@@ -268,6 +270,20 @@ struct WorldsView: View {
                                                 
                                             }
                                             
+                                            Button {
+                                                isShowingQR = true
+                                            } label: {
+                                                HStack {
+                                                    Text("Share QR code")
+                                                    Image(systemName: "qrcode")
+                                                        .font(.title2)
+                                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                                    
+                                                }
+                                                .font(.title2)
+                                                
+                                            }
+                                            
                                             Button(role: .destructive) {
                                                 worldManager.deleteWorld(roomName: world.name) {
                                                     print("Deletion process completed.")
@@ -433,6 +449,11 @@ struct WorldsView: View {
                         .presentationDetents([.fraction(0.4)])
 
                         
+                }
+                .sheet(isPresented: $isShowingQR) {
+                    QRview(roomName: currentName)
+                        .presentationDetents([.fraction(0.5)])
+
                 }
             
           

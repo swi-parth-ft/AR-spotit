@@ -22,7 +22,7 @@ struct AnchorsListView: View {
     @State private var showFocusedAnchor: Bool = false
     @Binding var isOpeningFromAnchorListView: Bool
     @State private var isLoading = true
-    
+    @State private var isShowingQR = false
     let columns = [
         GridItem(.flexible(), spacing: 10),
         GridItem(.flexible(), spacing: 10),
@@ -237,6 +237,11 @@ struct AnchorsListView: View {
                            print("ContentView dismissed")
                        }
                 }
+                .sheet(isPresented: $isShowingQR) {
+                    QRview(roomName: worldName)
+                        .presentationDetents([.fraction(0.5)])
+
+                }
                 .navigationTitle(worldName)
                 .toolbar {
                     Button(action: {
@@ -286,6 +291,20 @@ struct AnchorsListView: View {
                             HStack {
                                 Text("Share iCloud link")
                                 Image(systemName: "link.icloud")
+                                    .font(.title2)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                
+                            }
+                            .font(.title2)
+                            
+                        }
+                        
+                        Button {
+                            isShowingQR = true
+                        } label: {
+                            HStack {
+                                Text("Share QR code")
+                                Image(systemName: "qrcode")
                                     .font(.title2)
                                     .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 

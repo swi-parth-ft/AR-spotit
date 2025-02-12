@@ -305,6 +305,17 @@ class iCloudManager {
         }
         let share = CKShare(rootRecord: record)
         share[CKShare.SystemFieldKey.title] = roomName as CKRecordValue
+        
+        let snapshotPath = WorldModel.appSupportDirectory
+            .appendingPathComponent("\(roomName)_snapshot.png")
+        
+        if FileManager.default.fileExists(atPath: snapshotPath.path),
+           let uiImage = UIImage(contentsOfFile: snapshotPath.path) {
+            if let jpegData = uiImage.jpegData(compressionQuality: 0.3) {
+                   share[CKShare.SystemFieldKey.thumbnailImageData] = jpegData
+               }
+        }
+    
         share.publicPermission = .readOnly
         self.subscribeToWorldUpdates(for: roomName)
         let modifyOp = CKModifyRecordsOperation(recordsToSave: [record, share], recordIDsToDelete: nil)
