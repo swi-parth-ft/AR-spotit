@@ -31,6 +31,7 @@ struct AR_spotitApp: App {
         WindowGroup {
             ZStack {
                 WorldsView()
+                    .accentColor(.primary)
                     .onContinueUserActivity(CSSearchableItemActionType, perform: handleSpotlightActivity)
                     .onOpenURL { url in
                         print("SwiftUI onOpenURL received: \(url.absoluteString)")

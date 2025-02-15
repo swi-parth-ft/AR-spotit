@@ -24,7 +24,7 @@ struct QRview: View {
                         RoundedRectangle(cornerRadius: 18)
                             .fill(.white)
                             .frame(width: 210, height: 210)
-                            .shadow(radius: 10)
+                            .shadow(color: .primary, radius: 10)
                         
                         Image(uiImage: image)
                             .resizable()

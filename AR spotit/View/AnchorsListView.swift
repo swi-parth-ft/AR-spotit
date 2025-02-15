@@ -23,6 +23,8 @@ struct AnchorsListView: View {
     @Binding var isOpeningFromAnchorListView: Bool
     @State private var isLoading = true
     @State private var isShowingQR = false
+    @State private var searchText: String = ""
+
     let columns = [
         GridItem(.flexible(), spacing: 10),
         GridItem(.flexible(), spacing: 10),
@@ -38,6 +40,15 @@ struct AnchorsListView: View {
             return nil
     }
     
+    var filteredAnchors: [String] {
+         guard let anchors = anchorsByWorld[worldName] else { return [] }
+         return anchors.filter { anchor in
+             guard anchor != "guide" else { return false }
+             // Remove any emojis from the anchor name before searching.
+             let cleanAnchor = anchor.filter { !$0.isEmoji }
+             return searchText.isEmpty || cleanAnchor.localizedCaseInsensitiveContains(searchText)
+         }
+     }
     
     var body: some View {
         // Anchors Section
@@ -134,18 +145,23 @@ struct AnchorsListView: View {
                     
                     LazyVGrid(columns: columns, spacing: 10) {
                         if let anchors = anchorsByWorld[worldName], !anchors.isEmpty {
-                            // Filter out "guide" anchors
-                            
-                            
-                            //                    let anchors = filteredAnchors(for: world.name)
-                            let filteredAnchors = anchors.filter { $0 != "guide" }
+//                            // Filter out "guide" anchors
+//                            
+//                            
+//                            //                    let anchors = filteredAnchors(for: world.name)
+//                            let filteredAnchors = anchors.filter { $0 != "guide" }
                             // Show non-guide anchors
                             ForEach(Array(filteredAnchors.enumerated()), id: \.0) { index, anchorName in
                                 VStack {
                                     // Extract and display the emoji if present
                                     let emoji = extractEmoji(from: anchorName)
-                                    Text(emoji ?? "📍")
-                                        .font(.system(size: 50))
+                                    HStack {
+                                        Text(emoji ?? "📍")
+                                            .font(.system(size: 50))
+                                        Spacer()
+                                    }
+                                    .frame(maxWidth: .infinity)
+
                                     // Display the anchor name without the emoji
                                     let cleanAnchorName = anchorName.filter { !$0.isEmoji }
                                     Text(cleanAnchorName)
@@ -160,7 +176,13 @@ struct AnchorsListView: View {
                                 .frame(height: 110)
                                 .padding()
                                 .background(
-                                    Color(getDominantColor(for: extractEmoji(from: anchorName) ?? "📍")).opacity(0.9) // Use extracted color
+                                    VStack {
+                                        Spacer().frame(height: 55)
+
+                                        Color(getDominantColor(for: extractEmoji(from: anchorName) ?? "📍")).opacity(0.9).frame(height: 55) // Use extracted color
+                                            .cornerRadius(22)
+
+                                    }
                                 )
                                 .cornerRadius(22)
                                 .shadow(color: Color(getDominantColor(for: extractEmoji(from: anchorName) ?? "📍")).opacity(0.7), radius: 7)
@@ -185,6 +207,9 @@ struct AnchorsListView: View {
                     
                 }
                 .ignoresSafeArea()
+                .searchable(text: $searchText,
+                                          placement: .navigationBarDrawer(displayMode: .automatic),
+                            prompt: "Search Anchors").tint(colorScheme == .dark ? .white : .black)
                 .sheet(isPresented: $isRenaming, onDismiss: {
                     dismiss()
                 }) {

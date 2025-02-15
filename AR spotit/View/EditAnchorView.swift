@@ -8,7 +8,7 @@ struct EditAnchorView: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var emoji: String = ""
     @State private var isRenaming = false
-    
+    @FocusState private var isTextFieldFocused: Bool
     @State private var selectedEmoji: EmojiDetails? = {
           let emojis = loadEmojis()
           return emojis.first { $0.id == "🎣" }
@@ -70,11 +70,16 @@ struct EditAnchorView: View {
                         
                         
                         TextField("Enter New Name", text: $newName)
+                            .focused($isTextFieldFocused)
                             .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .padding()
                             .frame(height: 55)
                             .background(Color.secondary.opacity(0.4))
                             .cornerRadius(10)
+                            .tint(.primary)
+                            .onAppear {
+                                        isTextFieldFocused = true
+                                    }
                         
                         
                         Button {

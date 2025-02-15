@@ -11,7 +11,7 @@ struct AddAnchorView: View {
     
     @Binding  var anchorName: String
     @ObservedObject var worldManager: WorldManager
-
+    @FocusState private var isTextFieldFocused: Bool
     @State private var emoji: String = ""
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
@@ -49,12 +49,17 @@ struct AddAnchorView: View {
                     .foregroundStyle(.gray)
                     .padding(.horizontal)
                 TextField("Name", text: $anchorName)
+                    .focused($isTextFieldFocused)
                     .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding()
                     .frame(height: 55)
                     .background(Color.secondary.opacity(0.4))
                     .cornerRadius(10)
+                    .tint(.primary)
                     .padding(.horizontal)
+                    .onAppear {
+                                isTextFieldFocused = true
+                            }
                 
                
                 

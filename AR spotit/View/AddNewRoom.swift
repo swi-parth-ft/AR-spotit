@@ -13,7 +13,7 @@ struct AddNewRoom: View {
     @State private var isShowingGuide: Bool = false
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
-
+    @FocusState private var isTextFieldFocused: Bool
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading) {
@@ -22,12 +22,17 @@ struct AddNewRoom: View {
                     .foregroundStyle(.gray)
                     .padding(.horizontal)
                 TextField("Name", text: $roomName)
+                    .focused($isTextFieldFocused)
                     .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding()
                     .frame(height: 55)
                     .background(Color.secondary.opacity(0.4))
                     .cornerRadius(10)
+                    .tint(.primary)
                     .padding(.horizontal)
+                    .onAppear {
+                                isTextFieldFocused = true
+                            }
                 
                 Button {
                     dismiss()
