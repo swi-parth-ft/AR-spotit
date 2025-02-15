@@ -224,98 +224,99 @@ struct WorldsView: View {
                                             Image(systemName: "arkit")
                                                 .font(.title)
                                                 .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                            
                                         }
                                         
-                                        Menu {
-                                            Button {
-                                                HapticManager.shared.impact(style: .medium)
-
-                                                isRenaming.toggle()
-                                            } label: {
-                                                HStack {
-                                                    Text("Rename")
-                                                    Image(systemName: "character.cursor.ibeam")
-                                                        .font(.title)
-                                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                                                }
-                                            }
-                                            
-                                            Button {
-                                                worldManager.shareWorld(currentRoomName: world.name)
-                                                HapticManager.shared.impact(style: .medium)
-
-                                            } label: {
-                                                HStack {
-                                                    Text("Share")
-                                                    Image(systemName: "square.and.arrow.up")
-                                                        .font(.title)
-                                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-
-                                                }
-                                                .font(.title)
-                                                
-                                            }
-                                            
-                                            Button {
-                                                worldManager.shareWorldViaCloudKit(roomName: world.name)
-                                            } label: {
-                                                HStack {
-                                                    Text("Share iCloud link")
-                                                    Image(systemName: "link.icloud")
-                                                        .font(.title2)
-                                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                                                    
-                                                }
-                                                .font(.title2)
-                                                
-                                            }
-                                            
-                                            Button {
-                                                isShowingQR = true
-                                            } label: {
-                                                HStack {
-                                                    Text("Share QR code")
-                                                    Image(systemName: "qrcode")
-                                                        .font(.title2)
-                                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                                                    
-                                                }
-                                                .font(.title2)
-                                                
-                                            }
-                                            
-                                            Button(role: .destructive) {
-                                                worldManager.deleteWorld(roomName: world.name) {
-                                                    print("Deletion process completed.")
-                                                    let drop = Drop.init(title: "\(world.name) deleted!")
-                                                    Drops.show(drop)
-                                                    HapticManager.shared.notification(type: .success)
-
-                                                }
-                                            } label: {
-                                                HStack {
-                                                    Text("Delete")
-                                                        .foregroundColor(.red) // Use this for text
-                                                    Image(systemName: "trash.fill")
-                                                        .foregroundStyle(.red)
-                                                        
-                                                }
-                                                .font(.title)
-                                                
-                                            }
-                                            
-                                            .onAppear {
-                                                currentName = world.name
-                                            }
-                                            
-                                            
-                                            
-                                            
-                                        } label: {
-                                            Image(systemName: "ellipsis.circle")
-                                                .font(.title)
-                                                .foregroundStyle(colorScheme == .dark ? .white : .black)
-                                        }
+//                                        Menu {
+//                                            Button {
+//                                                HapticManager.shared.impact(style: .medium)
+//
+//                                                isRenaming.toggle()
+//                                            } label: {
+//                                                HStack {
+//                                                    Text("Rename")
+//                                                    Image(systemName: "character.cursor.ibeam")
+//                                                        .font(.title)
+//                                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+//                                                }
+//                                            }
+//                                            
+//                                            Button {
+//                                                worldManager.shareWorld(currentRoomName: world.name)
+//                                                HapticManager.shared.impact(style: .medium)
+//
+//                                            } label: {
+//                                                HStack {
+//                                                    Text("Share")
+//                                                    Image(systemName: "square.and.arrow.up")
+//                                                        .font(.title)
+//                                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+//
+//                                                }
+//                                                .font(.title)
+//                                                
+//                                            }
+//                                            
+//                                            Button {
+//                                                worldManager.shareWorldViaCloudKit(roomName: world.name)
+//                                            } label: {
+//                                                HStack {
+//                                                    Text("Share iCloud link")
+//                                                    Image(systemName: "link.icloud")
+//                                                        .font(.title2)
+//                                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+//                                                    
+//                                                }
+//                                                .font(.title2)
+//                                                
+//                                            }
+//                                            
+//                                            Button {
+//                                                isShowingQR = true
+//                                            } label: {
+//                                                HStack {
+//                                                    Text("Share QR code")
+//                                                    Image(systemName: "qrcode")
+//                                                        .font(.title2)
+//                                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+//                                                    
+//                                                }
+//                                                .font(.title2)
+//                                                
+//                                            }
+//                                            
+//                                            Button(role: .destructive) {
+//                                                worldManager.deleteWorld(roomName: world.name) {
+//                                                    print("Deletion process completed.")
+//                                                    let drop = Drop.init(title: "\(world.name) deleted!")
+//                                                    Drops.show(drop)
+//                                                    HapticManager.shared.notification(type: .success)
+//
+//                                                }
+//                                            } label: {
+//                                                HStack {
+//                                                    Text("Delete")
+//                                                        .foregroundColor(.red) // Use this for text
+//                                                    Image(systemName: "trash.fill")
+//                                                        .foregroundStyle(.red)
+//                                                        
+//                                                }
+//                                                .font(.title)
+//                                                
+//                                            }
+//                                            
+//                                            .onAppear {
+//                                                currentName = world.name
+//                                            }
+//                                            
+//                                            
+//                                            
+//                                            
+//                                        } label: {
+//                                            Image(systemName: "ellipsis.circle")
+//                                                .font(.title)
+//                                                .foregroundStyle(colorScheme == .dark ? .white : .black)
+//                                        }
                                         
 
                                     }
@@ -339,6 +340,88 @@ struct WorldsView: View {
                                     
                                     isShowingAnchors = true
                               //  }
+                            }
+                            .contextMenu {
+                                Button {
+                                    HapticManager.shared.impact(style: .medium)
+
+                                    isRenaming.toggle()
+                                } label: {
+                                    HStack {
+                                        Text("Rename")
+                                        Image(systemName: "character.cursor.ibeam")
+                                            .font(.title)
+                                            .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                    }
+                                }
+                                
+                                Button {
+                                    worldManager.shareWorld(currentRoomName: world.name)
+                                    HapticManager.shared.impact(style: .medium)
+
+                                } label: {
+                                    HStack {
+                                        Text("Share")
+                                        Image(systemName: "square.and.arrow.up")
+                                            .font(.title)
+                                            .foregroundStyle(colorScheme == .dark ? .white : .black)
+
+                                    }
+                                    .font(.title)
+                                    
+                                }
+                                
+                                Button {
+                                    worldManager.shareWorldViaCloudKit(roomName: world.name)
+                                } label: {
+                                    HStack {
+                                        Text("Share iCloud link")
+                                        Image(systemName: "link.icloud")
+                                            .font(.title2)
+                                            .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                        
+                                    }
+                                    .font(.title2)
+                                    
+                                }
+                                
+                                Button {
+                                    isShowingQR = true
+                                } label: {
+                                    HStack {
+                                        Text("Share QR code")
+                                        Image(systemName: "qrcode")
+                                            .font(.title2)
+                                            .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                        
+                                    }
+                                    .font(.title2)
+                                    
+                                }
+                                
+                                Button(role: .destructive) {
+                                    worldManager.deleteWorld(roomName: world.name) {
+                                        print("Deletion process completed.")
+                                        let drop = Drop.init(title: "\(world.name) deleted!")
+                                        Drops.show(drop)
+                                        HapticManager.shared.notification(type: .success)
+
+                                    }
+                                } label: {
+                                    HStack {
+                                        Text("Delete")
+                                            .foregroundColor(.red) // Use this for text
+                                        Image(systemName: "trash.fill")
+                                            .foregroundStyle(.red)
+                                            
+                                    }
+                                    .font(.title)
+                                    
+                                }
+                                
+                                .onAppear {
+                                    currentName = world.name
+                                }
                             }
                             
                            
