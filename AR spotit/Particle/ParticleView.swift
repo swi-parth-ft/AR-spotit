@@ -23,6 +23,8 @@ struct CircleView: View {
                     .frame(width: 700, height: 560)
                     .padding(.top, -520)
                 
+              
+
                 Spacer()
                
             }

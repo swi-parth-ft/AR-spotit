@@ -310,51 +310,53 @@ struct ContentView: View {
                                     }
                                     .shadow(color: Color.white.opacity(0.5), radius: 10)
                                     
-                                    if findAnchor == "" {
-                                        Button {
-                                            
-                                            showAnchorListSheet = true
-                                            
-                                        } label: {
-                                            ZStack {
+                                    
+                                    if isOpeningSharedWorld {
+                                        if findAnchor == "" {
+                                            Button {
                                                 
+                                                showAnchorListSheet = true
+                                                
+                                            } label: {
+                                                ZStack {
+                                                    
                                                     // White ring when flashlight is ON
                                                     Circle()
                                                         .stroke(Color.white, lineWidth: 4)
                                                         .frame(width: 54, height: 54)
-                                                
-                                                // Flashlight icon
-                                                Image(systemName: "magnifyingglass")
-                                                    .foregroundStyle(.white)
-                                                    .font(.title)
+                                                    
+                                                    // Flashlight icon
+                                                    Image(systemName: "magnifyingglass")
+                                                        .foregroundStyle(.white)
+                                                        .font(.title)
+                                                }
                                             }
-                                        }
-                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                        
-                                    } else {
-                                        Button {
-                                            withAnimation {
-                                                findAnchor = ""
-                                            }
-                                            worldManager.isShowingAll = true
-
-                                        } label: {
-                                            ZStack {
+                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                            
+                                        } else {
+                                            Button {
+                                                withAnimation {
+                                                    findAnchor = ""
+                                                }
+                                                worldManager.isShowingAll = true
                                                 
+                                            } label: {
+                                                ZStack {
+                                                    
                                                     // Solid white background when flashlight is OFF
                                                     Circle()
                                                         .fill(Color.white)
                                                         .frame(width: 56, height: 56)
-                                                
-                                                // Flashlight icon
-                                                Image(systemName: "xmark")
-                                                    .foregroundStyle(.black)
-                                                    .font(.title)
+                                                    
+                                                    // Flashlight icon
+                                                    Image(systemName: "xmark")
+                                                        .foregroundStyle(.black)
+                                                        .font(.title)
+                                                }
                                             }
+                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
                                         }
-                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
                                     }
-                                    
                                     
                                     
                                     if findAnchor != "" {
@@ -423,6 +425,7 @@ struct ContentView: View {
                                 HStack {
                                     
                                     Button {
+                                        isFlashlightOn = false
                                         shouldPlay = false
                                         findAnchor = ""
                                         worldManager.isWorldLoaded = false

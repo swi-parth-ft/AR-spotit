@@ -46,8 +46,8 @@ class WorldManager: ObservableObject {
     
     // MARK: - Save World Map
     func saveWorldMap(for roomName: String, sceneView: ARSCNView) {
-        sceneView.session.getCurrentWorldMap { [weak self] worldMap, error in
-            guard let self = self, let map = worldMap else { return }
+        sceneView.session.getCurrentWorldMap { worldMap, error in
+            guard let map = worldMap else { return }
             let timestamp = Date()
             var isNew = true
             if let index = self.savedWorlds.firstIndex(where: { $0.name == roomName }) {
@@ -329,7 +329,7 @@ class WorldManager: ObservableObject {
             return
         }
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let destinationURL = documentsURL.appendingPathComponent("\(currentRoomName)_worldMap.worldmap")
+        let destinationURL = documentsURL.appendingPathComponent("\(currentRoomName)_Map.worldmap")
         do {
             if FileManager.default.fileExists(atPath: destinationURL.path) {
                 try FileManager.default.removeItem(at: destinationURL)

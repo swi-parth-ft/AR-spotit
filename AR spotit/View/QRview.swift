@@ -19,13 +19,24 @@ struct QRview: View {
             VStack(spacing: 20) {
                 // Display the QR code image if available
                 if let image = qrImage {
-                    Image(uiImage: image)
-                        .resizable()
-                        .interpolation(.none) // Keeps the QR code sharp
-                        .scaledToFit()
-                        .frame(width: 200, height: 200)
-                        .cornerRadius(12)
-                        .shadow(radius: 10)
+                    ZStack {
+                        
+                        RoundedRectangle(cornerRadius: 18)
+                            .fill(.white)
+                            .frame(width: 210, height: 210)
+                            .shadow(radius: 10)
+                        
+                        Image(uiImage: image)
+                            .resizable()
+                            .interpolation(.none) // Keeps the QR code sharp
+                            .scaledToFit()
+                            .frame(width: 200, height: 200)
+                        
+//                        ParticleQRAnimation(image: image)
+//                            .frame(width: 200, height: 200)
+
+                           
+                    }
                 } else {
                     ProgressView("Generating QR Code...")
                 }
@@ -46,7 +57,9 @@ struct QRview: View {
                         return
                     }
                     self.shareURL = url
-                    self.qrImage = generateQRCode(from: url.absoluteString)
+                    withAnimation(.bouncy) {
+                        self.qrImage = generateQRCode(from: url.absoluteString)
+                    }
                 }
             }
             .navigationTitle("Share \(roomName)")
@@ -57,7 +70,9 @@ struct QRview: View {
                     }
                 } label: {
                     Image(systemName: "square.and.arrow.up")
+                        .font(.title2)
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
+                    
                 }
                 .disabled(qrImage == nil)
 
