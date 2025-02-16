@@ -87,6 +87,13 @@ struct ContentView: View {
                                     angle: $angle,
                                     distanceForUI: $distance)
                     .onAppear {
+                        if AppState.shared.isiCloudShare {
+                            WorldManager.shared.loadSavedWorlds {
+                                print("Loaded saved worlds: \(WorldManager.shared.savedWorlds)")
+                                WorldManager.shared.restoreCollaborativeWorldAndRestartSession(sceneView: sceneView)
+                                
+                            }
+                        }
                         if findAnchor != "" {
                             worldManager.isShowingAll = false
                         }
@@ -102,7 +109,7 @@ struct ContentView: View {
                             audioEngine.reset()
                         }
                         
-                        sceneView.session.pause()
+                     //   sceneView.session.pause()
                         
                     }
                     
@@ -259,7 +266,7 @@ struct ContentView: View {
                                 
                                 HStack(spacing: 10) {
                                     
-                                    if !isOpeningSharedWorld {
+                                 //   if !isOpeningSharedWorld {
                                         Button {
                                             //   worldManager.isAddingAnchor.toggle()
                                             isAddingNewAnchor.toggle()
@@ -281,7 +288,7 @@ struct ContentView: View {
                                             
                                         }
                                         .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                    }
+                                    //}
                                     
                                     
                                     

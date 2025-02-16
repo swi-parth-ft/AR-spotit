@@ -35,6 +35,7 @@ struct AddNewRoom: View {
                             }
                 
                 Button {
+                    
                     dismiss()
                     //selectedWorld = WorldModel(name: roomName)
                 } label: {
@@ -49,6 +50,9 @@ struct AddNewRoom: View {
                         .cornerRadius(10)
                 }
                 .padding(.horizontal)
+            }
+            .onAppear {
+                roomName = ""
             }
             .navigationTitle("New Area")
             .sheet(isPresented: $isShowingGuide) {
@@ -68,6 +72,7 @@ struct AddNewRoom: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         roomName = ""
+
                         dismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")

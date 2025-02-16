@@ -1,4 +1,6 @@
-//
+
+
+////
 //  WorldManager.swift
 //  AR spotit
 //
@@ -10,18 +12,20 @@ import CloudKit
 import SwiftUI
 import CoreSpotlight
 
-@MainActor
+
 class WorldManager: ObservableObject {
     static let shared = WorldManager()
     
     lazy var iCloudManager: iCloudManager = {
         return it_s_here_.iCloudManager(worldManager: self)
     }()
-    
+    var currentWorldRecord: CKRecord? // The shared world (root) record.
+    @Published var currentRoomName: String = ""
+    @Published var sharedZoneID: CKRecordZone.ID? = nil
     let recordType = "ARWorldMapRecord"
     var anchorMapping: [String: ARAnchor] = [:]
     var currentWorldName: String = ""
-    
+    @Published var isCollaborative: Bool = false
     @Published var sharedARWorldMap: ARWorldMap?
     @Published var sharedWorldName: String?
     @Published var sharedWorldsAnchors: [String] = []
@@ -43,7 +47,23 @@ class WorldManager: ObservableObject {
     @Published var is3DArrowActive = false
 
     init() { }
-    
+    func startCollaborativeSession(with sharedRecord: CKRecord, roomName: String) {
+        DispatchQueue.main.async {
+
+           self.currentWorldRecord = sharedRecord
+            self.currentRoomName = roomName
+            self.isCollaborative = true
+        }
+           print("Collaborative session started for room: \(roomName)")
+       }
+       
+       /// Call this to exit collaborative mode if needed.
+       func endCollaborativeSession() {
+           self.currentWorldRecord = nil
+           self.currentRoomName = ""
+           self.isCollaborative = false
+           print("Collaborative session ended.")
+       }
     // MARK: - Save World Map
     func saveWorldMap(for roomName: String, sceneView: ARSCNView) {
         sceneView.session.getCurrentWorldMap { worldMap, error in
@@ -96,7 +116,6 @@ class WorldManager: ObservableObject {
             }
         }
     }
- 
     // MARK: - Load World Map
     func loadWorldMap(for roomName: String, sceneView: ARSCNView) {
         print("Attempting to load world map for room: \(roomName)")
@@ -385,29 +404,75 @@ class WorldManager: ObservableObject {
         }
     }
     
+    /// Fetches the world record for a given room name.
+    func fetchWorldRecord(for roomName: String, completion: @escaping (CKRecord?) -> Void) {
+        let predicate = NSPredicate(format: "roomName == %@", roomName)
+        CloudKitService.shared.performQuery(
+            recordType: recordType,
+            predicate: predicate,
+            zoneID: iCloudManager.customZoneID,
+            desiredKeys: ["roomName"]
+        ) { result in
+            switch result {
+            case .success(let records):
+                completion(records.first)
+            case .failure(let error):
+                print("Error fetching world record: \(error.localizedDescription)")
+                completion(nil)
+            }
+        }
+    }
     //MARK: Share iCloud Link
+    // In WorldManager.swift
+
     func shareWorldViaCloudKit(roomName: String) {
+        // Call createShareLink as before.
         it_s_here_.iCloudManager(worldManager: self).createShareLink(for: roomName) { shareURL in
             guard let shareURL = shareURL else {
                 print("Failed to create share URL.")
                 return
             }
-            DispatchQueue.main.async {
-                let activityController = UIActivityViewController(activityItems: [shareURL], applicationActivities: nil)
-                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                   let rootViewController = windowScene.windows.first?.rootViewController {
-                    if let presentedVC = rootViewController.presentedViewController {
-                        presentedVC.dismiss(animated: false) {
+            
+            // Fetch the world record for this room.
+            self.fetchWorldRecord(for: roomName) { record in
+                if let record = record {
+                    // Set up the collaborative session so currentWorldRecord is set.
+                    self.startCollaborativeSession(with: record, roomName: roomName)
+                    
+                    // Update the saved world model.
+                    if let index = self.savedWorlds.firstIndex(where: { $0.name == roomName }) {
+                        DispatchQueue.main.async {
+                            self.savedWorlds[index].cloudRecordID = record.recordID.recordName
+                            self.savedWorlds[index].isCollaborative = true
+                            self.saveWorldList()
+
+                        }
+                       
+                        print("Collaborative info updated for room: \(roomName)")
+                    } else {
+                        print("Saved world for \(roomName) not found.")
+                    }
+                } else {
+                    print("World record for \(roomName) not found.")
+                }
+                
+                // Now present the share UI.
+                DispatchQueue.main.async {
+                    let activityController = UIActivityViewController(activityItems: [shareURL], applicationActivities: nil)
+                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                       let rootViewController = windowScene.windows.first?.rootViewController {
+                        if let presentedVC = rootViewController.presentedViewController {
+                            presentedVC.dismiss(animated: false) {
+                                rootViewController.present(activityController, animated: true, completion: nil)
+                            }
+                        } else {
                             rootViewController.present(activityController, animated: true, completion: nil)
                         }
-                    } else {
-                        rootViewController.present(activityController, animated: true, completion: nil)
                     }
                 }
             }
         }
     }
-
     //MARK: Fetch names from cloudKit
     func fetchWorldNamesFromCloudKit(completion: @escaping () -> Void) {
         let privateDB = CKContainer.default().privateCloudDatabase
@@ -443,6 +508,62 @@ class WorldManager: ObservableObject {
             case .failure(let error):
                 print("Error fetching world names from CloudKit: \(error.localizedDescription)")
                 completion()
+            }
+        }
+    }
+    
+    // MARK: - Restore Collaborative World from Persistent Storage
+    func restoreCollaborativeWorld() {
+        print("Restoring collaborative world. Saved worlds: \(self.savedWorlds)")
+        guard let collabWorld = self.savedWorlds.first(where: { $0.isCollaborative && $0.cloudRecordID != nil }) else {
+            print("No collaborative world found in saved worlds.")
+            return
+        }
+        let recordID = CKRecord.ID(recordName: collabWorld.cloudRecordID!, zoneID: self.iCloudManager.customZoneID)
+        CKContainer.default().privateCloudDatabase.fetch(withRecordID: recordID) { record, error in
+            DispatchQueue.main.async {
+                if let record = record {
+                    self.currentWorldRecord = record
+                    print("Collaborative world restored from CloudKit.")
+                } else {
+                    print("Error restoring collaborative world: \(error?.localizedDescription ?? "unknown error")")
+                }
+            }
+        }
+    }
+    
+    func restoreCollaborativeWorldAndRestartSession(sceneView: ARSCNView) {
+        print("Restoring collaborative world. Saved worlds: \(self.savedWorlds)")
+        guard let collabWorld = self.savedWorlds.first(where: { $0.isCollaborative && $0.cloudRecordID != nil }) else {
+            print("No collaborative world found in saved worlds.")
+            return
+        }
+        let recordID = CKRecord.ID(recordName: collabWorld.cloudRecordID!, zoneID: self.iCloudManager.customZoneID)
+        CKContainer.default().privateCloudDatabase.fetch(withRecordID: recordID) { record, error in
+            DispatchQueue.main.async {
+                if let record = record {
+                    self.currentWorldRecord = record
+                    print("Collaborative world restored from CloudKit.")
+                    // Load the shared ARWorldMap from the saved file.
+                    let filePath = collabWorld.filePath
+                    if let data = try? Data(contentsOf: filePath),
+                       let container = try? NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMapContainer.self, from: data) {
+                        let sharedMap = container.map
+                        // Restart the AR session with the shared world map.
+                        let configuration = ARWorldTrackingConfiguration()
+                        configuration.initialWorldMap = sharedMap
+                        configuration.planeDetection = [.horizontal, .vertical]
+                        if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
+                            configuration.sceneReconstruction = .mesh
+                        }
+                        sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
+                        print("AR session restarted with shared world map.")
+                    } else {
+                        print("Failed to load shared world map from local file.")
+                    }
+                } else {
+                    print("Error restoring collaborative world: \(error?.localizedDescription ?? "unknown error")")
+                }
             }
         }
     }

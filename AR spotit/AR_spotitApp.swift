@@ -18,6 +18,11 @@ class AppState: ObservableObject {
             print("isWorldUpdated changed to: \(isWorldUpdated)")
         }
     }
+    @Published var isiCloudShare: Bool = false {
+        didSet {
+            print("isCloudShare changed to: \(isiCloudShare)")
+        }
+    }
 }
 
 @main
@@ -65,6 +70,7 @@ struct AR_spotitApp: App {
                 }
             }
             .onAppear {
+                iCloudManager.shared.worldManager = WorldManager.shared
                 Task {
                     try await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
                     withAnimation {
@@ -96,7 +102,20 @@ private extension AR_spotitApp {
     
     
 
-    private func processSharedRecord(_ sharedRecord: CKRecord) {
+    private func processSharedRecord(_ sharedRecord: CKRecord, withShare share: CKShare) {
+    
+        DispatchQueue.main.async {
+            WorldManager.shared.sharedZoneID = share.recordID.zoneID
+            print("Shared zone ID set to: \(WorldManager.shared.sharedZoneID!)")
+
+            AppState.shared.isiCloudShare = true
+        }
+        let roomName = sharedRecord["roomName"] as? String ?? "Untitled"
+          
+          // Start a collaborative session in WorldManager
+          WorldManager.shared.startCollaborativeSession(with: sharedRecord, roomName: roomName)
+        
+        
         guard
             let asset = sharedRecord["mapAsset"] as? CKAsset,
             let assetFileURL = asset.fileURL
@@ -197,7 +216,7 @@ private extension AR_spotitApp {
             }
             if let sharedRecord = share.value(forKey: "rootRecord") as? CKRecord {
                 print("Fetched sharedRecord from share: \(sharedRecord.recordID)")
-                self.processSharedRecord(sharedRecord)
+                self.processSharedRecord(sharedRecord, withShare: share)
             } else {
                 let rootRecordID = metadata.rootRecordID
                 print("No rootRecord in share; fetching using rootRecordID: \(rootRecordID)")
@@ -206,7 +225,7 @@ private extension AR_spotitApp {
                         print("Error fetching root record: \(fetchError.localizedDescription)")
                     } else if let fetchedRecord = fetchedRecord {
                         print("Fetched root record via fetch: \(fetchedRecord.recordID)")
-                        self.processSharedRecord(fetchedRecord)
+                        self.processSharedRecord(fetchedRecord, withShare: share)
                     }
                 }
             }
@@ -245,7 +264,7 @@ private extension AR_spotitApp {
                 }
                 if let sharedRecord = share.value(forKey: "rootRecord") as? CKRecord {
                     print("Fetched sharedRecord from share: \(sharedRecord.recordID)")
-                    self.processSharedRecord(sharedRecord)
+                    self.processSharedRecord(sharedRecord, withShare: share)
                 } else {
                     let rootRecordID = metadata.rootRecordID
                     print("No rootRecord in share; fetching using rootRecordID: \(rootRecordID)")
@@ -254,7 +273,7 @@ private extension AR_spotitApp {
                             print("Error fetching root record: \(fetchError.localizedDescription)")
                         } else if let fetchedRecord = fetchedRecord {
                             print("Fetched root record via fetch: \(fetchedRecord.recordID)")
-                            self.processSharedRecord(fetchedRecord)
+                            self.processSharedRecord(fetchedRecord, withShare: share)
                         }
                     }
                 }

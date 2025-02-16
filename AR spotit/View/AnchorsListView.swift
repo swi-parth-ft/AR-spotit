@@ -173,7 +173,7 @@ struct AnchorsListView: View {
                                 }
                                 .frame(maxWidth: .infinity)
                                 
-                                .frame(height: 110)
+                                .frame(height: 90)
                                 .padding()
                                 .background(
                                     VStack {
@@ -203,13 +203,14 @@ struct AnchorsListView: View {
                     }
                     .padding()
                     .padding(.top, -60)
+                    .searchable(text: $searchText,
+                                              placement: .navigationBarDrawer(displayMode: .automatic),
+                                prompt: "Search Anchors").tint(colorScheme == .dark ? .white : .black)
                     
                     
                 }
                 .ignoresSafeArea()
-                .searchable(text: $searchText,
-                                          placement: .navigationBarDrawer(displayMode: .automatic),
-                            prompt: "Search Anchors").tint(colorScheme == .dark ? .white : .black)
+                
                 .sheet(isPresented: $isRenaming, onDismiss: {
                     dismiss()
                 }) {

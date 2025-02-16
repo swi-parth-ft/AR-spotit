@@ -8,6 +8,8 @@ struct WorldModel: Identifiable, Codable {
     var isCollaborative: Bool = false
     var sessionToken: String? = nil
     
+    var cloudRecordID: String?
+
     // Computed property for dynamic file path
     var filePath: URL {
         let fileName: String

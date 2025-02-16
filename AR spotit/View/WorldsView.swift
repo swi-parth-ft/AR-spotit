@@ -414,7 +414,7 @@ struct WorldsView: View {
                                                     
                                                 }
                                                 .frame(maxWidth: .infinity)
-                                                .frame(height: 110)
+                                                .frame(height: 90)
                                                 .padding()
                                                 .background(
                                                     VStack {

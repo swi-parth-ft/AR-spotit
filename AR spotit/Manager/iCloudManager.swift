@@ -13,6 +13,7 @@ import Drops
 let CKErrorPartialErrorsByItemIDKey = "CKErrorPartialErrorsByItemIDKey"
 
 class iCloudManager {
+    static let shared = iCloudManager(worldManager: nil)
     private let recordType = "ARWorldMapRecord"
     let customZoneID = CKRecordZone.ID(zoneName: "ARWorldMapZone", ownerName: CKCurrentUserDefaultName)
     private let privateDB = CKContainer.default().privateCloudDatabase
@@ -22,7 +23,6 @@ class iCloudManager {
         self.worldManager = worldManager
         createCustomZoneIfNeeded()
     }
-    
     // MARK: - Upload ARWorldMap
     func uploadWorldMap(roomName: String, data: Data, lastModified: Date, completion: (() -> Void)? = nil) {
         DispatchQueue.global(qos: .background).async {
@@ -315,8 +315,11 @@ class iCloudManager {
                    share[CKShare.SystemFieldKey.thumbnailImageData] = jpegData
                }
         }
+        
+      //  record["share"] = share
+
     
-        share.publicPermission = .readOnly
+        share.publicPermission = .readWrite
         self.subscribeToWorldUpdates(for: roomName)
         let modifyOp = CKModifyRecordsOperation(recordsToSave: [record, share], recordIDsToDelete: nil)
         modifyOp.isAtomic = true
@@ -352,6 +355,10 @@ class iCloudManager {
             } else if let savedRecords = savedRecords, !savedRecords.isEmpty {
                 if let savedShare = savedRecords.first(where: { $0 is CKShare }) as? CKShare {
                     print("✅ CKShare created successfully: \(savedShare)")
+                    // After your CKShare is successfully created...
+                    DispatchQueue.main.async {
+                        WorldManager.shared.sharedZoneID = share.recordID.zoneID
+                    }
                     DispatchQueue.main.async { completion(savedShare.url) }
                 } else {
                     print("⚠️ CKShare not found in saved records.")
@@ -397,6 +404,75 @@ class iCloudManager {
             }
         }
         privateDB.add(op)
+    }
+    
+    
+    func saveAnchor(_ anchor: ARAnchor, for roomName: String, worldRecord: CKRecord, completion: @escaping (Error?) -> Void) {
+        let publicDB = CKContainer.default().publicCloudDatabase
+        // Do not supply a custom zone ID; use the default zone.
+        let recordID = CKRecord.ID(recordName: UUID().uuidString)  // Defaults to the public default zone.
+        let anchorRecord = CKRecord(recordType: "Anchor", recordID: recordID)
+        anchorRecord["roomName"] = roomName as CKRecordValue
+        if let name = anchor.name {
+            anchorRecord["name"] = name as CKRecordValue
+            print("Saving anchor with name: \(name)")
+        }
+        let transformData = withUnsafeBytes(of: anchor.transform) { Data($0) }
+        anchorRecord["transform"] = transformData as CKRecordValue
+
+        // Create a reference to the world record.
+        let reference = CKRecord.Reference(record: worldRecord, action: .deleteSelf)
+        anchorRecord["worldReference"] = reference
+        anchorRecord["worldRecordName"] = worldRecord.recordID.recordName as CKRecordValue
+
+        publicDB.save(anchorRecord) { record, error in
+            if let error = error {
+                print("❌ Error saving anchor to public DB: \(error.localizedDescription)")
+                completion(error)
+            } else {
+                print("✅ Anchor saved successfully to public DB.")
+                completion(nil)
+            }
+        }
+    }
+    
+    
+    func fetchNewAnchors(for worldRecordID: CKRecord.ID, completion: @escaping ([CKRecord]) -> Void) {
+        let publicDB = CKContainer.default().publicCloudDatabase
+        let predicate = NSPredicate(format: "worldRecordName == %@", worldRecordID.recordName)
+        let query = CKQuery(recordType: "Anchor", predicate: predicate)
+        
+        publicDB.perform(query, inZoneWith: nil) { records, error in
+            if let error = error {
+                print("❌ Error fetching anchors from public DB: \(error.localizedDescription)")
+                completion([])
+            } else {
+                let count = records?.count ?? 0
+                print("Fetched \(count) anchors from public DB for world record \(worldRecordID.recordName)")
+                completion(records ?? [])
+            }
+        }
+    }
+    
+    
+    func subscribeToAnchorUpdates(for worldRecordID: CKRecord.ID) {
+        // Create a predicate that fetches Anchor records related to the current world.
+        let predicate = NSPredicate(format: "worldReference == %@", CKRecord.Reference(recordID: worldRecordID, action: .none))
+        let subscription = CKQuerySubscription(recordType: "Anchor",
+                                               predicate: predicate,
+                                               subscriptionID: "AnchorSubscription-\(worldRecordID.recordName)",
+                                               options: [.firesOnRecordCreation, .firesOnRecordUpdate])
+        let notificationInfo = CKSubscription.NotificationInfo()
+        notificationInfo.shouldSendContentAvailable = true
+        subscription.notificationInfo = notificationInfo
+
+        privateDB.save(subscription) { subscription, error in
+            if let error = error {
+                print("❌ Error subscribing to anchor updates: \(error.localizedDescription)")
+            } else {
+                print("✅ Subscribed to anchor updates for world \(worldRecordID.recordName)")
+            }
+        }
     }
     
     
