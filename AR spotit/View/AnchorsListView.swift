@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Drops
+import CloudKit
 
 struct AnchorsListView: View {
     
@@ -24,7 +25,7 @@ struct AnchorsListView: View {
     @State private var isLoading = true
     @State private var isShowingQR = false
     @State private var searchText: String = ""
-
+    @State private var newAnchors: [String] = []
     let columns = [
         GridItem(.flexible(), spacing: 10),
         GridItem(.flexible(), spacing: 10),
@@ -208,6 +209,54 @@ struct AnchorsListView: View {
                                 prompt: "Search Anchors").tint(colorScheme == .dark ? .white : .black)
                     
                     
+                    if !newAnchors.isEmpty {
+                        VStack(alignment: .leading) {
+                            Text("Newly added items, open AR to integrate")
+                                .font(.headline)
+                                .padding([.leading, .top])
+                            LazyVGrid(columns: columns, spacing: 10) {
+                                ForEach(newAnchors, id: \.self) { anchorName in
+                                    VStack {
+                                        // Extract emoji if available, fallback icon otherwise.
+                                        let emoji = extractEmoji(from: anchorName) ?? "📍"
+                                        HStack {
+                                            Text(emoji)
+                                                .font(.system(size: 50))
+                                            Spacer()
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        
+                                        // Display the anchor name (without emoji)
+                                        let cleanAnchorName = anchorName.filter { !$0.isEmoji }
+                                        Text(cleanAnchorName)
+                                            .font(.headline)
+                                            .multilineTextAlignment(.center)
+                                            .foregroundColor(.white)
+                                    }
+                                    .frame(height: 90)
+                                    .padding()
+                                    .background(
+                                        VStack {
+                                            Spacer().frame(height: 55)
+
+                                            Color.gray.opacity(0.8)
+                                                .cornerRadius(22)
+
+                                        }
+                                       
+                                    )
+                                    .shadow(color: Color.black.opacity(0.3), radius: 7)
+                                    .onTapGesture {
+                                        // For example, set findingAnchorName and dismiss the view
+                                        findingAnchorName = anchorName
+                                        dismiss()
+                                    }
+                                }
+                            }
+                            .padding([.leading, .trailing])
+                        }
+                    }
+                    
                 }
                 .ignoresSafeArea()
                 
@@ -223,19 +272,35 @@ struct AnchorsListView: View {
                 .onAppear {
                     // Fetch anchors for this specific world
                     worldManager.loadSavedWorlds {
-                        
+                        worldManager.getAnchorNames(for: worldName) { fetchedAnchors in
+                               DispatchQueue.main.async {
+                                   anchorsByWorld[worldName] = fetchedAnchors
+                                   isLoading = false
+                                   
+                                   // Now, if the world is collaborative, fetch new anchors
+                                   if let world = worldManager.savedWorlds.first(where: { $0.name == worldName }),
+                                      world.isCollaborative,
+                                      let publicRecordID = world.cloudRecordID {
+                                       
+                                       let recordID = CKRecord.ID(recordName: publicRecordID)
+                                       iCloudManager.shared.fetchNewAnchors(for: recordID) { records in
+                                           DispatchQueue.main.async {
+                                               // Extract new anchor names from the records (assuming each record has a "name" field)
+                                               let fetchedNewAnchorNames = records.compactMap { $0["name"] as? String }
+                                               let existingAnchors = anchorsByWorld[worldName] ?? []
+                                               
+                                               // Only add new anchors that are not already present
+                                               newAnchors = fetchedNewAnchorNames.filter { !existingAnchors.contains($0) }
+                                               
+                                               print("Fetched \(newAnchors.count) new collaborative anchors.")
+                                           }
+                                       }
+                                   }
+                               }
+                           }
                     }
                     print(worldName)
-                 //   worldManager.inspectLocalArchive(for: worldName)
-                    worldManager.checkAndSyncIfNewer(for: worldName) {
-                          // 2) Now safely fetch anchors
-                          worldManager.getAnchorNames(for: worldName) { fetchedAnchors in
-                              DispatchQueue.main.async {
-                                  anchorsByWorld[worldName] = fetchedAnchors
-                                  isLoading = false
-                              }
-                          }
-                      }
+
                     
                 }
                 .sheet(isPresented: $isOpeningWorld, onDismiss: {
@@ -270,6 +335,14 @@ struct AnchorsListView: View {
                 }
                 .navigationTitle(worldName)
                 .toolbar {
+                    
+                    if let world = worldManager.savedWorlds.first(where: { $0.name == worldName }),
+                               world.isCollaborative {
+                                Image(systemName: "link.circle.fill")
+                                    .foregroundColor(.blue)
+                                    .symbolEffect(.breathe)
+                            }
+                    
                     Button(action: {
                         
                         //                    updateRoomName = world.name

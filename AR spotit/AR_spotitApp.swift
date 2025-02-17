@@ -40,13 +40,46 @@ struct AR_spotitApp: App {
                     .onContinueUserActivity(CSSearchableItemActionType, perform: handleSpotlightActivity)
                     .onOpenURL { url in
                         print("SwiftUI onOpenURL received: \(url.absoluteString)")
-                        if url.isFileURL {
+                        
+                        // Check if the URL has a recordID query parameter (i.e. it's a collab link)
+                        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                           let recordIDQueryItem = components.queryItems?.first(where: { $0.name == "recordID" }),
+                           let recordIDString = recordIDQueryItem.value {
+                            
+                            print("Collaboration URL detected with recordID: \(recordIDString)")
+                            let recordID = CKRecord.ID(recordName: recordIDString)
+                            
+                            // Fetch the world record from the public database.
+                            CKContainer.default().publicCloudDatabase.fetch(withRecordID: recordID) { record, error in
+                                if let error = error {
+                                    print("Error fetching world record from public DB: \(error.localizedDescription)")
+                                    return
+                                }
+                                guard let publicRecord = record else {
+                                    print("No world record found for recordID: \(recordIDString)")
+                                    return
+                                }
+                                DispatchQueue.main.async {
+                                    let roomName = publicRecord["roomName"] as? String ?? "Untitled"
+                                    WorldManager.shared.startCollaborativeSession(with: publicRecord, roomName: roomName)
+                                    print("Collaboration session started for room: \(roomName)")
+                                    // Post a notification or navigate to your AR screen as needed:
+                                    NotificationCenter.default.post(name: Notifications.incomingShareMapReady, object: nil)
+                                }
+                            }
+                        }
+                        // If it's a local file URL, handle it as before.
+                        else if url.isFileURL {
                             print("Handling as local file URL.")
                             handleIncomingWorldFile(url)
-                        } else if url.host == "www.icloud.com" && url.path.contains("share") {
+                        }
+                        // If it's an iCloud share URL, handle that.
+                        else if url.host == "www.icloud.com" && url.path.contains("share") {
                             print("Handling as CloudKit share URL.")
                             handleIncomingShareURL(url)
-                        } else {
+                        }
+                        // Otherwise, fallback.
+                        else {
                             print("Unknown URL; handling as fallback.")
                             handleIncomingWorldFile(url)
                         }

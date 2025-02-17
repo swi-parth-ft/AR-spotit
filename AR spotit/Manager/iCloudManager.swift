@@ -408,10 +408,13 @@ class iCloudManager {
     
     
     func saveAnchor(_ anchor: ARAnchor, for roomName: String, worldRecord: CKRecord, completion: @escaping (Error?) -> Void) {
+        // Use the public database
         let publicDB = CKContainer.default().publicCloudDatabase
-        // Do not supply a custom zone ID; use the default zone.
-        let recordID = CKRecord.ID(recordName: UUID().uuidString)  // Defaults to the public default zone.
+        
+        // Create a record in the public default zone (do not specify a custom zone)
+        let recordID = CKRecord.ID(recordName: UUID().uuidString) // Defaults to public DB’s default zone
         let anchorRecord = CKRecord(recordType: "Anchor", recordID: recordID)
+        
         anchorRecord["roomName"] = roomName as CKRecordValue
         if let name = anchor.name {
             anchorRecord["name"] = name as CKRecordValue
@@ -421,6 +424,7 @@ class iCloudManager {
         anchorRecord["transform"] = transformData as CKRecordValue
 
         // Create a reference to the world record.
+        // Note: The worldRecord must also be in the public DB’s default zone.
         let reference = CKRecord.Reference(record: worldRecord, action: .deleteSelf)
         anchorRecord["worldReference"] = reference
         anchorRecord["worldRecordName"] = worldRecord.recordID.recordName as CKRecordValue
@@ -436,12 +440,27 @@ class iCloudManager {
         }
     }
     
+    func deleteAnchor(withRecordID recordID: CKRecord.ID, completion: @escaping (Error?) -> Void) {
+        // Using the public database if anchors are saved in the public default zone.
+        let publicDB = CKContainer.default().publicCloudDatabase
+        publicDB.delete(withRecordID: recordID) { deletedRecordID, error in
+            if let error = error {
+                print("❌ Error deleting anchor from CloudKit: \(error.localizedDescription)")
+                completion(error)
+            } else {
+                print("✅ Anchor deleted successfully from CloudKit.")
+                completion(nil)
+            }
+        }
+    }
     
     func fetchNewAnchors(for worldRecordID: CKRecord.ID, completion: @escaping ([CKRecord]) -> Void) {
         let publicDB = CKContainer.default().publicCloudDatabase
+        // We store the world record's recordName in the anchor's "worldRecordName" field.
         let predicate = NSPredicate(format: "worldRecordName == %@", worldRecordID.recordName)
         let query = CKQuery(recordType: "Anchor", predicate: predicate)
         
+        // For the public DB, using nil zone means the default zone.
         publicDB.perform(query, inZoneWith: nil) { records, error in
             if let error = error {
                 print("❌ Error fetching anchors from public DB: \(error.localizedDescription)")
@@ -475,5 +494,96 @@ class iCloudManager {
         }
     }
     
-    
-}
+    func migrateWorldRecordToPublic(roomName: String, completion: @escaping (CKRecord?, Error?) -> Void) {
+        let publicRecordID = CKRecord.ID(recordName: "\(roomName)_Record")
+        let publicDB = CKContainer.default().publicCloudDatabase
+        
+        // Attempt to fetch the world record from the public DB.
+        publicDB.fetch(withRecordID: publicRecordID) { (existingRecord, error) in
+            if let existingRecord = existingRecord {
+                print("✅ Found existing public world record: \(existingRecord.recordID)")
+                completion(existingRecord, nil)
+                return
+            }
+            
+            // If the error indicates the record doesn't exist, proceed.
+            if let ckError = error as? CKError, ckError.code == .unknownItem {
+                // Query the private database for the world record.
+                let predicate = NSPredicate(format: "roomName == %@", roomName)
+                CloudKitService.shared.performQuery(recordType: self.recordType,
+                                                    predicate: predicate,
+                                                    zoneID: self.customZoneID,
+                                                    desiredKeys: ["roomName", "mapAsset", "lastModified"]) { result in
+                    switch result {
+                    case .success(let records):
+                        guard let privateRecord = records.first else {
+                            print("No world record found in private DB for room: \(roomName)")
+                            let error = NSError(domain: "com.yourapp.error", code: 404, userInfo: [NSLocalizedDescriptionKey: "World record not found"])
+                            completion(nil, error)
+                            return
+                        }
+                        
+                        // Create a new record in the public DB's default zone.
+                        let publicRecord = CKRecord(recordType: self.recordType, recordID: publicRecordID)
+                        
+                        // Copy the room name.
+                        publicRecord["roomName"] = privateRecord["roomName"]
+                        
+                        // Create a new CKAsset using the same file URL.
+                        if let privateAsset = privateRecord["mapAsset"] as? CKAsset,
+                           let fileURL = privateAsset.fileURL {
+                            let newAsset = CKAsset(fileURL: fileURL)
+                            publicRecord["mapAsset"] = newAsset
+                        } else {
+                            print("No valid mapAsset found in private record for room: \(roomName)")
+                        }
+                        
+                        // Copy the lastModified field.
+                        publicRecord["lastModified"] = privateRecord["lastModified"]
+                        
+                        // Save the new public record.
+                        publicDB.save(publicRecord) { savedRecord, error in
+                            if let error = error {
+                                print("❌ Error migrating world record to public DB: \(error.localizedDescription)")
+                                completion(nil, error)
+                            } else if let savedRecord = savedRecord {
+                                print("✅ Successfully migrated world record to public DB: \(savedRecord.recordID)")
+                                completion(savedRecord, nil)
+                            }
+                        }
+                        
+                    case .failure(let error):
+                        print("❌ Error querying private DB for world record: \(error.localizedDescription)")
+                        completion(nil, error)
+                    }
+                }
+            } else {
+                // Some other error occurred while fetching from public DB.
+                print("❌ Error fetching public record: \(error?.localizedDescription ?? "Unknown error")")
+                completion(nil, error)
+            }
+        }
+    }
+    func createCollabLink(for roomName: String, completion: @escaping (URL?) -> Void) {
+        // Migrate the world record from the private DB to the public DB.
+        self.migrateWorldRecordToPublic(roomName: roomName) { publicRecord, error in
+            if let error = error {
+                print("Migration error: \(error.localizedDescription)")
+                DispatchQueue.main.async { completion(nil) }
+                return
+            }
+            guard let publicRecord = publicRecord else {
+                DispatchQueue.main.async { completion(nil) }
+                return
+            }
+            // Generate a custom URL using the public record's recordName.
+            let recordIDString = publicRecord.recordID.recordName
+            // For example, your custom URL could be an HTTPS URL that your app handles.
+            if let url = URL(string: "itshere://collab?recordID=\(recordIDString)") {
+                print("✅ Generated collab link: \(url)")
+                DispatchQueue.main.async { completion(url) }
+            } else {
+                DispatchQueue.main.async { completion(nil) }
+            }
+        }
+    }}

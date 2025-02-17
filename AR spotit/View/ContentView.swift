@@ -1,4 +1,5 @@
 import SwiftUI
+import CloudKit
 import AnimateText
 import CoreHaptics
 import ARKit
@@ -64,9 +65,10 @@ struct ContentView: View {
     @State private var animatedAngle = ""
     @State private var isOpeningSharedWorld = false
     @State private var showAnchorListSheet = false
-
+    @State private var isCollab = false
+    @State private var recordId: String = ""
     @Namespace private var arrowNamespace
-
+    @State private var newAnchorsCount: Int = 0
     
     var body: some View {
         NavigationStack {
@@ -85,15 +87,16 @@ struct ContentView: View {
                                     isEditingAnchor: $isEditingAnchor,
                                     nameOfAnchorToEdit: $nameOfAnchorToEdit,
                                     angle: $angle,
-                                    distanceForUI: $distance)
+                                    distanceForUI: $distance, roomName: currentRoomName, isCollab: $isCollab,
+                                    recordID: $recordId)
                     .onAppear {
-                        if AppState.shared.isiCloudShare {
-                            WorldManager.shared.loadSavedWorlds {
-                                print("Loaded saved worlds: \(WorldManager.shared.savedWorlds)")
-                                WorldManager.shared.restoreCollaborativeWorldAndRestartSession(sceneView: sceneView)
-                                
-                            }
-                        }
+//                        if AppState.shared.isiCloudShare {
+//                            WorldManager.shared.loadSavedWorlds {
+//                                print("Loaded saved worlds: \(WorldManager.shared.savedWorlds)")
+//                                WorldManager.shared.restoreCollaborativeWorldAndRestartSession(sceneView: sceneView)
+//                                
+//                            }
+//                        }
                         if findAnchor != "" {
                             worldManager.isShowingAll = false
                         }
@@ -430,8 +433,27 @@ struct ContentView: View {
                                 .padding()
                                 
                                 HStack {
-                                    
+                                    if newAnchorsCount > 0 {
+                                        Button {
+                                            if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
+                                                
+                                                coordinator.addNewAnchorsFromPublicDatabase()
+                                                
+                                            }
+                                        } label: {
+                                            Text("Retrieve Collaborative Items")
+                                                .foregroundStyle(.black)
+                                                .padding()
+                                                .frame(height: 50)
+                                                .background(Color.white)
+                                                .cornerRadius(25)
+                                                .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                        }
+                                    }
                                     Button {
+                                        if AppState.shared.isiCloudShare {
+                                            AppState.shared.isiCloudShare = false
+                                        }
                                         isFlashlightOn = false
                                         shouldPlay = false
                                         findAnchor = ""
@@ -522,11 +544,48 @@ struct ContentView: View {
                         isOpeningSharedWorld = false
                         // 2) If there's NO shared map, do local “directLoading” stuff
                         worldManager.loadSavedWorlds {
+                            
+                            if let world = worldManager.savedWorlds.first(where: { $0.name == currentRoomName }), world.isCollaborative {
+                                isCollab = true
+                                recordId = world.cloudRecordID ?? ""
+                                print("this world has public collaboration")
+
+                            }
+                            
                             guard directLoading, !currentRoomName.isEmpty, !hasLoadedWorldMap else { return }
                             hasLoadedWorldMap = true
                             worldManager.loadWorldMap(for: currentRoomName, sceneView: sceneView)
                         }
                     }
+                
+                
+                worldManager.loadSavedWorlds {
+                    worldManager.getAnchorNames(for: currentRoomName) { fetchedAnchors in
+                           DispatchQueue.main.async {
+                               
+                               // Now, if the world is collaborative, fetch new anchors
+                               if let world = worldManager.savedWorlds.first(where: { $0.name == currentRoomName }),
+                                  world.isCollaborative,
+                                  let publicRecordID = world.cloudRecordID {
+                                   
+                                   let recordID = CKRecord.ID(recordName: publicRecordID)
+                                   iCloudManager.shared.fetchNewAnchors(for: recordID) { records in
+                                       DispatchQueue.main.async {
+                                           // Extract new anchor names from the records (assuming each record has a "name" field)
+                                           let fetchedNewAnchorNames = records.compactMap { $0["name"] as? String }
+                                          
+                                           
+                                           // Only add new anchors that are not already present
+                                           newAnchorsCount = fetchedNewAnchorNames.filter { !fetchedAnchors.contains($0) }.count
+                                           
+                                           print("Fetched \(newAnchorsCount) new collaborative anchors.")
+                                       }
+                                   }
+                               }
+                           }
+                       }
+                }
+
                 
             }
             .onChange(of: worldManager.scannedZones) {
@@ -585,6 +644,10 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
+                        if AppState.shared.isiCloudShare {
+                            AppState.shared.isiCloudShare = false
+                        }
+                        
                         worldManager.isWorldLoaded = false
                         shouldPlay = false
                         findAnchor = ""
@@ -611,9 +674,17 @@ struct ContentView: View {
                 }
                 
                 ToolbarItem(placement: .automatic) {
-                    Text(currentRoomName)
-                        .font(.system(.headline, design: .rounded))
-                        .foregroundStyle(.white)
+                    HStack {
+                        Text(currentRoomName)
+                            .font(.system(.headline, design: .rounded))
+                            .foregroundStyle(.white)
+                        
+                        if isCollab || AppState.shared.isiCloudShare {
+                            Image(systemName: "link.circle.fill")
+                                .foregroundColor(.blue)
+                                .symbolEffect(.breathe)
+                        }
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {

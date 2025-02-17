@@ -19,6 +19,9 @@ class WorldManager: ObservableObject {
     lazy var iCloudManager: iCloudManager = {
         return it_s_here_.iCloudManager(worldManager: self)
     }()
+    
+    
+    @Published var anchorRecordIDs: [String: String] = [:]
     var currentWorldRecord: CKRecord? // The shared world (root) record.
     @Published var currentRoomName: String = ""
     @Published var sharedZoneID: CKRecordZone.ID? = nil
@@ -426,28 +429,22 @@ class WorldManager: ObservableObject {
     // In WorldManager.swift
 
     func shareWorldViaCloudKit(roomName: String) {
-        // Call createShareLink as before.
-        it_s_here_.iCloudManager(worldManager: self).createShareLink(for: roomName) { shareURL in
+        // Call the new collaboration function in iCloudManager to migrate and create a share.
+        iCloudManager.createCollabLink(for: roomName) { shareURL in
             guard let shareURL = shareURL else {
-                print("Failed to create share URL.")
+                print("Failed to create collaboration share link for room: \(roomName)")
                 return
             }
-            
-            // Fetch the world record for this room.
+            // Update local state for collaboration.
             self.fetchWorldRecord(for: roomName) { record in
                 if let record = record {
-                    // Set up the collaborative session so currentWorldRecord is set.
                     self.startCollaborativeSession(with: record, roomName: roomName)
-                    
-                    // Update the saved world model.
                     if let index = self.savedWorlds.firstIndex(where: { $0.name == roomName }) {
                         DispatchQueue.main.async {
                             self.savedWorlds[index].cloudRecordID = record.recordID.recordName
                             self.savedWorlds[index].isCollaborative = true
                             self.saveWorldList()
-
                         }
-                       
                         print("Collaborative info updated for room: \(roomName)")
                     } else {
                         print("Saved world for \(roomName) not found.")
@@ -455,25 +452,23 @@ class WorldManager: ObservableObject {
                 } else {
                     print("World record for \(roomName) not found.")
                 }
-                
-                // Now present the share UI.
-                DispatchQueue.main.async {
-                    let activityController = UIActivityViewController(activityItems: [shareURL], applicationActivities: nil)
-                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                       let rootViewController = windowScene.windows.first?.rootViewController {
-                        if let presentedVC = rootViewController.presentedViewController {
-                            presentedVC.dismiss(animated: false) {
-                                rootViewController.present(activityController, animated: true, completion: nil)
-                            }
-                        } else {
+            }
+            // Present the share link using an activity controller.
+            DispatchQueue.main.async {
+                let activityController = UIActivityViewController(activityItems: [shareURL], applicationActivities: nil)
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                   let rootViewController = windowScene.windows.first?.rootViewController {
+                    if let presentedVC = rootViewController.presentedViewController {
+                        presentedVC.dismiss(animated: false) {
                             rootViewController.present(activityController, animated: true, completion: nil)
                         }
+                    } else {
+                        rootViewController.present(activityController, animated: true, completion: nil)
                     }
                 }
             }
         }
-    }
-    //MARK: Fetch names from cloudKit
+    }    //MARK: Fetch names from cloudKit
     func fetchWorldNamesFromCloudKit(completion: @escaping () -> Void) {
         let privateDB = CKContainer.default().privateCloudDatabase
         let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
