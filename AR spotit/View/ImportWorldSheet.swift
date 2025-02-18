@@ -13,6 +13,7 @@ struct ImportWorldSheet: View {
     @EnvironmentObject var worldManager: WorldManager
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
+    @FocusState private var isTextFieldFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -28,7 +29,11 @@ struct ImportWorldSheet: View {
                     .frame(height: 55)
                     .background(Color.secondary.opacity(0.4))
                     .cornerRadius(10)
+                    .tint(.primary)
                     .padding(.horizontal)
+                    .onAppear {
+                                isTextFieldFocused = true
+                            }
                 
                 Button(action: {
                     saveWorld()

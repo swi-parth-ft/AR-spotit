@@ -15,7 +15,10 @@ struct PinView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
     @FocusState private var isTextFieldFocused: Bool
+
     var isChecking: Bool
+    var onCompletion: (() -> Void)? // Completion handler
+
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading) {
@@ -50,6 +53,7 @@ struct PinView: View {
                     if isChecking {
                         dismiss()
                     } else {
+                        AppState.shared.isCreatingLink = true
                         WorldManager.shared.loadSavedWorlds {
                             if let index = WorldManager.shared.savedWorlds.firstIndex(where: { $0.name == roomName }) {
                                 // Update existing world
@@ -58,7 +62,8 @@ struct PinView: View {
                             }
                             
                             dismiss()
-                            
+                            onCompletion?() // Trigger completion when "Done" is pressed
+
                         }
                     }
                     //selectedWorld = WorldModel(name: roomName)

@@ -24,7 +24,16 @@ class AppState: ObservableObject {
         }
     }
     
-    @Published var publicRecordName: String = ""
+    @Published var publicRecordName: String = "" {
+        didSet {
+            print("publicRecordName changed to: \(publicRecordName)")
+        }
+    }
+    @Published var isCreatingLink: Bool = false {
+        didSet {
+            print("isCreatingLink changed to: \(isCreatingLink)")
+        }
+    }
 }
 
 @main

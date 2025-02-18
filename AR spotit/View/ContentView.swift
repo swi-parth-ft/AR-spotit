@@ -69,7 +69,8 @@ struct ContentView: View {
     @State private var recordId: String = ""
     @Namespace private var arrowNamespace
     @State private var newAnchorsCount: Int = 0
-    
+    @State private var coordinatorRef: ARViewContainer.Coordinator? = nil
+
     var body: some View {
         NavigationStack {
             
@@ -88,7 +89,10 @@ struct ContentView: View {
                                     nameOfAnchorToEdit: $nameOfAnchorToEdit,
                                     angle: $angle,
                                     distanceForUI: $distance, roomName: currentRoomName, isCollab: $isCollab,
-                                    recordID: $recordId)
+                                    recordID: $recordId,
+                                    onCoordinatorMade: { coord in
+                                                       coordinatorRef = coord
+                                                   })
                     .onAppear {
 //                        if AppState.shared.isiCloudShare {
 //                            WorldManager.shared.loadSavedWorlds {
@@ -513,7 +517,7 @@ struct ContentView: View {
                     // 1) If we have an iCloud-shared map, load it right away
                 if let arWorldMap = WorldManager.shared.sharedARWorldMap {
            
-                        
+                    recordId = AppState.shared.publicRecordName
                         isOpeningSharedWorld = true
                     sceneView.session.pause()
                     let configuration = ARWorldTrackingConfiguration()
@@ -526,10 +530,20 @@ struct ContentView: View {
                         coordinator.worldIsLoaded = false
                         coordinator.isLoading = true
                     }
+                    
                     sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
                     if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
                         coordinator.worldIsLoaded = true
+                       
                         print("World loaded. Ready to add new guide anchors.")
+                    }
+                    DispatchQueue.main.async {
+                        // Re-assign the coordinator so it isn't nil
+                        if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
+                            sceneView.delegate = coordinator
+                            sceneView.session.delegate = coordinator
+                            print("Reassigned delegate after loading shared world.")
+                        }
                     }
                     worldManager.isWorldLoaded = true
                     worldManager.isShowingARGuide = true
@@ -617,22 +631,31 @@ struct ContentView: View {
                     anchorName: $nameOfAnchorToEdit,
                     onDelete: { anchorName in
                         // 1️⃣ Access the Coordinator via sceneView.delegate
-                        if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
-                            coordinator.deleteAnchor(anchorName: anchorName)
-                        }
+                        DispatchQueue.main.async {
+                                       if let coordinator = coordinatorRef {  // <— use the stable reference
+                                           coordinator.deleteAnchor(anchorName: anchorName, recId: recordId)
+                                       } else {
+                                           print("Coordinator is nil — even with stable ref (unexpected).")
+                                       }
+                                   }
                         // Optionally dismiss the sheet:
                         isEditingAnchor = false
                     },
                     onMove: { anchorName in
-                        if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
-                            coordinator.prepareToMoveAnchor(anchorName: anchorName)
+                        
+                        DispatchQueue.main.async {
+                            if let coordinator = coordinatorRef {                            coordinator.prepareToMoveAnchor(anchorName: anchorName, recId: recordId)
+                            }
                         }
                         // Optionally dismiss the sheet:
                         isEditingAnchor = false
                     },
                     onRename: { oldName, newName in
-                        if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
-                            coordinator.renameAnchor(oldName: oldName, newName: newName)
+                        
+                        DispatchQueue.main.async {
+                            if let coordinator = coordinatorRef {
+                                coordinator.renameAnchor(oldName: oldName, newName: newName, recId: recordId)
+                            }
                         }
                         // Optionally dismiss the sheet:
                         isEditingAnchor = false

@@ -35,6 +35,9 @@ struct AnchorsListView: View {
     @State private var selectedPin: String = ""
 @State private var isShowingPIN = false
     @State private var isChecking = false
+    @State private var showCollaborators = false
+    @State private var collaboratorNames: [String] = []
+    @State private var isCollab = false
     
     func extractEmoji(from string: String) -> String? {
         for char in string {
@@ -62,6 +65,9 @@ struct AnchorsListView: View {
                 
                 (colorScheme == .dark ? Color.black : Color.white)
                        .ignoresSafeArea()
+                
+               
+                
                 ScrollView(.vertical, showsIndicators: false) {
                  
                     
@@ -268,8 +274,8 @@ struct AnchorsListView: View {
                     dismiss()
                 }) {
                     
-                    renameWorldView(worldName: $worldName, worldManager: worldManager)
-                        .presentationDetents([.fraction(0.4)])
+                    renameWorldView(worldName: worldName, worldManager: worldManager, showWarning: isCollab, newAnchors: newAnchors.count)
+                        .presentationDetents(isCollab ? [.fraction(0.5)] : [.fraction(0.4)])
                     
                     
                 }
@@ -285,7 +291,8 @@ struct AnchorsListView: View {
                                    if let world = worldManager.savedWorlds.first(where: { $0.name == worldName }),
                                       world.isCollaborative,
                                       let publicRecordID = world.cloudRecordID {
-                                       
+                                       isCollab = true
+
                                        let recordID = CKRecord.ID(recordName: publicRecordID)
                                        iCloudManager.shared.fetchNewAnchors(for: recordID) { records in
                                            DispatchQueue.main.async {
@@ -297,12 +304,14 @@ struct AnchorsListView: View {
                                                newAnchors = fetchedNewAnchorNames.filter { !existingAnchors.contains($0) }
                                                
                                                print("Fetched \(newAnchors.count) new collaborative anchors.")
+                                               
                                            }
                                        }
                                    }
                                }
                            }
                     }
+                    
                     print(worldName)
 
                     
@@ -337,15 +346,24 @@ struct AnchorsListView: View {
                         .presentationDetents([.fraction(0.4)])
 
                 }
-                .sheet(isPresented: $showPinPopover, onDismiss: {
-                    if !isChecking {
-                        worldManager.shareWorldViaCloudKit(roomName: worldName, pin: selectedPin)
+                .sheet(isPresented: $showPinPopover) {
+                    PinView(roomName: worldName, pin: $selectedPin, isChecking: isChecking) {
+                        // This runs when "Done" is pressed
+                        if !isChecking && !selectedPin.isEmpty {
+                            worldManager.shareWorldViaCloudKit(roomName: worldName, pin: selectedPin)
+                        }
                     }
-
-                }) {
-                    PinView(roomName: worldName, pin: $selectedPin, isChecking: isChecking)
-                        .presentationDetents([.fraction(0.4)])
-
+                    .presentationDetents([.fraction(0.4)])
+                }
+                .sheet(isPresented: $showCollaborators) {
+                    // Simple SwiftUI list of collaborator names
+                    NavigationStack {
+                        List(collaboratorNames, id: \.self) { name in
+                            Text(name)
+                        }
+                        .navigationTitle("Collaborators")
+                        .navigationBarTitleDisplayMode(.inline)
+                    }
                 }
                 .navigationTitle(worldName)
                 .toolbar {
@@ -354,7 +372,8 @@ struct AnchorsListView: View {
                                world.isCollaborative {
                         Button {
                                // 1) Grab the PIN from the local WorldModel
-                           
+                            fetchCollaboratorsForWorld()
+
                            } label: {
                                Image(systemName: "link.circle.fill")
                                    .foregroundColor(.blue)
@@ -422,8 +441,11 @@ struct AnchorsListView: View {
                         }
                         
                         Button {
+                        
                             if let world = worldManager.savedWorlds.first(where: { $0.name == worldName }),
                                world.isCollaborative {
+                                
+                                AppState.shared.isCreatingLink = true
                                 worldManager.shareWorldViaCloudKit(roomName: worldName, pin: "")
                             } else {
                                 isChecking = false
@@ -470,7 +492,14 @@ struct AnchorsListView: View {
                                 
                            
                         } label: {
-                            Text("Show PIN")
+                            HStack {
+                                Text("Show PIN")
+                                Image(systemName: "key")
+                                    .font(.title2)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                
+                            }
+                            .font(.title2)
                         }
                     }
                          
@@ -503,6 +532,72 @@ struct AnchorsListView: View {
                             .foregroundStyle(colorScheme == .dark ? .white : .black)
                     }
                 }
+                
+                
+                
+                if AppState.shared.isCreatingLink {
+                    VisualEffectBlur(blurStyle: .systemUltraThinMaterial)
+                              .frame(maxWidth: .infinity, maxHeight: .infinity)
+                              .ignoresSafeArea()
+
+                          VStack {
+                              ProgressView {
+                                  Text("Creating Collaboration Link.")
+                                      .font(.system(.headline, design: .rounded))
+
+                              }
+                              .padding()
+                          }
+                          .frame(maxWidth: .infinity, maxHeight: .infinity) // Expand ProgressView to full height
+                }
+            }
+        }
+    }
+    
+    func fetchCollaboratorsForWorld() {
+        guard
+            let world = worldManager.savedWorlds.first(where: { $0.name == worldName }),
+            world.isCollaborative,
+            let publicRecordID = world.cloudRecordID
+        else {
+            print("World not collaborative or no cloudRecordID.")
+            return
+        }
+
+        // We'll assume you have a method that fetches anchor records by worldRecordName
+        // e.g. iCloudManager.shared.fetchAnchors(for: CKRecord.ID)
+        let recordID = CKRecord.ID(recordName: publicRecordID)
+        iCloudManager.shared.fetchNewAnchors(for: recordID) { anchorRecords in
+            // anchorRecords are CKRecords for your "Anchor" type in the public DB
+            var discoveredNames: [String] = []
+            
+            let group = DispatchGroup()
+            
+            for anchor in anchorRecords {
+                // Each CKRecord has a 'creatorUserRecordID' if it's created by that user
+                if let creatorID = anchor.creatorUserRecordID {
+                    group.enter()
+                    CKContainer.default().discoverUserIdentity(withUserRecordID: creatorID) { identity, error in
+                        defer { group.leave() }
+                        if let components = identity?.nameComponents {
+                            let displayName = PersonNameComponentsFormatter().string(from: components)
+                            discoveredNames.append(displayName)
+                        } else {
+                            // If user discovery is off, or an error occurs,
+                            // you can store a fallback like "Unknown User"
+                            discoveredNames.append("Unknown User")
+                        }
+                    }
+                }
+            }
+            
+            group.notify(queue: .main) {
+                // Remove duplicates and sort
+                let uniqueNames = Array(Set(discoveredNames)).sorted()
+                self.collaboratorNames = uniqueNames
+                print("Fetched collaborator names: \(uniqueNames)")
+                // Now we can show the sheet
+                self.showCollaborators = true
             }
         }
     }

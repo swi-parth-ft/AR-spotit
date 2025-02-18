@@ -27,7 +27,11 @@ struct ARViewContainer: UIViewRepresentable {
      var roomName: String
     @Binding var isCollab: Bool
     @Binding var recordID: String
+    
+    var onCoordinatorMade: ((Coordinator) -> Void)?
+
     func makeUIView(context: Context) -> ARSCNView {
+       // let sceneView = ARSCNView()
         sceneView.delegate = context.coordinator
         
         let configuration = ARWorldTrackingConfiguration()
@@ -65,11 +69,15 @@ struct ARViewContainer: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: ARSCNView, context: Context) {
+        
+        uiView.delegate = context.coordinator
+                uiView.session.delegate = context.coordinator
     }
     
     func makeCoordinator() -> Coordinator {
         let coordinator = Coordinator(self, worldManager: worldManager)
-        
+        onCoordinatorMade?(coordinator) // hand it back up
+
         return coordinator
     }
     
@@ -912,8 +920,6 @@ struct ARViewContainer: UIViewRepresentable {
                         }
                     }
                 }
-                
-                
                 if AppState.shared.publicRecordName != "" {
                     if publicRecord == nil {
                         let recordName = AppState.shared.publicRecordName
@@ -953,6 +959,7 @@ struct ARViewContainer: UIViewRepresentable {
                     }
                     
                 }
+                
                 print("Placed anchor with name: \(uniqueName) at position: \(result.worldTransform.columns.3)")
                 let drop = Drop.init(title: "\(uniqueName) placed")
                 Drops.show(drop)
@@ -988,7 +995,9 @@ struct ARViewContainer: UIViewRepresentable {
                     if let tempAnchor = parent.tempAnchor {
                         // Place the saved anchor at a new position
                         let newAnchor = ARAnchor(name: tempAnchor.name ?? "defaultAnchor", transform: result.worldTransform)
-                        sceneView.session.add(anchor: newAnchor)
+//                        sceneView.session.add(anchor: newAnchor)
+                        
+                        addNewAnchor(anchor: newAnchor, recId: parent.recordID)
                         parent.tempAnchor = nil
                         let drop = Drop.init(title: "\(tempAnchor.name ?? "") moved")
                         Drops.show(drop)
@@ -1074,7 +1083,7 @@ struct ARViewContainer: UIViewRepresentable {
         
         
         //MARK: CURD on anchors
-        func deleteAnchor(anchorName: String) {
+        func deleteAnchor(anchorName: String, recId: String) {
             guard let anchor = parent.sceneView.session.currentFrame?.anchors.first(where: { $0.name == anchorName }) else {
                 print("Anchor with name \(anchorName) not found.")
                 return
@@ -1112,14 +1121,14 @@ struct ARViewContainer: UIViewRepresentable {
                     }
                 }
             } else {
-                CKContainer.default().publicCloudDatabase.fetch(withRecordID: CKRecord.ID(recordName: parent.recordID)) { record, error in
+                CKContainer.default().publicCloudDatabase.fetch(withRecordID: CKRecord.ID(recordName: recId)) { record, error in
                     if let error = error {
                         print("Error fetching world record from public DB: \(error.localizedDescription)")
                         return
                     }
                     guard let pRecord = record else {
                         
-                        print("No world record found for recordID: \(self.parent.recordID)")
+                        print("No world record found for recordID: \(recId)")
                         return
                     }
                     
@@ -1172,7 +1181,7 @@ struct ARViewContainer: UIViewRepresentable {
             
         }
         
-        func renameAnchor(oldName: String, newName: String) {
+        func renameAnchor(oldName: String, newName: String, recId: String) {
             guard let anchor = parent.sceneView.session.currentFrame?.anchors.first(where: { $0.name == oldName }) else {
                 print("Anchor with name \(oldName) not found.")
                 return
@@ -1180,8 +1189,10 @@ struct ARViewContainer: UIViewRepresentable {
             
             // Create a new anchor with the updated name
             let newAnchor = ARAnchor(name: newName, transform: anchor.transform)
-            parent.sceneView.session.remove(anchor: anchor)
-            parent.sceneView.session.add(anchor: newAnchor)
+            deleteAnchor(anchorName: oldName, recId: recId)
+            addNewAnchor(anchor: newAnchor, recId: recId)
+//            parent.sceneView.session.remove(anchor: anchor)
+       //     parent.sceneView.session.add(anchor: newAnchor)
             let drop = Drop.init(title: "Renamed from \(oldName) to \(newName)")
             Drops.show(drop)
             print("Anchor renamed from \(oldName) to \(newName).")
@@ -1190,7 +1201,102 @@ struct ARViewContainer: UIViewRepresentable {
             }
         }
         
-        func prepareToMoveAnchor(anchorName: String) {
+        func addNewAnchor(anchor: ARAnchor, recId: String) {
+            
+            
+            parent.sceneView.session.add(anchor: anchor)
+            
+            if AppState.shared.isiCloudShare || parent.isCollab {
+                if (WorldManager.shared.currentWorldRecord != nil && WorldManager.shared.isCollaborative) {
+                    iCloudManager.shared.saveAnchor(anchor, for: WorldManager.shared.currentRoomName, worldRecord: WorldManager.shared.currentWorldRecord!) { error in
+                        if let error = error {
+                            print("Error saving new anchor: \(error.localizedDescription)")
+                        } else {
+                            print("Anchor \(anchor.name ?? "") saved for collaboration.")
+                        }
+                    }
+                } else {
+                    if publicRecord == nil {
+                        
+                        
+                        CKContainer.default().publicCloudDatabase.fetch(withRecordID: CKRecord.ID(recordName: parent.recordID)) { record, error in
+                            if let error = error {
+                                print("Error fetching world record from public DB: \(error.localizedDescription)")
+                                return
+                            }
+                            guard let pRecord = record else {
+                                
+                                print("No world record found for recordID: \(self.parent.recordID)")
+                                return
+                            }
+                            
+                            self.publicRecord = record
+                            print("new record created")
+                            iCloudManager.shared.saveAnchor(anchor, for: self.parent.roomName, worldRecord: pRecord) { error in
+                                if let error = error {
+                                    print("Error saving new anchor: \(error.localizedDescription)")
+                                } else {
+                                    print("Anchor \(anchor.name ?? "") saved for collaboration.")
+                                }
+                            }
+                            
+                        }
+                    } else {
+                        if let record = publicRecord {
+                            iCloudManager.shared.saveAnchor(anchor, for: self.parent.roomName, worldRecord: record) { error in
+                                if let error = error {
+                                    print("Error saving new anchor: \(error.localizedDescription)")
+                                } else {
+                                    print("Anchor \(anchor.name ?? "") saved for collaboration.")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if AppState.shared.publicRecordName != "" {
+                if publicRecord == nil {
+                    let recordName = AppState.shared.publicRecordName
+                    CKContainer.default().publicCloudDatabase.fetch(
+                        withRecordID: CKRecord.ID(recordName: recordName)
+                    ) { record, error in
+                        if let pRecord = record {
+                            
+                            self.publicRecord = pRecord
+                            // 3) Save anchors to the public record
+                            iCloudManager.shared.saveAnchor(anchor,
+                                                            for: self.parent.roomName,
+                                                            worldRecord: pRecord) { error in
+                                if let error = error {
+                                    print("Error saving anchor: \(error.localizedDescription)")
+                                } else {
+                                    print("Anchor saved to public DB!")
+                                }
+                            }
+                            
+                            
+                        }
+                    }
+                } else {
+                    if let record = publicRecord {
+                        iCloudManager.shared.saveAnchor(anchor,
+                                                        for: self.parent.roomName,
+                                                        worldRecord: record) { error in
+                            if let error = error {
+                                print("Error saving anchor: \(error.localizedDescription)")
+                            } else {
+                                print("Anchor saved to public DB!")
+                            }
+                        }
+                    }
+                   
+                }
+                
+            }
+
+        }
+        
+        func prepareToMoveAnchor(anchorName: String, recId: String) {
             guard let anchor = parent.sceneView.session.currentFrame?.anchors.first(where: { $0.name == anchorName }) else {
                 print("Anchor with name \(anchorName) not found.")
                 return
@@ -1198,7 +1304,8 @@ struct ARViewContainer: UIViewRepresentable {
             
             // Store the anchor temporarily
             parent.tempAnchor = anchor
-            parent.sceneView.session.remove(anchor: anchor)
+            deleteAnchor(anchorName: anchorName, recId: recId)
+//            parent.sceneView.session.remove(anchor: anchor)
             print("Anchor '\(anchorName)' prepared for moving.")
             let drop = Drop.init(title: "Tap new location to move \(anchorName)")
             Drops.show(drop)

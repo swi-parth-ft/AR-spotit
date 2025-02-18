@@ -191,110 +191,69 @@ class iCloudManager {
             }
         }
         
-        // 3) (Optional) Delete Anchor records if you want to remove them, too:
-        
-        group.enter()
-        if let localWorld = WorldManager.shared.savedWorlds.first(where: { $0.name == roomName }) {
-            if let record = localWorld.cloudRecordID {
-                let anchorPredicate = NSPredicate(format: "worldRecordName == %@", record)
-                CloudKitService.shared.performQuery(recordType: "Anchor",
-                                                    predicate: anchorPredicate,
-                                                    zoneID: nil,
-                                                    desiredKeys: nil) { result in
-                    switch result {
-                    case .success(let anchorRecords):
-                        if !anchorRecords.isEmpty {
-                            let anchorIDs = anchorRecords.map { $0.recordID }
-                            CloudKitService.shared.deleteRecords(with: anchorIDs) { anchorDeleteResult in
-                                switch anchorDeleteResult {
-                                case .success:
-                                    print("✅ Deleted \(anchorRecords.count) Anchor(s) for \(roomName) in public DB.")
-                                case .failure(let error):
-                                    print("❌ Error deleting Anchor records: \(error.localizedDescription)")
-                                    finalError = error
-                                }
-                                group.leave()
-                            }
-                        } else {
-                            print("ℹ️ No Anchor records found for \(roomName) in public DB.")
-                            group.leave()
-                        }
-                    case .failure(let error):
-                        print("❌ Error querying Anchor records: \(error.localizedDescription)")
-                        finalError = error
-                        group.leave()
-                    }
-                }
-                
+        let recordID = CKRecord.ID(recordName: "\(roomName)_Record")
+        CKContainer.default().publicCloudDatabase.delete(withRecordID: recordID) { deletedID, error in
+            if let error = error {
+                print("❌ Direct ID delete failed: \(error)")
+            } else {
+                print("✅ Direct ID delete succeeded for Room_Record")
             }
         }
+        
+        group.enter()
+            deleteWorldMetadata(roomName: roomName) { error in
+                if let error = error {
+                    finalError = error
+                }
+                group.leave()
+            }
+            
+        
+        
         // Notify when all deletions finish
         group.notify(queue: .main) {
             completion(finalError)
         }
     }
     
-//    func deleteWorld(roomName: String, completion: @escaping (Error?) -> Void) {
-//        let predicate = NSPredicate(format: "roomName == %@", roomName)
-//        CloudKitService.shared.performQuery(recordType: recordType,
-//                                            predicate: predicate,
-//                                            zoneID: self.customZoneID,
-//                                            desiredKeys: nil) { [weak self] result in
-//            guard let self = self else { return }
-//            switch result {
-//            case .success(let records):
-//                if !records.isEmpty {
-//                    let recordIDs = records.map { $0.recordID }
-//                    CloudKitService.shared.deleteRecords(with: recordIDs) { deleteResult in
-//                        switch deleteResult {
-//                        case .success:
-//                            print("World \(roomName) deleted from custom zone.")
-//                            DispatchQueue.main.async { completion(nil) }
-//                        case .failure(let error):
-//                            print("Error deleting records from custom zone: \(error.localizedDescription)")
-//                            DispatchQueue.main.async { completion(error) }
-//                        }
-//                    }
-//                } else {
-//                    print("No records found in custom zone for \(roomName), trying default zone.")
-//                    CloudKitService.shared.performQuery(recordType: self.recordType,
-//                                                        predicate: predicate,
-//                                                        zoneID: nil,
-//                                                        desiredKeys: nil) { [weak self] defaultResult in
-//                        guard let self = self else { return }
-//                        switch defaultResult {
-//                        case .success(let defaultRecords):
-//                            if defaultRecords.isEmpty {
-//                                print("No records found for \(roomName) in default zone.")
-//                                DispatchQueue.main.async { completion(nil) }
-//                            } else {
-//                                let recordIDs = defaultRecords.map { $0.recordID }
-//                                CloudKitService.shared.deleteRecords(with: recordIDs) { deleteResult in
-//                                    switch deleteResult {
-//                                    case .success:
-//                                        print("World \(roomName) deleted from default zone.")
-//                                        DispatchQueue.main.async { completion(nil) }
-//                                    case .failure(let error):
-//                                        print("Error deleting records from default zone: \(error.localizedDescription)")
-//                                        DispatchQueue.main.async { completion(error) }
-//                                    }
-//                                }
-//                            }
-//                        case .failure(let error):
-//                            print("Error querying default zone: \(error.localizedDescription)")
-//                            DispatchQueue.main.async { completion(error) }
-//                        }
-//                    }
-//                }
-//            case .failure(let error):
-//                print("Error performing query: \(error.localizedDescription)")
-//                DispatchQueue.main.async { completion(error) }
-//            }
-//        }
-//    }
-    
-    
-    
+    func deleteWorldMetadata(roomName: String, completion: @escaping (Error?) -> Void) {
+        let privateDB = CKContainer.default().privateCloudDatabase
+        let predicate = NSPredicate(format: "roomName == %@", roomName)
+        let query = CKQuery(recordType: "WorldMetadata", predicate: predicate)
+        let operation = CKQueryOperation(query: query)
+        
+        var recordsToDelete: [CKRecord.ID] = []
+        operation.recordFetchedBlock = { record in
+            recordsToDelete.append(record.recordID)
+        }
+        operation.queryCompletionBlock = { cursor, error in
+            if let error = error {
+                print("❌ Error querying WorldMetadata for \(roomName): \(error.localizedDescription)")
+                completion(error)
+                return
+            }
+            if recordsToDelete.isEmpty {
+                print("ℹ️ No WorldMetadata found for \(roomName). Nothing to delete.")
+                completion(nil)
+                return
+            }
+            
+            // Now delete the fetched metadata records
+            let deleteOp = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordsToDelete)
+            deleteOp.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, delError in
+                if let delError = delError {
+                    print("❌ Error deleting WorldMetadata: \(delError.localizedDescription)")
+                    completion(delError)
+                } else {
+                    print("✅ Deleted \(deletedRecordIDs?.count ?? 0) WorldMetadata record(s) for \(roomName).")
+                    completion(nil)
+                }
+            }
+            privateDB.add(deleteOp)
+        }
+        privateDB.add(operation)
+    }
+
     // MARK: - Fetch Last Modified
     func fetchLastModified(for roomName: String, completion: @escaping (Date?) -> Void) {
         let predicate = NSPredicate(format: "roomName == %@", roomName)
@@ -542,7 +501,10 @@ class iCloudManager {
         // Note: The worldRecord must also be in the public DB’s default zone.
         let reference = CKRecord.Reference(record: worldRecord, action: .deleteSelf)
         anchorRecord["worldReference"] = reference
+        print("[DEBUG] saveAnchor: Using worldRecord.recordID = \(worldRecord.recordID.recordName)")
+
         anchorRecord["worldRecordName"] = worldRecord.recordID.recordName as CKRecordValue
+        print("[DEBUG] anchorRecord[\"worldRecordName\"] = \(worldRecord.recordID.recordName)")
 
         publicDB.save(anchorRecord) { record, error in
             if let error = error {

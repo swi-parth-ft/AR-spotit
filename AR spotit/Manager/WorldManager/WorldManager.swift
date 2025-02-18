@@ -20,7 +20,7 @@ class WorldManager: ObservableObject {
         return it_s_here_.iCloudManager(worldManager: self)
     }()
     
-    
+    @Published var sharedRecordId: String = ""
     @Published var anchorRecordIDs: [String: String] = [:]
     var currentWorldRecord: CKRecord? // The shared world (root) record.
     @Published var currentRoomName: String = ""
@@ -562,6 +562,8 @@ class WorldManager: ObservableObject {
         iCloudManager.createCollabLink(for: roomName, with: pin) { shareURL in
             guard let shareURL = shareURL else {
                 print("Failed to create collaboration share link for room: \(roomName)")
+                AppState.shared.isCreatingLink = false
+
                 return
             }
             // Update local state for collaboration.
@@ -586,6 +588,8 @@ class WorldManager: ObservableObject {
                     print("World record for \(roomName) not found.")
                 }
             }
+            
+            AppState.shared.isCreatingLink = false
             // Present the share link using an activity controller.
             DispatchQueue.main.async {
                 let activityController = UIActivityViewController(activityItems: [shareURL], applicationActivities: nil)
