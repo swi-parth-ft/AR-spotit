@@ -31,6 +31,10 @@ struct AnchorsListView: View {
         GridItem(.flexible(), spacing: 10),
         GridItem(.flexible(), spacing: 10)
     ] // Two flexible columns
+    @State private var showPinPopover = false
+    @State private var selectedPin: String = ""
+@State private var isShowingPIN = false
+    @State private var isChecking = false
     
     func extractEmoji(from string: String) -> String? {
         for char in string {
@@ -330,7 +334,17 @@ struct AnchorsListView: View {
                 }
                 .sheet(isPresented: $isShowingQR) {
                     QRview(roomName: worldName)
-                        .presentationDetents([.fraction(0.5)])
+                        .presentationDetents([.fraction(0.4)])
+
+                }
+                .sheet(isPresented: $showPinPopover, onDismiss: {
+                    if !isChecking {
+                        worldManager.shareWorldViaCloudKit(roomName: worldName, pin: selectedPin)
+                    }
+
+                }) {
+                    PinView(roomName: worldName, pin: $selectedPin, isChecking: isChecking)
+                        .presentationDetents([.fraction(0.4)])
 
                 }
                 .navigationTitle(worldName)
@@ -338,9 +352,32 @@ struct AnchorsListView: View {
                     
                     if let world = worldManager.savedWorlds.first(where: { $0.name == worldName }),
                                world.isCollaborative {
-                                Image(systemName: "link.circle.fill")
-                                    .foregroundColor(.blue)
-                                    .symbolEffect(.breathe)
+                        Button {
+                               // 1) Grab the PIN from the local WorldModel
+                           
+                           } label: {
+                               Image(systemName: "link.circle.fill")
+                                   .foregroundColor(.blue)
+                                   .symbolEffect(.breathe)
+                           }
+//                           .popover(isPresented: $showPinPopover) {
+//                               // 2) The popover content
+//                               VStack(spacing: 10) {
+//                                   if let pin = selectedPin {
+//                                       Text("PIN for \(worldName)")
+//                                           .font(.headline)
+//                                       Text(pin)
+//                                           .font(.largeTitle)
+//                                           .fontWeight(.bold)
+//                                           .padding()
+//                                   } else {
+//                                       Text("No PIN stored for this world.")
+//                                           .font(.headline)
+//                                           .padding()
+//                                   }
+//                               }
+//                               .padding()
+//                           }
                             }
                     
                     Button(action: {
@@ -385,7 +422,14 @@ struct AnchorsListView: View {
                         }
                         
                         Button {
-                            worldManager.shareWorldViaCloudKit(roomName: worldName)
+                            if let world = worldManager.savedWorlds.first(where: { $0.name == worldName }),
+                               world.isCollaborative {
+                                worldManager.shareWorldViaCloudKit(roomName: worldName, pin: "")
+                            } else {
+                                isChecking = false
+                                showPinPopover = true
+                            }
+                          
                         } label: {
                             HStack {
                                 Text("Share iCloud link")
@@ -412,6 +456,24 @@ struct AnchorsListView: View {
                             
                         }
                         
+                        if let world = worldManager.savedWorlds.first(where: { $0.name == worldName }), world.isCollaborative {
+                            
+                            Button {
+                                print(world.pin ?? "")
+                           
+                               
+                                selectedPin = world.pin ?? ""
+                                isChecking = true
+                                
+                                
+                                showPinPopover = true
+                                
+                           
+                        } label: {
+                            Text("Show PIN")
+                        }
+                    }
+                         
                         Button(role: .destructive) {
                             worldManager.deleteWorld(roomName: worldName) {
                                 dismiss()

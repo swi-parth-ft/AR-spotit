@@ -90,3 +90,18 @@ func inspectLocalArchive(for roomName: String) {
         print("Error inspecting local archive: \(error.localizedDescription)")
     }
 }
+
+func sha256(_ input: String) -> String {
+    // Basic example
+    if let data = input.data(using: .utf8) {
+        let hash = SHA256.hash(data: data)
+        return hash.compactMap { String(format: "%02x", $0) }.joined()
+    }
+    return ""
+}
+
+
+func generatePin() -> String {
+    let pin = String(format: "%04d", Int.random(in: 0..<10000)) // 4-digit
+    return pin
+}

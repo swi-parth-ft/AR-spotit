@@ -21,20 +21,34 @@ struct QRview: View {
                 if let image = qrImage {
                     ZStack {
                         
-                        RoundedRectangle(cornerRadius: 18)
-                            .fill(.white)
-                            .frame(width: 210, height: 210)
-                            .shadow(color: .primary, radius: 10)
-                        
-                        Image(uiImage: image)
-                            .resizable()
-                            .interpolation(.none) // Keeps the QR code sharp
-                            .scaledToFit()
-                            .frame(width: 200, height: 200)
-                        
-//                        ParticleQRAnimation(image: image)
-//                            .frame(width: 200, height: 200)
+                        if colorScheme == .dark {
+                            RoundedRectangle(cornerRadius: 18)
+                                .fill(.white)
+                                .frame(width: 210, height: 210)
+                                .shadow(color: .white.opacity(0.4), radius: 5)
 
+                            Image(uiImage: image)
+                                .resizable()
+                                .interpolation(.none) // Keeps the QR code sharp
+                                .scaledToFit()
+                                .frame(width: 200, height: 200)
+
+                            
+                        } else {
+                            RoundedRectangle(cornerRadius: 18)
+                                .fill(.white)
+                                .frame(width: 210, height: 210)
+                                .shadow(radius: 5)
+                            
+                            Image(uiImage: image)
+                                .resizable()
+                                .interpolation(.none) // Keeps the QR code sharp
+                                .scaledToFit()
+                                .frame(width: 200, height: 200)
+                            
+                            
+                            
+                        }
                            
                     }
                 } else {
@@ -51,7 +65,7 @@ struct QRview: View {
             }
             // Generate the URL and QR code when the view appears
             .onAppear {
-                WorldManager.shared.iCloudManager.createShareLink(for: roomName) { url in
+                WorldManager.shared.iCloudManager.createCollabLink(for: roomName, with: "") { url in
                     guard let url = url else {
                         print("Failed to create share URL.")
                         return

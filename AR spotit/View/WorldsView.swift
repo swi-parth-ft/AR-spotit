@@ -327,7 +327,7 @@ struct WorldsView: View {
                                 }
                                 
                                 Button {
-                                    worldManager.shareWorldViaCloudKit(roomName: world.name)
+                                    worldManager.shareWorldViaCloudKit(roomName: world.name, pin: "")
                                 } label: {
                                     HStack {
                                         Text("Share iCloud link")

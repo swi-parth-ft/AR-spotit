@@ -48,7 +48,7 @@ class WorldManager: ObservableObject {
     @Published var isWorldLoaded = false
     @Published var isShowingARGuide = false
     @Published var is3DArrowActive = false
-
+    
     init() { }
     func startCollaborativeSession(with sharedRecord: CKRecord, roomName: String) {
         DispatchQueue.main.async {
@@ -168,14 +168,53 @@ class WorldManager: ObservableObject {
     
     // MARK: - Save World List
     func saveWorldList() {
+        if savedWorlds.isEmpty {
+                print("Skipping sync because local worlds are empty.")
+                return
+            }
         let fileURL = WorldModel.appSupportDirectory.appendingPathComponent("worldsList.json")
         do {
             let data = try JSONEncoder().encode(savedWorlds)
             try data.write(to: fileURL, options: .atomic)
             indexWorlds()
+           
+
         } catch {
             print("Error saving world list: \(error.localizedDescription)")
         }
+    }
+    
+    private let metadataRecordType = "WorldMetadata"
+
+    func syncLocalWorldsToCloudKit() {
+        let privateDB = CKContainer.default().privateCloudDatabase
+        var recordsToSave: [CKRecord] = []
+        
+        for world in savedWorlds {
+            // Create a stable recordID for each world
+            let recordID = CKRecord.ID(recordName: "metadata-\(world.name)")
+            let record = CKRecord(recordType: metadataRecordType, recordID: recordID)
+            
+            // Map WorldModel fields to CKRecord fields
+            record["roomName"] = world.name as CKRecordValue
+            record["pin"] = world.pin as CKRecordValue?
+            record["cloudRecordID"] = world.cloudRecordID as CKRecordValue?
+            record["isCollaborative"] = world.isCollaborative as CKRecordValue
+            record["lastModified"] = world.lastModified as CKRecordValue
+            
+            recordsToSave.append(record)
+        }
+        
+        let operation = CKModifyRecordsOperation(recordsToSave: recordsToSave, recordIDsToDelete: nil)
+        operation.savePolicy = .allKeys
+        operation.modifyRecordsCompletionBlock = { saved, deleted, error in
+            if let error = error {
+                print("❌ Error syncing worlds to CloudKit: \(error.localizedDescription)")
+            } else {
+                print("✅ Successfully synced \(saved?.count ?? 0) worlds to CloudKit.")
+            }
+        }
+        privateDB.add(operation)
     }
     
     // MARK: - Load Saved Worlds
@@ -195,34 +234,122 @@ class WorldManager: ObservableObject {
                 print("No saved world list found or failed to decode: \(error.localizedDescription)")
             }
         }
-        fetchWorldNamesFromCloudKit {
-            print("Data synced with CloudKit.")
-            let dispatchGroup = DispatchGroup()
-            for world in self.savedWorlds {
-                dispatchGroup.enter()
-                self.getAnchorNames(for: world.name) { anchorNames in
-                    DispatchQueue.main.async {
-                        self.cachedAnchorNames[world.name] = anchorNames
-                    }
-                    dispatchGroup.leave()
-                }
-                if !FileManager.default.fileExists(atPath: world.filePath.path) {
-                    print("Fetching missing data for world: \(world.name)")
+        fetchWorldMetadataFromCloudKit {
+            
+            self.fetchWorldNamesFromCloudKit {
+                print("Data synced with CloudKit.")
+                let dispatchGroup = DispatchGroup()
+                for world in self.savedWorlds {
                     dispatchGroup.enter()
-                    self.iCloudManager.loadWorldMap(roomName: world.name) { data, arMap in
-                        if let data = data {
-                            self.saveLocallyAfterCloudDownload(roomName: world.name, data: data, lastModified: world.lastModified)
+                    self.getAnchorNames(for: world.name) { anchorNames in
+                        DispatchQueue.main.async {
+                            self.cachedAnchorNames[world.name] = anchorNames
                         }
-                        print("Fetched container for \(world.name) and saved locally.")
                         dispatchGroup.leave()
                     }
+                    if !FileManager.default.fileExists(atPath: world.filePath.path) {
+                        print("Fetching missing data for world: \(world.name)")
+                        dispatchGroup.enter()
+                        self.iCloudManager.loadWorldMap(roomName: world.name) { data, arMap in
+                            if let data = data {
+                                self.saveLocallyAfterCloudDownload(roomName: world.name, data: data, lastModified: world.lastModified)
+                            }
+                            print("Fetched container for \(world.name) and saved locally.")
+                            dispatchGroup.leave()
+                        }
+                    }
+                }
+                dispatchGroup.notify(queue: .main) {
+                    completion()
                 }
             }
-            dispatchGroup.notify(queue: .main) {
-                completion()
-            }
+            
         }
     }
+    
+    func fetchWorldMetadataFromCloudKit(completion: @escaping () -> Void) {
+        let localWorlds = savedWorlds
+            let privateDB = CKContainer.default().privateCloudDatabase
+            
+            // We'll do them all in parallel with a DispatchGroup.
+            let group = DispatchGroup()
+            
+            for localWorld in localWorlds {
+                group.enter()
+                
+                // 1) Build a query: "roomName == localWorld.name"
+                let predicate = NSPredicate(format: "roomName == %@", localWorld.name)
+                let query = CKQuery(recordType: metadataRecordType, predicate: predicate)
+                
+                let operation = CKQueryOperation(query: query)
+                var fetchedRecords: [CKRecord] = []
+                
+                operation.recordFetchedBlock = { record in
+                    fetchedRecords.append(record)
+                }
+                
+                operation.queryCompletionBlock = { cursor, error in
+                    if let error = error {
+                        print("❌ Error fetching metadata for '\(localWorld.name)': \(error.localizedDescription)")
+                    } else if let record = fetchedRecords.first {
+                        // 2) Convert the record into a WorldModel
+                        let roomName = record["roomName"] as? String ?? "Untitled"
+                        let lastModified = record["lastModified"] as? Date ?? Date.distantPast
+                        
+                        var newWorld = WorldModel(name: roomName, lastModified: lastModified)
+                        newWorld.pin = record["pin"] as? String
+                        newWorld.cloudRecordID = record["cloudRecordID"] as? String
+                        newWorld.isCollaborative = record["isCollaborative"] as? Bool ?? false
+                        
+                        // 3) Merge it with our local data (will pick whichever is newer)
+                        self.mergeCloudKitWorlds([newWorld])
+                        print("ℹ️ metadata found for '\(localWorld.name)' in CloudKit.")
+                    } else {
+                        print("ℹ️ No metadata record found for '\(localWorld.name)' in CloudKit.")
+                    }
+                    group.leave()
+                }
+                
+                privateDB.add(operation)
+            }
+            
+            // 4) Once all queries finish, call completion
+            group.notify(queue: .main) {
+                completion()
+            }
+    }
+    
+     private func mergeCloudKitWorlds(_ cloudWorlds: [WorldModel]) {
+        
+        for cw in cloudWorlds {
+            if let localIndex = savedWorlds.firstIndex(where: { $0.name == cw.name }) {
+                // We already have a local world with this name
+                let localWorld = savedWorlds[localIndex]
+                // Compare lastModified to decide which is newer
+              //  if cw.lastModified > localWorld.lastModified {
+                    // Cloud is newer: override local metadata
+                DispatchQueue.main.async {
+                    self.savedWorlds[localIndex].pin = cw.pin
+                    self.savedWorlds[localIndex].cloudRecordID = cw.cloudRecordID
+                    self.savedWorlds[localIndex].isCollaborative = cw.isCollaborative
+                    self.savedWorlds[localIndex].lastModified = cw.lastModified
+                }
+                   print("collab? \(cw.isCollaborative)")
+//                } else {
+//                    // Local is newer: do nothing, or push to cloud again if you want
+//                }
+            } else {
+                // No local world with this name, so add it
+                DispatchQueue.main.async {
+                    
+                    self.savedWorlds.append(cw)
+                }
+            }
+        }
+        // Save updated local JSON
+        self.saveWorldList()
+    }
+    
     
     @MainActor
     func loadSavedWorldsAsyncForIntents() async throws -> [WorldModel] {
@@ -314,12 +441,14 @@ class WorldManager: ObservableObject {
         let filePath = WorldModel.appSupportDirectory.appendingPathComponent("\(roomName)_worldMap")
         do {
             try data.write(to: filePath, options: .atomic)
-            if let index = savedWorlds.firstIndex(where: { $0.name == roomName }) {
-                savedWorlds[index].lastModified = lastModified
+            DispatchQueue.main.async {
+                if let index = self.savedWorlds.firstIndex(where: { $0.name == roomName }) {
+                    self.savedWorlds[index].lastModified = lastModified
             } else {
-                DispatchQueue.main.async {
+                
                     self.savedWorlds.append(WorldModel(name: roomName, lastModified: lastModified))
-
+                    
+                    
                 }
             }
             saveWorldList()
@@ -428,9 +557,9 @@ class WorldManager: ObservableObject {
     //MARK: Share iCloud Link
     // In WorldManager.swift
 
-    func shareWorldViaCloudKit(roomName: String) {
+    func shareWorldViaCloudKit(roomName: String, pin: String) {
         // Call the new collaboration function in iCloudManager to migrate and create a share.
-        iCloudManager.createCollabLink(for: roomName) { shareURL in
+        iCloudManager.createCollabLink(for: roomName, with: pin) { shareURL in
             guard let shareURL = shareURL else {
                 print("Failed to create collaboration share link for room: \(roomName)")
                 return
@@ -443,7 +572,11 @@ class WorldManager: ObservableObject {
                         DispatchQueue.main.async {
                             self.savedWorlds[index].cloudRecordID = record.recordID.recordName
                             self.savedWorlds[index].isCollaborative = true
+                            if self.savedWorlds[index].pin == nil {
+                                self.savedWorlds[index].pin = pin
+                            }
                             self.saveWorldList()
+                            self.syncLocalWorldsToCloudKit()
                         }
                         print("Collaborative info updated for room: \(roomName)")
                     } else {

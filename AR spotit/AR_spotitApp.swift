@@ -23,6 +23,8 @@ class AppState: ObservableObject {
             print("isCloudShare changed to: \(isiCloudShare)")
         }
     }
+    
+    @Published var publicRecordName: String = ""
 }
 
 @main
@@ -133,21 +135,20 @@ struct AR_spotitApp: App {
 private extension AR_spotitApp {
     // MARK: -iCLoud Share Link
     
-    
-
     private func processSharedRecord(_ sharedRecord: CKRecord, withShare share: CKShare) {
-    
+        let roomName = sharedRecord["roomName"] as? String ?? "Untitled"
+        let publicRecordName = sharedRecord["publicRecordName"] as? String ?? ""
+        
         DispatchQueue.main.async {
             WorldManager.shared.sharedZoneID = share.recordID.zoneID
             print("Shared zone ID set to: \(WorldManager.shared.sharedZoneID!)")
 
+            AppState.shared.publicRecordName = publicRecordName
             AppState.shared.isiCloudShare = true
         }
-        let roomName = sharedRecord["roomName"] as? String ?? "Untitled"
-          
-          // Start a collaborative session in WorldManager
-          WorldManager.shared.startCollaborativeSession(with: sharedRecord, roomName: roomName)
         
+        // Start a collaborative session in WorldManager
+        WorldManager.shared.startCollaborativeSession(with: sharedRecord, roomName: roomName)
         
         guard
             let asset = sharedRecord["mapAsset"] as? CKAsset,
@@ -157,19 +158,47 @@ private extension AR_spotitApp {
             return
         }
         
+        // 1) Check if a PIN is required
+        let pinRequired = sharedRecord["pinRequired"] as? Bool ?? false
+        if pinRequired {
+            print("🔒 PIN is required. Prompting user...")
+            promptForPin { enteredPin in
+                let storedPinHash = sharedRecord["pinHash"] as? String ?? ""
+                let isValid = self.verifyPin(enteredPin, against: storedPinHash)
+                if isValid {
+                    print("✅ PIN correct; proceeding to show alert.")
+                    self.showOpenOrSaveAlert(sharedRecord: sharedRecord,
+                                             assetFileURL: assetFileURL,
+                                             roomName: roomName)
+                } else {
+                    print("❌ Incorrect PIN.")
+                    self.showPinErrorAlert()
+                }
+            }
+        } else {
+            // If no PIN required, just proceed to the usual alert
+            print("🔓 No PIN required. Proceeding directly.")
+            showOpenOrSaveAlert(sharedRecord: sharedRecord,
+                                assetFileURL: assetFileURL,
+                                roomName: roomName)
+        }
+    }
+    
+    private func showOpenOrSaveAlert(sharedRecord: CKRecord,
+                                     assetFileURL: URL,
+                                     roomName: String) {
         do {
             let data = try Data(contentsOf: assetFileURL)
             print("✅ Loaded asset data of size: \(data.count) bytes")
             
-            DispatchQueue.main.async() {
-                // 1) Create a UIKit alert
+            DispatchQueue.main.async {
                 let alert = UIAlertController(
                     title: "\(sharedRecord["roomName"] ?? "AR Area") Received",
                     message: "Would you like to open now or save locally?",
                     preferredStyle: .alert
                 )
                 
-                // 2) "Open Now" → Decode ARWorldMap in memory
+                // "Open Now"
                 let openAction = UIAlertAction(title: "Open Now", style: .default) { _ in
                     do {
                         if let container = try NSKeyedUnarchiver.unarchivedObject(
@@ -181,7 +210,6 @@ private extension AR_spotitApp {
                             WorldManager.shared.sharedWorldName = sharedRecord["roomName"] as? String ?? "Untitled"
                             print("✅ Will open shared ARWorldMap in memory.")
                             
-                            // Optionally post a notification or navigate to your AR screen:
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                                 NotificationCenter.default.post(
                                     name: Notifications.incomingShareMapReady,
@@ -196,32 +224,26 @@ private extension AR_spotitApp {
                     }
                 }
                 
-                // 3) "Save Locally" → old logic (write to local file)
+                // "Save Locally"
                 let saveAction = UIAlertAction(title: "Save Locally", style: .default) { _ in
                     do {
-                        let roomName = (sharedRecord["roomName"] as? String) ?? "UnknownWorld"
                         let localFilePath = WorldModel.appSupportDirectory
                             .appendingPathComponent("\(roomName)_worldMap")
-                        
                         try data.write(to: localFilePath, options: .atomic)
                         print("✅ Shared asset data written to local file: \(localFilePath.path)")
                         
-                        // Then import so it shows in your saved worlds
                         WorldManager.shared.importWorldFromURL(localFilePath)
                     } catch {
                         print("❌ Error saving shared asset data: \(error.localizedDescription)")
                     }
                 }
                 
-                // 4) "Cancel"
                 let cancelAction = UIAlertAction(title: "Cancel", style: .cancel)
                 
-                // 5) Add actions
                 alert.addAction(openAction)
                 alert.addAction(saveAction)
                 alert.addAction(cancelAction)
                 
-                // 6) Present the alert on the root VC
                 if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                    let rootVC = windowScene.windows.first?.rootViewController {
                     rootVC.present(alert, animated: true)
@@ -230,9 +252,123 @@ private extension AR_spotitApp {
                 }
             }
         } catch {
-            print("❌ Error processing ARWorldMap data: \(error.localizedDescription)")
+            print("❌ Error reading asset data: \(error.localizedDescription)")
         }
     }
+    
+    private func showPinErrorAlert() {
+        DispatchQueue.main.async {
+            let alert = UIAlertController(title: "Incorrect PIN", message: "You entered the wrong code.", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .cancel))
+            
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let rootVC = windowScene.windows.first?.rootViewController {
+                rootVC.present(alert, animated: true)
+            }
+        }
+    }
+
+//    private func processSharedRecord(_ sharedRecord: CKRecord, withShare share: CKShare) {
+//    
+//        let roomName = sharedRecord["roomName"] as? String ?? "Untitled"
+//        let publicRecordName = sharedRecord["publicRecordName"] as? String ?? ""
+//        
+//        DispatchQueue.main.async {
+//            WorldManager.shared.sharedZoneID = share.recordID.zoneID
+//            print("Shared zone ID set to: \(WorldManager.shared.sharedZoneID!)")
+//
+//            AppState.shared.publicRecordName = publicRecordName
+//            AppState.shared.isiCloudShare = true
+//        }
+//     
+//        
+//          // Start a collaborative session in WorldManager
+//        WorldManager.shared.startCollaborativeSession(with: sharedRecord, roomName: roomName)
+//        
+//        guard
+//            let asset = sharedRecord["mapAsset"] as? CKAsset,
+//            let assetFileURL = asset.fileURL
+//        else {
+//            print("❌ Failed to get CKAsset or assetFileURL")
+//            return
+//        }
+//        
+//        do {
+//            let data = try Data(contentsOf: assetFileURL)
+//            print("✅ Loaded asset data of size: \(data.count) bytes")
+//            
+//            DispatchQueue.main.async() {
+//                // 1) Create a UIKit alert
+//                let alert = UIAlertController(
+//                    title: "\(sharedRecord["roomName"] ?? "AR Area") Received",
+//                    message: "Would you like to open now or save locally?",
+//                    preferredStyle: .alert
+//                )
+//                
+//                // 2) "Open Now" → Decode ARWorldMap in memory
+//                let openAction = UIAlertAction(title: "Open Now", style: .default) { _ in
+//                    do {
+//                        if let container = try NSKeyedUnarchiver.unarchivedObject(
+//                            ofClass: ARWorldMapContainer.self,
+//                            from: data
+//                        ) {
+//                            let arWorldMap = container.map
+//                            WorldManager.shared.sharedARWorldMap = arWorldMap
+//                            WorldManager.shared.sharedWorldName = sharedRecord["roomName"] as? String ?? "Untitled"
+//                            print("✅ Will open shared ARWorldMap in memory.")
+//                            
+//                            // Optionally post a notification or navigate to your AR screen:
+//                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+//                                NotificationCenter.default.post(
+//                                    name: Notifications.incomingShareMapReady,
+//                                    object: nil
+//                                )
+//                            }
+//                        } else {
+//                            print("❌ Could not decode ARWorldMap from container.")
+//                        }
+//                    } catch {
+//                        print("❌ Error decoding ARWorldMap: \(error.localizedDescription)")
+//                    }
+//                }
+//                
+//                // 3) "Save Locally" → old logic (write to local file)
+//                let saveAction = UIAlertAction(title: "Save Locally", style: .default) { _ in
+//                    do {
+//                        let roomName = (sharedRecord["roomName"] as? String) ?? "UnknownWorld"
+//                        let localFilePath = WorldModel.appSupportDirectory
+//                            .appendingPathComponent("\(roomName)_worldMap")
+//                        
+//                        try data.write(to: localFilePath, options: .atomic)
+//                        print("✅ Shared asset data written to local file: \(localFilePath.path)")
+//                        
+//                        // Then import so it shows in your saved worlds
+//                        WorldManager.shared.importWorldFromURL(localFilePath)
+//                    } catch {
+//                        print("❌ Error saving shared asset data: \(error.localizedDescription)")
+//                    }
+//                }
+//                
+//                // 4) "Cancel"
+//                let cancelAction = UIAlertAction(title: "Cancel", style: .cancel)
+//                
+//                // 5) Add actions
+//                alert.addAction(openAction)
+//                alert.addAction(saveAction)
+//                alert.addAction(cancelAction)
+//                
+//                // 6) Present the alert on the root VC
+//                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+//                   let rootVC = windowScene.windows.first?.rootViewController {
+//                    rootVC.present(alert, animated: true)
+//                } else {
+//                    print("❌ Could not find a rootViewController to present alert.")
+//                }
+//            }
+//        } catch {
+//            print("❌ Error processing ARWorldMap data: \(error.localizedDescription)")
+//        }
+//    }
     
     private func handleIncomingShareMetadata(_ metadata: CKShare.Metadata) {
         print("Handling incoming share metadata directly: \(metadata)")
@@ -380,5 +516,32 @@ private extension AR_spotitApp {
         } else {
             print("Unique identifier does not match known prefixes")
         }
+    }
+    
+    
+    private func promptForPin(completion: @escaping (String) -> Void) {
+        DispatchQueue.main.async {
+            let alert = UIAlertController(title: "Enter PIN", message: nil, preferredStyle: .alert)
+            alert.addTextField { textField in
+                textField.placeholder = "4-digit code"
+                textField.keyboardType = .numberPad
+            }
+            let confirm = UIAlertAction(title: "OK", style: .default) { _ in
+                let pin = alert.textFields?.first?.text ?? ""
+                completion(pin)
+            }
+            alert.addAction(confirm)
+            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+            
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let rootVC = windowScene.windows.first?.rootViewController {
+                rootVC.present(alert, animated: true)
+            }
+        }
+    }
+
+    private func verifyPin(_ enteredPin: String, against storedPinHash: String) -> Bool {
+        let enteredHash = sha256(enteredPin) // implement your sha256() function
+        return enteredHash == storedPinHash
     }
 }

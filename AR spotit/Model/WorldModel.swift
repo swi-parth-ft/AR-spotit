@@ -9,6 +9,7 @@ struct WorldModel: Identifiable, Codable {
     var sessionToken: String? = nil
     
     var cloudRecordID: String?
+    var pin: String?
 
     // Computed property for dynamic file path
     var filePath: URL {

@@ -195,7 +195,8 @@ struct ARViewContainer: UIViewRepresentable {
         var blurViewEffect: UIVisualEffectView?
         var lastAnchorFetchTime: Date = .distantPast
         var publicRecord: CKRecord? = nil
-        
+        var relocalizationCount = 0
+
         init(_ parent: ARViewContainer, worldManager: WorldManager) {
             self.parent = parent
             self.worldManager = worldManager
@@ -214,7 +215,7 @@ struct ARViewContainer: UIViewRepresentable {
                     
                     print("Relocalization complete. Ready to add guide anchors.")
                     worldIsLoaded = true
-                    
+                    relocalizationCount += 1
                     
                     try? await Task.sleep(nanoseconds: 500_000_000)
                     DispatchQueue.main.async {
@@ -241,6 +242,9 @@ struct ARViewContainer: UIViewRepresentable {
         //MARK: Did add anchor
          func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
            
+//             if self.parent.sceneView.session.currentFrame!.anchors.contains(where: { $0.name == anchor.name }) {
+//                 return
+//             }
 //            if let name = anchor.name, name != "guide" {
 //                
 //                
@@ -461,34 +465,35 @@ struct ARViewContainer: UIViewRepresentable {
             let currentTime = Date()
              if AppState.shared.isiCloudShare {
                  
-             
-            if currentTime.timeIntervalSince(lastAnchorFetchTime) > 10.0 {
-                lastAnchorFetchTime = currentTime
-                if let worldRecord = WorldManager.shared.currentWorldRecord {
-                    iCloudManager.shared.fetchNewAnchors(for: worldRecord.recordID) { records in
-                        DispatchQueue.main.async {
-                            for record in records {
-                                if let transformData = record["transform"] as? Data {
-                                    let transform = transformData.withUnsafeBytes { $0.load(as: simd_float4x4.self) }
-                                    
-                                    
-                                    let anchorName = record["name"] as? String
-                                    let newAnchor = ARAnchor(name: anchorName ?? "noname", transform: transform)
-                                    
-                                    // Avoid adding duplicates by checking the transform.
-                                    if !self.parent.sceneView.session.currentFrame!.anchors.contains(where: { $0.name == newAnchor.name }) {
-                                        self.parent.sceneView.session.add(anchor: newAnchor)
-                                        print("✅ Added new anchor \(newAnchor.name ?? "") from CloudKit.")
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                
-                
-            }
+                 if self.worldManager.isRelocalizationComplete && relocalizationCount > 1 {
+                     if currentTime.timeIntervalSince(lastAnchorFetchTime) > 10.0 {
+                         lastAnchorFetchTime = currentTime
+                         if let worldRecord = WorldManager.shared.currentWorldRecord {
+                             iCloudManager.shared.fetchNewAnchors(for: worldRecord.recordID) { records in
+                                 DispatchQueue.main.async {
+                                     for record in records {
+                                         if let transformData = record["transform"] as? Data {
+                                             let transform = transformData.withUnsafeBytes { $0.load(as: simd_float4x4.self) }
+                                             
+                                             
+                                             let anchorName = record["name"] as? String
+                                             let newAnchor = ARAnchor(name: anchorName ?? "noname", transform: transform)
+                                             
+                                             // Avoid adding duplicates by checking the transform.
+                                             if !self.parent.sceneView.session.currentFrame!.anchors.contains(where: { $0.name == newAnchor.name }) {
+                                                 self.parent.sceneView.session.add(anchor: newAnchor)
+                                                 print("✅ Added new anchor \(newAnchor.name ?? "") from CloudKit.")
+                                             }
+                                         }
+                                     }
+                                 }
+                             }
+                         }
+                         
+                         
+                         
+                     }
+                 }
 //
             
                  if self.worldManager.isRelocalizationComplete == true {
@@ -907,6 +912,47 @@ struct ARViewContainer: UIViewRepresentable {
                         }
                     }
                 }
+                
+                
+                if AppState.shared.publicRecordName != "" {
+                    if publicRecord == nil {
+                        let recordName = AppState.shared.publicRecordName
+                        CKContainer.default().publicCloudDatabase.fetch(
+                            withRecordID: CKRecord.ID(recordName: recordName)
+                        ) { record, error in
+                            if let pRecord = record {
+                                
+                                self.publicRecord = pRecord
+                                // 3) Save anchors to the public record
+                                iCloudManager.shared.saveAnchor(anchor,
+                                                                for: self.parent.roomName,
+                                                                worldRecord: pRecord) { error in
+                                    if let error = error {
+                                        print("Error saving anchor: \(error.localizedDescription)")
+                                    } else {
+                                        print("Anchor saved to public DB!")
+                                    }
+                                }
+                                
+                                
+                            }
+                        }
+                    } else {
+                        if let record = publicRecord {
+                            iCloudManager.shared.saveAnchor(anchor,
+                                                            for: self.parent.roomName,
+                                                            worldRecord: record) { error in
+                                if let error = error {
+                                    print("Error saving anchor: \(error.localizedDescription)")
+                                } else {
+                                    print("Anchor saved to public DB!")
+                                }
+                            }
+                        }
+                       
+                    }
+                    
+                }
                 print("Placed anchor with name: \(uniqueName) at position: \(result.worldTransform.columns.3)")
                 let drop = Drop.init(title: "\(uniqueName) placed")
                 Drops.show(drop)
@@ -1115,24 +1161,6 @@ struct ARViewContainer: UIViewRepresentable {
                     
                 }
             }
-//
-//            if let recordIDString = self.worldManager.anchorRecordIDs[anchorName] {
-//                    
-//                let recordID = CKRecord.ID(recordName: recordIDString)
-//                iCloudManager.shared.deleteAnchor(withRecordID: recordID) { error in
-//                    if let error = error {
-//                        print("Error deleting anchor \(anchorName) from CloudKit: \(error.localizedDescription)")
-//                    } else {
-//                        print("Anchor \(anchorName) deleted from CloudKit.")
-//                        // Remove the recordID from the local dictionary.
-//                        DispatchQueue.main.async {
-//                            WorldManager.shared.anchorRecordIDs.removeValue(forKey: anchorName)
-//                        }
-//                    }
-//                }
-//                }
-                
-                
             
             parent.sceneView.session.remove(anchor: anchor)
             let drop = Drop.init(title: "\(anchorName) deleted")
@@ -1687,7 +1715,6 @@ extension ARViewContainer {
         return nil
     }
 }
-
 
 extension ARViewContainer.Coordinator {
     func capturePointCloudSnapshotOffscreenClone(
