@@ -10,6 +10,7 @@ import SwiftData
 import AppIntents
 import CoreSpotlight
 import CloudKit
+import Drops
 
 class AppState: ObservableObject {
     static let shared = AppState() // Singleton instance
@@ -34,6 +35,13 @@ class AppState: ObservableObject {
             print("isCreatingLink changed to: \(isCreatingLink)")
         }
     }
+    
+    @Published var isShowingPinSheet = false
+        @Published var isShowingOpenSaveSheet = false
+    @Published var pendingSharedRecord: CKRecord?
+        @Published var pendingAssetFileURL: URL?
+        @Published var pendingRoomName: String?
+    
 }
 
 @main
@@ -42,7 +50,8 @@ struct AR_spotitApp: App {
     @StateObject var worldManager = WorldManager.shared
     @State private var isActive = false
     let sceneDelegate = MySceneDelegate()
-    
+    @StateObject var appState = AppState.shared  // Use our shared app state
+
     var body: some Scene {
         WindowGroup {
             ZStack {
@@ -107,6 +116,63 @@ struct AR_spotitApp: App {
                         .zIndex(1)
                 }
             }
+            .sheet(isPresented: $appState.isShowingPinSheet) {
+                if let roomName = appState.pendingRoomName,
+                   let sharedRecord = appState.pendingSharedRecord {
+                    // Get the stored PIN hash from the record.
+                    let storedPinHash = sharedRecord["pinHash"] as? String ?? ""
+                    PinEntrySheet(
+                        roomName: roomName,
+                        storedPinHash: storedPinHash,
+                        onConfirm: { enteredPin in
+                            // Verify the entered PIN.
+                            if verifyPin(enteredPin, against: storedPinHash) {
+                                print("✅ PIN correct; proceeding to open/save sheet.")
+                                appState.isShowingPinSheet = false
+                                appState.isShowingOpenSaveSheet = true
+                            } else {
+                                
+                                print("❌ Incorrect PIN.")
+                                Drops.show("⚠️ Incorrect Key, please try again.")
+                               // appState.isShowingPinSheet = false
+                            }
+                        },
+                        onCancel: {
+                            appState.isShowingPinSheet = false
+                        }
+                    )
+                    .presentationDetents([.fraction(0.4)])
+
+                } else {
+                    Text("Missing pending record data.")
+                }
+            }
+            .sheet(isPresented: $appState.isShowingOpenSaveSheet) {
+                if let roomName = appState.pendingRoomName,
+                   let assetURL = appState.pendingAssetFileURL,
+                   let sharedRecord = appState.pendingSharedRecord {
+                    OpenOrSaveSheet(
+                        roomName: roomName,
+                        assetFileURL: assetURL,
+                        sharedRecord: sharedRecord,
+                        onOpen: {
+                            openSharedWorld(sharedRecord: sharedRecord, assetURL: assetURL)
+                            appState.isShowingOpenSaveSheet = false
+                        },
+                        onSave: {
+                            saveSharedWorld(sharedRecord: sharedRecord, assetURL: assetURL, roomName: roomName)
+                            appState.isShowingOpenSaveSheet = false
+                        },
+                        onCancel: {
+                            appState.isShowingOpenSaveSheet = false
+                        }
+                    )
+                    .presentationDetents([.fraction(0.4)])
+
+                } else {
+                    Text("Missing pending record data.")
+                }
+            }
             .withHostingWindow { window in
                 if let windowScene = window?.windowScene {
                     self.sceneDelegate.originalDelegate = windowScene.delegate
@@ -135,6 +201,45 @@ struct AR_spotitApp: App {
             }
         }
     }
+    
+    private func openSharedWorld(sharedRecord: CKRecord, assetURL: URL) {
+            do {
+                let data = try Data(contentsOf: assetURL)
+                print("✅ Loaded asset data of size: \(data.count) bytes")
+                if let container = try NSKeyedUnarchiver.unarchivedObject(
+                    ofClass: ARWorldMapContainer.self,
+                    from: data
+                ) {
+                    let arWorldMap = container.map
+                    WorldManager.shared.sharedARWorldMap = arWorldMap
+                    WorldManager.shared.sharedWorldName = sharedRecord["roomName"] as? String ?? "Untitled"
+                    print("✅ Will open shared ARWorldMap in memory.")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        NotificationCenter.default.post(
+                            name: Notifications.incomingShareMapReady,
+                            object: nil
+                        )
+                    }
+                } else {
+                    print("❌ Could not decode ARWorldMap from container.")
+                }
+            } catch {
+                print("❌ Error decoding ARWorldMap: \(error.localizedDescription)")
+            }
+        }
+        
+        private func saveSharedWorld(sharedRecord: CKRecord, assetURL: URL, roomName: String) {
+            do {
+                let data = try Data(contentsOf: assetURL)
+                print("✅ Loaded asset data of size: \(data.count) bytes")
+                let localFilePath = WorldModel.appSupportDirectory.appendingPathComponent("\(roomName)_worldMap")
+                try data.write(to: localFilePath, options: .atomic)
+                print("✅ Shared asset data written to local file: \(localFilePath.path)")
+                WorldManager.shared.importWorldFromURL(localFilePath)
+            } catch {
+                print("❌ Error saving shared asset data: \(error.localizedDescription)")
+            }
+        }
  
     
 }
@@ -145,53 +250,48 @@ private extension AR_spotitApp {
     // MARK: -iCLoud Share Link
     
     private func processSharedRecord(_ sharedRecord: CKRecord, withShare share: CKShare) {
-        let roomName = sharedRecord["roomName"] as? String ?? "Untitled"
-        let publicRecordName = sharedRecord["publicRecordName"] as? String ?? ""
-        
+            let roomName = sharedRecord["roomName"] as? String ?? "Untitled"
+            let publicRecordName = sharedRecord["publicRecordName"] as? String ?? ""
+            
+            DispatchQueue.main.async {
+                WorldManager.shared.sharedZoneID = share.recordID.zoneID
+                print("Shared zone ID set to: \(WorldManager.shared.sharedZoneID!)")
+                AppState.shared.publicRecordName = publicRecordName
+                AppState.shared.isiCloudShare = true
+            }
+            
+            // Start the collaborative session.
+            WorldManager.shared.startCollaborativeSession(with: sharedRecord, roomName: roomName)
+            
+            guard
+                let asset = sharedRecord["mapAsset"] as? CKAsset,
+                let assetFileURL = asset.fileURL
+            else {
+                print("❌ Failed to get CKAsset or assetFileURL")
+                return
+            }
         DispatchQueue.main.async {
-            WorldManager.shared.sharedZoneID = share.recordID.zoneID
-            print("Shared zone ID set to: \(WorldManager.shared.sharedZoneID!)")
-
-            AppState.shared.publicRecordName = publicRecordName
-            AppState.shared.isiCloudShare = true
+            AppState.shared.pendingSharedRecord = sharedRecord
+            AppState.shared.pendingAssetFileURL = assetFileURL
+            AppState.shared.pendingRoomName = roomName
         }
-        
-        // Start a collaborative session in WorldManager
-        WorldManager.shared.startCollaborativeSession(with: sharedRecord, roomName: roomName)
-        
-        guard
-            let asset = sharedRecord["mapAsset"] as? CKAsset,
-            let assetFileURL = asset.fileURL
-        else {
-            print("❌ Failed to get CKAsset or assetFileURL")
-            return
-        }
-        
-        // 1) Check if a PIN is required
-        let pinRequired = sharedRecord["pinRequired"] as? Bool ?? false
-        if pinRequired {
-            print("🔒 PIN is required. Prompting user...")
-            promptForPin { enteredPin in
-                let storedPinHash = sharedRecord["pinHash"] as? String ?? ""
-                let isValid = self.verifyPin(enteredPin, against: storedPinHash)
-                if isValid {
-                    print("✅ PIN correct; proceeding to show alert.")
-                    self.showOpenOrSaveAlert(sharedRecord: sharedRecord,
-                                             assetFileURL: assetFileURL,
-                                             roomName: roomName)
-                } else {
-                    print("❌ Incorrect PIN.")
-                    self.showPinErrorAlert()
+            // Store record details in AppState so sheets can use them.
+          
+            
+            // If a PIN is required, show the PIN sheet; otherwise, show the open/save sheet.
+            let pinRequired = sharedRecord["pinRequired"] as? Bool ?? false
+            if pinRequired {
+                print("🔒 PIN is required. Showing PIN sheet...")
+                DispatchQueue.main.async {
+                    AppState.shared.isShowingPinSheet = true
+                }
+            } else {
+                print("🔓 No PIN required. Showing open/save sheet...")
+                DispatchQueue.main.async {
+                    AppState.shared.isShowingOpenSaveSheet = true
                 }
             }
-        } else {
-            // If no PIN required, just proceed to the usual alert
-            print("🔓 No PIN required. Proceeding directly.")
-            showOpenOrSaveAlert(sharedRecord: sharedRecord,
-                                assetFileURL: assetFileURL,
-                                roomName: roomName)
         }
-    }
     
     private func showOpenOrSaveAlert(sharedRecord: CKRecord,
                                      assetFileURL: URL,

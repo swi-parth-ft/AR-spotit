@@ -10,6 +10,7 @@
 		08A76E7A2D333C7B001AB55F /* Vortex in Frameworks */ = {isa = PBXBuildFile; productRef = 08A76E792D333C7B001AB55F /* Vortex */; };
 		08A76EED2D35F5CF001AB55F /* Drops in Frameworks */ = {isa = PBXBuildFile; productRef = 08A76EEC2D35F5CF001AB55F /* Drops */; };
 		08D911A12D44A053002B96E0 /* AnimateText in Frameworks */ = {isa = PBXBuildFile; productRef = 08D911A02D44A053002B96E0 /* AnimateText */; };
+		08E77F772D65719700F94599 /* Drawer in Frameworks */ = {isa = PBXBuildFile; productRef = 08E77F762D65719700F94599 /* Drawer */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +33,7 @@
 				08A76E7A2D333C7B001AB55F /* Vortex in Frameworks */,
 				08A76EED2D35F5CF001AB55F /* Drops in Frameworks */,
 				08D911A12D44A053002B96E0 /* AnimateText in Frameworks */,
+				08E77F772D65719700F94599 /* Drawer in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -77,6 +79,7 @@
 				08A76E792D333C7B001AB55F /* Vortex */,
 				08A76EEC2D35F5CF001AB55F /* Drops */,
 				08D911A02D44A053002B96E0 /* AnimateText */,
+				08E77F762D65719700F94599 /* Drawer */,
 			);
 			productName = "AR spotit";
 			productReference = 0815EBFE2D287B4F00F23F12 /* it's here..app */;
@@ -110,6 +113,7 @@
 				08A76E782D333C7B001AB55F /* XCRemoteSwiftPackageReference "Vortex" */,
 				08A76EEB2D35F5CF001AB55F /* XCRemoteSwiftPackageReference "Drops" */,
 				08D9119F2D44A053002B96E0 /* XCRemoteSwiftPackageReference "AnimateText" */,
+				08E77F752D65719700F94599 /* XCRemoteSwiftPackageReference "swiftui-drawer" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0815EBFF2D287B4F00F23F12 /* Products */;
@@ -394,6 +398,14 @@
 				minimumVersion = 0.5.0;
 			};
 		};
+		08E77F752D65719700F94599 /* XCRemoteSwiftPackageReference "swiftui-drawer" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/maustinstar/swiftui-drawer.git";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -411,6 +423,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 08D9119F2D44A053002B96E0 /* XCRemoteSwiftPackageReference "AnimateText" */;
 			productName = AnimateText;
+		};
+		08E77F762D65719700F94599 /* Drawer */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 08E77F752D65719700F94599 /* XCRemoteSwiftPackageReference "swiftui-drawer" */;
+			productName = Drawer;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

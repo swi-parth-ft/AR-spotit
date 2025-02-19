@@ -22,7 +22,7 @@ struct PinView: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading) {
-                Text(isChecking ? "Your current collaboration PIN for \(roomName)" : "Set you PIN for \(roomName) collaboration")
+                Text(isChecking ? "Your current collaboration Key for \(roomName)" : "Set you Key for \(roomName) collaboration")
                     .font(.subheadline)
                     .foregroundStyle(.gray)
                     .padding(.horizontal)
@@ -34,7 +34,7 @@ struct PinView: View {
                         .padding(.horizontal)
                
                 } else {
-                    TextField("PIN", text: $pin)
+                    TextField("Key", text: $pin)
                         .focused($isTextFieldFocused)
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .padding()
@@ -85,7 +85,7 @@ struct PinView: View {
 //                       pin = ""
 //                   }
 //            }
-            .navigationTitle(isChecking ? "Current PIN" : "Set PIN")
+            .navigationTitle(isChecking ? "Current Key" : "Set Key")
             .sheet(isPresented: $isShowingGuide) {
                 RoomScanGuideView()
             }

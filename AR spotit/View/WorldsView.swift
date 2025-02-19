@@ -263,6 +263,24 @@ struct WorldsView: View {
                                     }
                                     
                                     VStack {
+                                        
+                                        if world.isCollaborative {
+                                            HStack {
+                                                
+                                                Spacer()
+                                                
+                                                Image(systemName: "person.2.fill")
+                                                    .font(.title2)
+                                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                                    .symbolEffect(.pulse)
+                                                
+                                                
+                                                
+                                                
+                                            }
+                                            .padding(.horizontal)
+                                        }
+                                        
                                         Spacer()
                                         // Room Title
                                         HStack {

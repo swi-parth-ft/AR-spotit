@@ -105,3 +105,13 @@ func generatePin() -> String {
     let pin = String(format: "%04d", Int.random(in: 0..<10000)) // 4-digit
     return pin
 }
+
+
+func extractEmoji(from string: String) -> String? {
+    for char in string {
+        if char.isEmoji {
+            return String(char)
+        }
+    }
+    return nil
+}

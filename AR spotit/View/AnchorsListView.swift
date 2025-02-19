@@ -8,6 +8,7 @@
 import SwiftUI
 import Drops
 import CloudKit
+import Drawer
 
 struct AnchorsListView: View {
     
@@ -218,54 +219,6 @@ struct AnchorsListView: View {
                                               placement: .navigationBarDrawer(displayMode: .automatic),
                                 prompt: "Search Anchors").tint(colorScheme == .dark ? .white : .black)
                     
-                    
-                    if !newAnchors.isEmpty {
-                        VStack(alignment: .leading) {
-                            Text("Newly added items, open AR to integrate")
-                                .font(.headline)
-                                .padding([.leading, .top])
-                            LazyVGrid(columns: columns, spacing: 10) {
-                                ForEach(newAnchors, id: \.self) { anchorName in
-                                    VStack {
-                                        // Extract emoji if available, fallback icon otherwise.
-                                        let emoji = extractEmoji(from: anchorName) ?? "📍"
-                                        HStack {
-                                            Text(emoji)
-                                                .font(.system(size: 50))
-                                            Spacer()
-                                        }
-                                        .frame(maxWidth: .infinity)
-                                        
-                                        // Display the anchor name (without emoji)
-                                        let cleanAnchorName = anchorName.filter { !$0.isEmoji }
-                                        Text(cleanAnchorName)
-                                            .font(.headline)
-                                            .multilineTextAlignment(.center)
-                                            .foregroundColor(.white)
-                                    }
-                                    .frame(height: 90)
-                                    .padding()
-                                    .background(
-                                        VStack {
-                                            Spacer().frame(height: 55)
-
-                                            Color.gray.opacity(0.8)
-                                                .cornerRadius(22)
-
-                                        }
-                                       
-                                    )
-                                    .shadow(color: Color.black.opacity(0.3), radius: 7)
-                                    .onTapGesture {
-                                        // For example, set findingAnchorName and dismiss the view
-                                        findingAnchorName = anchorName
-                                        dismiss()
-                                    }
-                                }
-                            }
-                            .padding([.leading, .trailing])
-                        }
-                    }
                     
                 }
                 .ignoresSafeArea()
@@ -533,8 +486,60 @@ struct AnchorsListView: View {
                     }
                 }
                 
-                
-                
+                VStack {
+                    Spacer()
+                    
+                    if !newAnchors.isEmpty {
+                        Drawer {
+                            ZStack {
+                                VisualEffectBlur(blurStyle: .systemThinMaterial)
+                                VStack {
+                                    RoundedRectangle(cornerRadius: 3.0)
+                                        .foregroundColor(.gray)
+                                        .frame(width: 30.0, height: 6.0)
+                                        .padding()
+                                    HStack {
+                                        Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90")
+                                            .foregroundStyle(.blue)
+                                        Text("Newly added items, open AR to integrate")
+                                            .font(.system(.headline, design: .rounded))
+                                    }
+                                    .padding(.bottom)
+                                    //                                    .padding([.leading, .top])
+                                    LazyVGrid(columns: columns, spacing: 10) {
+                                        ForEach(newAnchors, id: \.self) { anchorName in
+                                            VStack {
+                                                Text(anchorName)
+                                                    .padding()
+                                                    .font(.system(.headline, design: .rounded))
+                                                    .multilineTextAlignment(.center)
+                                                    .frame(maxWidth: .infinity)
+                                                    .foregroundColor(.white)
+                                                    .background(Color.gray.opacity(0.8))
+                                                    .cornerRadius(22)
+                                                    .shadow(color: Color.black.opacity(0.3), radius: 7)
+                                                    .lineLimit(1) // Ensures the text stays on one line
+                                                    .truncationMode(.tail)
+                                                
+                                            }
+                                            .onTapGesture {
+                                                // For example, set findingAnchorName and dismiss the view
+                                                findingAnchorName = anchorName
+                                                dismiss()
+                                            }
+                                        }
+                                    }
+                                    .padding([.leading, .trailing, .bottom])
+                                    
+                                    Spacer()
+                                }
+                            }
+                        }
+                        .rest(at: .constant([50, 340, 600]))
+                        .impact(.light)
+                    }
+                    
+                }
                 if AppState.shared.isCreatingLink {
                     VisualEffectBlur(blurStyle: .systemUltraThinMaterial)
                               .frame(maxWidth: .infinity, maxHeight: .infinity)

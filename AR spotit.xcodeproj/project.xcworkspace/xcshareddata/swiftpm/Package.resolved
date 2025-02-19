@@ -1,5 +1,5 @@
 {
-  "originHash" : "05c76ef212e8960d0a35da75011329db62c87ce6b935c3379a0f76972b5bcb4a",
+  "originHash" : "5680d9757e2cf439253746562161048b9527518d848e6cc2f128a9400ba2ab25",
   "pins" : [
     {
       "identity" : "animatetext",
@@ -17,6 +17,15 @@
       "state" : {
         "revision" : "a183ee6f79f21c940092a19c2cba756555422371",
         "version" : "1.7.0"
+      }
+    },
+    {
+      "identity" : "swiftui-drawer",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/maustinstar/swiftui-drawer.git",
+      "state" : {
+        "branch" : "master",
+        "revision" : "6d22f5c1362bfa71f2915c28aebba343b9243363"
       }
     },
     {
