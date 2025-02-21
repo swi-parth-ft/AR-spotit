@@ -24,6 +24,7 @@ struct ImportWorldSheet: View {
                     .padding(.horizontal)
                 
                 TextField("Enter world name", text: $worldManager.tempWorldName)
+                    .focused($isTextFieldFocused)
                     .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding()
                     .frame(height: 55)

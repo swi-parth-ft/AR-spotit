@@ -62,6 +62,7 @@ struct renameWorldView: View {
                     .foregroundStyle(.gray)
                     .padding(.horizontal)
                 TextField("New name", text: $newName)
+                    .focused($isTextFieldFocused)
                     .foregroundStyle(colorScheme == .dark ? .white : .black)
                     .padding()
                     .frame(height: 55)

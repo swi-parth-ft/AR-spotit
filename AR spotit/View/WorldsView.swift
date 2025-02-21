@@ -46,6 +46,7 @@ struct WorldsView: View {
     
     @State private var isCollab = false
     @State private var newAnchors = 0
+    @State private var isDeleting = false
 //    enum SortingOption {
 //        case name
 //        case lastModified
@@ -329,21 +330,10 @@ struct WorldsView: View {
                                         HapticManager.shared.impact(style: .medium)
                                         currentName = world.name
                                       
-                                        if world.isCollaborative {
-                                            isCollab = false
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                                
-                                                isRenaming.toggle()
-                                                
-                                            }
-                                        } else {
-                                            isCollab = true
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                                
-                                                isRenaming.toggle()
-                                                
-                                            }
-                                        }
+                                        isCollab = world.isCollaborative
+                                          withAnimation {
+                                              isRenaming.toggle()
+                                          }
                                       
                                         
                                     } label: {
@@ -370,46 +360,34 @@ struct WorldsView: View {
                                         .font(.title)
                                         
                                     }
+                             
                                     
-                                    Button {
-                                        if let world = worldManager.savedWorlds.first(where: { $0.name == world.name }),
-                                           world.isCollaborative {
-                                            AppState.shared.isCreatingLink = true
-                                            worldManager.shareWorldViaCloudKit(roomName: world.name, pin: "")
-                                        } else {
-                                            isChecking = false
-                                            showPinPopover = true
-                                        }
-                                    } label: {
-                                        HStack {
-                                            Text("Share iCloud link")
-                                            Image(systemName: "link.icloud")
-                                                .font(.title2)
-                                                .foregroundStyle(colorScheme == .dark ? .white : .black)
-                                            
-                                        }
-                                        .font(.title2)
-                                        
-                                    }
-                                    
-                                    Button {
-                                        isShowingQR = true
-                                    } label: {
-                                        HStack {
-                                            Text("Share QR code")
-                                            Image(systemName: "qrcode")
-                                                .font(.title2)
-                                                .foregroundStyle(colorScheme == .dark ? .white : .black)
-                                            
-                                        }
-                                        .font(.title2)
-                                        
-                                    }
+                                   
                                     
                                     
                                     if let world = worldManager.savedWorlds.first(where: { $0.name == world.name }), world.isCollaborative {
                                         
                                         Button {
+                                            currentName = world.name
+                                                isShowingQR = true
+
+                                            
+
+                                        } label: {
+                                            HStack {
+                                                Text("Share QR code")
+                                                Image(systemName: "qrcode")
+                                                    .font(.title2)
+                                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                                
+                                            }
+                                            .font(.title2)
+                                            
+                                        }
+                                        
+                                        Button {
+                                            currentName = world.name
+
                                             print(world.pin ?? "")
                                             
                                             
@@ -435,13 +413,9 @@ struct WorldsView: View {
                                     }
                                     
                                     Button(role: .destructive) {
-                                        worldManager.deleteWorld(roomName: world.name) {
-                                            print("Deletion process completed.")
-                                            let drop = Drop.init(title: "\(world.name) deleted!")
-                                            Drops.show(drop)
-                                            HapticManager.shared.notification(type: .success)
-                                            
-                                        }
+                                        currentName = world.name
+                                        isCollab = world.isCollaborative
+                                        isDeleting = true
                                     } label: {
                                         HStack {
                                             Text("Delete")
@@ -458,22 +432,34 @@ struct WorldsView: View {
                                         currentName = world.name
                                     }
                                 }
-                                .sheet(isPresented: $showPinPopover, onDismiss: {
-                                    if !isChecking {
-                                        worldManager.shareWorldViaCloudKit(roomName: world.name, pin: selectedPin)
-                                    }
-                                    
-                                }) {
-                                    PinView(roomName: world.name, pin: $selectedPin, isChecking: isChecking)
+                                .sheet(isPresented: $showPinPopover) {
+                                    PinView(roomName: currentName, pin: $selectedPin, isChecking: isChecking)
                                         .presentationDetents([.fraction(0.4)])
                                     
                                 }
                                 .sheet(isPresented: $isRenaming) {
                                     
-                                    renameWorldView(worldName: currentName, worldManager: worldManager, showWarning: !isCollab, newAnchors: newAnchors)
-                                        .presentationDetents(!isCollab ? [.fraction(0.5)] : [.fraction(0.4)])
+                                    renameWorldView(worldName: currentName, worldManager: worldManager, showWarning: isCollab, newAnchors: newAnchors)
+                                        .presentationDetents(isCollab ? [.fraction(0.5)] : [.fraction(0.4)])
 
                                     
+                                }
+                                .sheet(isPresented: $isDeleting) {
+                                    DeleteConfirm(isCollab: isCollab, roomName: currentName) { name in
+                                        worldManager.deleteWorld(roomName: name) {
+                                            print("Deletion process completed.")
+                                            let drop = Drop.init(title: "\(world.name) deleted!")
+                                            
+                                            Drops.show(drop)
+                                            
+                                            HapticManager.shared.notification(type: .success)
+                                            
+                                            isDeleting = false
+                                            
+                                        }
+
+                                    }
+                                    .presentationDetents([.fraction(0.5)])
                                 }
                                 
                                 

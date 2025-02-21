@@ -45,7 +45,7 @@ struct AddAnchorView: View {
                 }
                 
                 Text("Start with naming your item and then select an emoji. e.g. fishing rod 🎣")
-                    .font(.subheadline)
+                    .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(.gray)
                     .padding(.horizontal)
                 TextField("Name", text: $anchorName)

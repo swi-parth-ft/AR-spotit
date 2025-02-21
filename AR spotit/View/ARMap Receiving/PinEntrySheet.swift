@@ -100,18 +100,24 @@ struct OpenOrSaveSheet: View {
         
         NavigationStack {
             VStack(alignment: .leading) {
-                Text("Would you like to open now or save copy locally?")
-                    .font(.subheadline)
-                    .foregroundStyle(.gray)
-                    .padding(.horizontal)
-               
+                if AppState.shared.isViewOnly {
+                    Text("Would you like to open now and start exploring or save copy locally?")
+                        .font(.subheadline)
+                        .foregroundStyle(.gray)
+                        .padding(.horizontal)
+                } else {
+                    Text("Would you like to open now and start editing or save copy locally?")
+                        .font(.subheadline)
+                        .foregroundStyle(.gray)
+                        .padding(.horizontal)
+                }
                
               
                 
                 Button {
                     onOpen()
                 } label: {
-                    Text("Open Now")
+                    Text(AppState.shared.isViewOnly ? "Start Exploring" : "Open Now and Collaborate")
                         .font(.system(.headline, design: .rounded))
                         .foregroundStyle(.white)
                         .bold()
@@ -126,7 +132,7 @@ struct OpenOrSaveSheet: View {
                 Button {
                     onSave()
                 } label: {
-                    Text("Save Locally")
+                    Text("Save Copy Locally")
                         .font(.system(.headline, design: .rounded))
                         .foregroundStyle(colorScheme == .dark ? .black : .white)
                         .bold()

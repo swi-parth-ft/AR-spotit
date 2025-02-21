@@ -70,7 +70,8 @@ struct ContentView: View {
     @Namespace private var arrowNamespace
     @State private var newAnchorsCount: Int = 0
     @State private var coordinatorRef: ARViewContainer.Coordinator? = nil
-
+    @State private var isCameraPointingDown: Bool = false
+    
     var body: some View {
         NavigationStack {
             
@@ -90,6 +91,7 @@ struct ContentView: View {
                                     angle: $angle,
                                     distanceForUI: $distance, roomName: currentRoomName, isCollab: $isCollab,
                                     recordID: $recordId,
+                                    isCameraPointingDown: $isCameraPointingDown,
                                     onCoordinatorMade: { coord in
                                                        coordinatorRef = coord
                                                    })
@@ -116,11 +118,71 @@ struct ContentView: View {
                             audioEngine.reset()
                         }
                         
-                     //   sceneView.session.pause()
+                        sceneView.session.pause()
+                        
+                        sceneView.delegate = nil
+                           sceneView.session.delegate = nil
                         
                     }
                     
                     .edgesIgnoringSafeArea(.all)
+                    
+                    
+                    
+                    if isCameraPointingDown && worldManager.isRelocalizationComplete {
+                        ZStack {
+                            VisualEffectBlur(blurStyle: .systemThickMaterialDark)
+                                .edgesIgnoringSafeArea(.all)
+                            // Optionally animate the change
+                                .transition(.opacity)
+                            
+                            if findAnchor != "" {
+                                VStack {
+                                    ZStack {
+                                        if distance < 0.25 {
+                                            Image(systemName: "circle.fill")
+                                                .font(.system(size: 240, weight: .bold))
+                                                .foregroundStyle(.orange.opacity(0.4))
+                                                .matchedGeometryEffect(id: "arrow", in: arrowNamespace)
+                                                .shadow(color: Color.orange.opacity(0.1), radius: 10)
+                                                .symbolEffect(.pulse)
+                                              
+                                               
+                                        }
+                                        if distance < 0.5 {
+                                            Image(systemName: "circle.fill")
+                                                .font(.system(size: 240, weight: .bold))
+                                                .foregroundStyle(.orange.opacity(0.7))
+                                                .matchedGeometryEffect(id: "arrow", in: arrowNamespace)
+                                                .shadow(color: Color.orange.opacity(0.3), radius: 10)
+                                                .symbolEffect(.breathe)
+                                              
+                                               
+                                        }
+                                        Circle()
+                                            .fill(.orange)
+                                            .frame(width: distance < 0.5 ? 200 : 40)
+                                            .shadow(color: Color.orange.opacity(0.5), radius: 10)
+                                    }
+                                    .offset(y: -50)
+
+                                    if distance > 0.5 {
+                                        Image(systemName: "arrow.up")
+                                            .font(.system(size: 240, weight: .bold))
+                                            .foregroundStyle(.white)
+                                            .matchedGeometryEffect(id: "arrow", in: arrowNamespace)
+                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                    }
+
+                                }
+                                .rotationEffect(Angle(degrees: -angle))
+                                .animation(.easeInOut(duration: 0.5), value: angle)
+                            }
+                        }
+                      }
+                    
+                    
+                    
                     if worldManager.isRelocalizationComplete {
                         VStack {
                             Spacer()
@@ -202,39 +264,57 @@ struct ContentView: View {
                             
                             if findAnchor != "" {
                                 
+
+                                
                                     HStack {
-                                        
-                                        if distance < 0.9 {
-                                            AnimateText<ATOffsetEffect>($itshere)
-                                                .font(.system(.largeTitle, design: .rounded))
-                                                .foregroundStyle(.white)
-                                                .bold()
-                                                .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                                .onAppear {
-                                                    itshere = "it's here."
-                                                    animatedAngle = ""
-                                                }
-                                        } else {
-                                    
-                                        Text("\(String(format: "%.2f", distance))m")
-                                            .font(.system(.largeTitle, design: .rounded))
-                                            .foregroundStyle(Color.white)
+                                        VStack(alignment: .leading) {
+                                            
+                                            Text("FINDING")
+                                            .font(.system(.headline, design: .rounded))
+                                            .foregroundStyle(.gray)
                                             .bold()
                                             .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                            .contentTransition(.numericText(value: distance))
-                                            .onAppear {
-                                                itshere = ""
-                                            }
                                             
-                                            
-                                            AnimateText<ATOffsetEffect>($animatedAngle)
+                                            Text("\(findAnchor)")
                                                 .font(.system(.largeTitle, design: .rounded))
                                                 .foregroundStyle(.white)
                                                 .bold()
                                                 .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                                .onChange(of: angle) {
-                                                    animatedAngle = "\(Direction.classify(angle: angle))."
+                                            
+                                            HStack {
+                                                if distance < 0.9 {
+                                                    AnimateText<ATOffsetEffect>($itshere)
+                                                        .font(.system(.largeTitle, design: .rounded))
+                                                        .foregroundStyle(.white)
+                                                        .bold()
+                                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                                        .onAppear {
+                                                            itshere = "it's here."
+                                                            animatedAngle = ""
+                                                        }
+                                                } else {
+                                                    
+                                                    Text("\(String(format: "%.2f", distance))m")
+                                                        .font(.system(.largeTitle, design: .rounded))
+                                                        .foregroundStyle(Color.white)
+                                                        .bold()
+                                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                                        .contentTransition(.numericText(value: distance))
+                                                        .onAppear {
+                                                            itshere = ""
+                                                        }
+                                                    
+                                                    
+                                                    AnimateText<ATOffsetEffect>($animatedAngle)
+                                                        .font(.system(.largeTitle, design: .rounded))
+                                                        .foregroundStyle(.white)
+                                                        .bold()
+                                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                                        .onChange(of: angle) {
+                                                            animatedAngle = "\(Direction.classify(angle: angle))."
+                                                        }
                                                 }
+                                            }
                                         }
                                             
                                         Spacer()
@@ -242,17 +322,33 @@ struct ContentView: View {
                                     .padding()
                                 
                                 HStack {
-                                    if findAnchor != "" {
+                                    if findAnchor != "" && !isCameraPointingDown {
                                         if !worldManager.is3DArrowActive {
-                                            PaperPlane3DView(angle: -angle)
-                                                .frame(width: 200, height: 70, alignment: .leading)
-                                                // Keep the same matchedGeometryEffect if desired:
+                                            
+                                            Image(systemName: "arrow.up")
+                                            
+                                                .resizable()
+                                                .frame(width: 80, height: 80)
+                                                .foregroundStyle(.white)
+                                                .bold()
                                                 .matchedGeometryEffect(id: "arrow", in: arrowNamespace)
+                                                .rotationEffect(.degrees(-angle))
                                                 .transition(.asymmetric(
                                                     insertion: .scale.combined(with: .opacity),
                                                     removal: .scale.combined(with: .opacity)))
-                                            //    .animation(.easeInOut(duration: 0.7), value: angle)
+                                                .animation(.easeInOut(duration: 0.7), value: angle)
                                                 .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                            
+//                                            PaperPlane3DView(angle: -angle)
+//                                          
+//                                                .frame(width: 200, height: 70, alignment: .leading)
+//                                                // Keep the same matchedGeometryEffect if desired:
+//                                                .matchedGeometryEffect(id: "arrow", in: arrowNamespace)
+//                                                .transition(.asymmetric(
+//                                                    insertion: .scale.combined(with: .opacity),
+//                                                    removal: .scale.combined(with: .opacity)))
+//                                            //    .animation(.easeInOut(duration: 0.7), value: angle)
+//                                                .shadow(color: Color.white.opacity(0.5), radius: 10)
 
                                         }
                                         
@@ -273,7 +369,7 @@ struct ContentView: View {
                                 
                                 HStack(spacing: 10) {
                                     
-                                 //   if !isOpeningSharedWorld {
+                                    if !AppState.shared.isViewOnly {
                                         Button {
                                             //   worldManager.isAddingAnchor.toggle()
                                             isAddingNewAnchor.toggle()
@@ -295,7 +391,7 @@ struct ContentView: View {
                                             
                                         }
                                         .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                    //}
+                                    }
                                     
                                     
                                     
@@ -462,16 +558,14 @@ struct ContentView: View {
                                         shouldPlay = false
                                         findAnchor = ""
                                         worldManager.isWorldLoaded = false
-                                        if audioPlayer.isPlaying {
-                                            audioPlayer.stop()
-                                        }
-                                        if audioEngine.isRunning {
-                                            audioEngine.stop()
-                                            audioEngine.reset()
-                                        }
+                                        
+                                        
+                                        
                                         guard !currentRoomName.isEmpty else { return }
                                         
                                         if !isOpeningSharedWorld {
+                                            coordinatorRef?.stopAudio()
+
                                             worldManager.saveWorldMap(for: currentRoomName, sceneView: sceneView)
                                             
                                             let drop = Drop.init(title: "\(currentRoomName) saved")
@@ -479,9 +573,17 @@ struct ContentView: View {
                                             
                                             HapticManager.shared.notification(type: .success)
                                             
-                                           
+                                            dismiss()
+
+                                        } else {
+                                            AppState.shared.isViewOnly = false
+                                            coordinatorRef?.stopAudio()
+                                            coordinatorRef?.pauseSession()
+
+                                                dismiss()
+                                            
+
                                         }
-                                        dismiss()
                                     } label: {
                                         Text("Done")
                                             .foregroundStyle(.black)
@@ -507,6 +609,16 @@ struct ContentView: View {
                         
                     }
                     
+                    
+                    
+                    
+                    
+                    
+                    
+                   
+                    
+                    
+                    
                 }
                 
                 
@@ -519,7 +631,17 @@ struct ContentView: View {
            
                     recordId = AppState.shared.publicRecordName
                         isOpeningSharedWorld = true
+                    
+                    
+                    sceneView.scene.rootNode.enumerateChildNodes { node, _ in
+                            node.removeFromParentNode()
+                        }
+                        
+                        // Also remove any debug overlays if present
+                        sceneView.debugOptions = []
+         
                     sceneView.session.pause()
+
                     let configuration = ARWorldTrackingConfiguration()
                     configuration.initialWorldMap = arWorldMap
                     configuration.planeDetection = [.horizontal, .vertical]
@@ -602,14 +724,17 @@ struct ContentView: View {
 
                 
             }
+            .onDisappear {
+                
+            }
             .onChange(of: worldManager.scannedZones) {
                 updateScanningProgress()
             }
             .onChange(of: worldManager.isShowingAll) {
                 // We can access the coordinator if needed:
-                if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
-                    coordinator.updateNodeVisibility(in: sceneView)
-                }
+               
+                coordinatorRef?.updateNodeVisibility(in: sceneView)
+                
             }
             .sheet(isPresented: $showAnchorListSheet) {
                     AnchorListSheet(sceneView: sceneView, onSelectAnchor: { selectedAnchorName in
@@ -674,20 +799,17 @@ struct ContentView: View {
                         worldManager.isWorldLoaded = false
                         shouldPlay = false
                         findAnchor = ""
+                        coordinatorRef?.stopAudio()
+                        coordinatorRef?.pauseSession()
                         sceneView.session.pause()
                         
-                        if audioPlayer.isPlaying {
-                            audioPlayer.stop()
-                            print("audio stopped")
-                        }
-                        if audioEngine.isRunning {
-                            audioEngine.stop()
-                            audioEngine.reset()
-                            print("engine stopped")
-                        }
                         
                         HapticManager.shared.impact(style: .medium)
                         
+                        if !isOpeningSharedWorld {
+                            
+                            coordinatorRef?.pauseSession()
+                        }
                         dismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")

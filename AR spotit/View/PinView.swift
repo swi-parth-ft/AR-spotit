@@ -22,7 +22,7 @@ struct PinView: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading) {
-                Text(isChecking ? "Your current collaboration Key for \(roomName)" : "Set you Key for \(roomName) collaboration")
+                Text(isChecking ? "Your collaboration Key for \(roomName)" : "Set your Key for \(roomName) collaboration")
                     .font(.subheadline)
                     .foregroundStyle(.gray)
                     .padding(.horizontal)
@@ -62,11 +62,10 @@ struct PinView: View {
                             }
                             
                             dismiss()
-                            onCompletion?() // Trigger completion when "Done" is pressed
+                            onCompletion?() 
 
                         }
                     }
-                    //selectedWorld = WorldModel(name: roomName)
                 } label: {
                     Text(isChecking ? "Done" : "Next")
                         .font(.system(.headline, design: .rounded))
@@ -80,12 +79,7 @@ struct PinView: View {
                 }
                 .padding(.horizontal)
             }
-//            .onAppear {
-//                if !isChecking {
-//                       pin = ""
-//                   }
-//            }
-            .navigationTitle(isChecking ? "Current Key" : "Set Key")
+            .navigationTitle(isChecking ? "Key for \(roomName)" : "Set Key")
             .sheet(isPresented: $isShowingGuide) {
                 RoomScanGuideView()
             }

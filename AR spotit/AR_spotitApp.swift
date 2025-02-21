@@ -42,6 +42,9 @@ class AppState: ObservableObject {
         @Published var pendingAssetFileURL: URL?
         @Published var pendingRoomName: String?
     
+    @Published var isShowingCollaborationChoiceSheet = false
+    @Published var isViewOnly: Bool = false
+    
 }
 
 @main
@@ -60,6 +63,7 @@ struct AR_spotitApp: App {
                     .onContinueUserActivity(CSSearchableItemActionType, perform: handleSpotlightActivity)
                     .onOpenURL { url in
                         print("SwiftUI onOpenURL received: \(url.absoluteString)")
+                        
                         
                         // Check if the URL has a recordID query parameter (i.e. it's a collab link)
                         if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
@@ -173,6 +177,31 @@ struct AR_spotitApp: App {
                     Text("Missing pending record data.")
                 }
             }
+            .sheet(isPresented: $appState.isShowingCollaborationChoiceSheet) {
+                if let roomName = appState.pendingRoomName {
+                    CollaborationOptionSheet(
+                        roomName: roomName,
+                        onCollaborate: {
+                            // User chose to collaborate: they must enter a PIN.
+                            appState.isViewOnly = false
+                            appState.isShowingCollaborationChoiceSheet = false
+                            appState.isShowingPinSheet = true
+                        },
+                        onViewOnly: {
+                            // User chose view-only: set flag and show open/save sheet.
+                            appState.isViewOnly = true
+                            appState.isShowingCollaborationChoiceSheet = false
+                            appState.isShowingOpenSaveSheet = true
+                        },
+                        onCancel: {
+                            appState.isShowingCollaborationChoiceSheet = false
+                        }
+                    )
+                    .presentationDetents([.fraction(0.4)])
+                } else {
+                    Text("Missing room data.")
+                }
+            }
             .withHostingWindow { window in
                 if let windowScene = window?.windowScene {
                     self.sceneDelegate.originalDelegate = windowScene.delegate
@@ -283,7 +312,9 @@ private extension AR_spotitApp {
             if pinRequired {
                 print("🔒 PIN is required. Showing PIN sheet...")
                 DispatchQueue.main.async {
-                    AppState.shared.isShowingPinSheet = true
+                  //  AppState.shared.isShowingPinSheet = true
+                    AppState.shared.isShowingCollaborationChoiceSheet = true
+
                 }
             } else {
                 print("🔓 No PIN required. Showing open/save sheet...")

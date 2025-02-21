@@ -417,21 +417,23 @@ struct AnchorsListView: View {
                             
                         }
                         
-                        Button {
-                            isShowingQR = true
-                        } label: {
-                            HStack {
-                                Text("Share QR code")
-                                Image(systemName: "qrcode")
-                                    .font(.title2)
-                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
-                                
-                            }
-                            .font(.title2)
-                            
-                        }
+                       
                         
                         if let world = worldManager.savedWorlds.first(where: { $0.name == worldName }), world.isCollaborative {
+                            
+                            Button {
+                                isShowingQR = true
+                            } label: {
+                                HStack {
+                                    Text("Share QR code")
+                                    Image(systemName: "qrcode")
+                                        .font(.title2)
+                                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                    
+                                }
+                                .font(.title2)
+                                
+                            }
                             
                             Button {
                                 print(world.pin ?? "")

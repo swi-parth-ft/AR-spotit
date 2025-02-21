@@ -27,7 +27,8 @@ struct ARViewContainer: UIViewRepresentable {
      var roomName: String
     @Binding var isCollab: Bool
     @Binding var recordID: String
-    
+    @Binding var isCameraPointingDown: Bool
+
     var onCoordinatorMade: ((Coordinator) -> Void)?
 
     func makeUIView(context: Context) -> ARSCNView {
@@ -378,6 +379,13 @@ struct ARViewContainer: UIViewRepresentable {
                 }
             }
             
+             let pitch = frame.camera.eulerAngles.x
+                    // Adjust the threshold as needed (here, we check if pitch < -0.5 radians ~ -28°).
+                    DispatchQueue.main.async {
+                        withAnimation {
+                            self.parent.isCameraPointingDown = (pitch < -1.0)
+                        }
+                    }
             
             // Throttle updates to avoid excessive computation
             //let currentTime = Date()
@@ -460,7 +468,8 @@ struct ARViewContainer: UIViewRepresentable {
                     DispatchQueue.global(qos: .background).async {
                         self.parent.stopAudio()
                     }
-                }            }
+                }
+            }
             guard let node = anchorNodes[anchor.name ?? ""] else {
                 return
             }
@@ -496,7 +505,7 @@ struct ARViewContainer: UIViewRepresentable {
                     if let existingArrow = self.parent.sceneView.scene.rootNode.childNode(withName: "arrow3D", recursively: false) {
                         arrow3D = existingArrow
                     } else {
-                        arrow3D = self.parent.createPaperPlaneNode()
+                        arrow3D = self.parent.createSymbolPlaneNode(symbolName: "arrow.down")
                         arrow3D.opacity = 0 // start invisible
                         self.parent.sceneView.scene.rootNode.addChildNode(arrow3D)
                         
@@ -607,7 +616,7 @@ struct ARViewContainer: UIViewRepresentable {
         
         //MARK: Handle tap gestures
         @MainActor @objc func handleTap(_ sender: UITapGestureRecognizer) {
-            
+            if AppState.shared.isViewOnly { return }
             if worldManager.isAddingAnchor {
                 let sceneView = parent.sceneView
                 let location = sender.location(in: sceneView)
@@ -788,6 +797,9 @@ struct ARViewContainer: UIViewRepresentable {
         }
         
         @objc func handleLongPress(_ sender: UILongPressGestureRecognizer) {
+            
+            if AppState.shared.isViewOnly { return }
+
             guard sender.state == .began else { return } // Only handle on gesture start
             
             let location = sender.location(in: parent.sceneView)
@@ -1075,5 +1087,16 @@ struct ARViewContainer: UIViewRepresentable {
             // Run the action
             node.runAction(repeatAction, forKey: "jumping")
         }
+    }
+}
+
+extension ARViewContainer.Coordinator {
+    func pauseSession() {
+        parent.sceneView.session.pause()
+        print("Coordinator paused the AR session")
+    }
+    
+    func stopAudio() {
+        parent.stopAudio()
     }
 }
