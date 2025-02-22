@@ -45,13 +45,14 @@ func loadEmojis() -> [EmojiDetails] {
 struct EmojiPickerView: View {
     // Hard-coded group order
     let groupOrder = [
-        "Smileys & Emotion",
-        "People & Body",
+       
         "Animals & Nature",
         "Food & Drink",
-        "Travel & Places",
-        "Activities",
         "Objects",
+        "Travel & Places",
+        "Smileys & Emotion",
+        "Activities",
+        "People & Body",
         "Symbols",
         "Flags"
     ]

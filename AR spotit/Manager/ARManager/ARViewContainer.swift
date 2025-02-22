@@ -418,26 +418,21 @@ struct ARViewContainer: UIViewRepresentable {
             
             
             //  let direction = anchorPosition - cameraPosition
-            print("Direction Vector: \(direction)")
             
             // Project onto the horizontal plane
             let horizontalDirection = SIMD3<Float>(direction.x, 0, direction.z)
-            print("Horizontal Direction: \(horizontalDirection)")
             
             // Normalize Direction
             let normalizedDirection = normalize(horizontalDirection)
-            print("Normalized Direction: \(normalizedDirection)")
             
             // Calculate Angle
             
             
             let smoothedAngle = calculateAngleBetweenVectors(cameraTransform: cameraTransform, anchorPosition: anchorPosition)
             
-            print("Normalized Angle in Degrees: \(smoothedAngle)")
             // Update the angle in the parent view
             DispatchQueue.main.async {
                 self.parent.angle = smoothedAngle
-                print("Angle in Degrees: \(smoothedAngle)")
                 
                 self.parent.distanceForUI = Double(distance)
             }

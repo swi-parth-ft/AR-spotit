@@ -68,10 +68,13 @@ struct ContentView: View {
     @State private var isCollab = false
     @State private var recordId: String = ""
     @Namespace private var arrowNamespace
+    @Namespace private var itshereNamespace
+
     @State private var newAnchorsCount: Int = 0
     @State private var coordinatorRef: ARViewContainer.Coordinator? = nil
     @State private var isCameraPointingDown: Bool = false
-    
+    @State private var hasPlayedItshere = false
+
     var body: some View {
         NavigationStack {
             
@@ -131,52 +134,63 @@ struct ContentView: View {
                     
                     if isCameraPointingDown && worldManager.isRelocalizationComplete {
                         ZStack {
-                            VisualEffectBlur(blurStyle: .systemThickMaterialDark)
+                            
+                            VisualEffectBlur(blurStyle: .systemThinMaterialDark)
                                 .edgesIgnoringSafeArea(.all)
                             // Optionally animate the change
                                 .transition(.opacity)
                             
                             if findAnchor != "" {
                                 VStack {
-                                    ZStack {
-                                        if distance < 0.25 {
-                                            Image(systemName: "circle.fill")
-                                                .font(.system(size: 240, weight: .bold))
-                                                .foregroundStyle(.orange.opacity(0.4))
-                                                .matchedGeometryEffect(id: "arrow", in: arrowNamespace)
-                                                .shadow(color: Color.orange.opacity(0.1), radius: 10)
-                                                .symbolEffect(.pulse)
-                                              
-                                               
+                                    VStack {
+                                        ZStack {
+                                            if distance < 0.5 {
+                                                if distance > 0.35 {
+                                                    Image(systemName: "circle.fill")
+                                                        .font(.system(size: 240, weight: .bold))
+                                                        .foregroundStyle(.orange.opacity(0.4))
+                                                    // .matchedGeometryEffect(id: "arrow", in: arrowNamespace)
+                                                        .shadow(color: Color.orange.opacity(0.1), radius: 10)
+                                                        .symbolEffect(.pulse)
+                                                    
+                                                    
+                                                }
+                                                if distance > 0.2 {
+                                                    Image(systemName: "circle.fill")
+                                                        .font(.system(size: 240, weight: .bold))
+                                                        .foregroundStyle(.orange.opacity(0.7))
+                                                    //  .matchedGeometryEffect(id: "arrow", in: arrowNamespace)
+                                                        .shadow(color: Color.orange.opacity(0.3), radius: 10)
+                                                        .symbolEffect(.breathe)
+                                                    
+                                                    
+                                                }
+                                            }
+                                            Circle()
+                                                .fill(.orange)
+                                                .frame(width: distance < 0.5 ? 200 : 40)
+                                                .shadow(color: Color.orange.opacity(0.5), radius: 10)
                                         }
-                                        if distance < 0.5 {
-                                            Image(systemName: "circle.fill")
+                                        .offset(y: -50)
+                                        
+                                        
+                                        
+                                        if distance > 0.5 {
+                                            Image(systemName: "arrow.up")
                                                 .font(.system(size: 240, weight: .bold))
-                                                .foregroundStyle(.orange.opacity(0.7))
+                                                .foregroundStyle(.white)
                                                 .matchedGeometryEffect(id: "arrow", in: arrowNamespace)
-                                                .shadow(color: Color.orange.opacity(0.3), radius: 10)
-                                                .symbolEffect(.breathe)
-                                              
-                                               
+                                                .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                        } else {
+                                            
                                         }
-                                        Circle()
-                                            .fill(.orange)
-                                            .frame(width: distance < 0.5 ? 200 : 40)
-                                            .shadow(color: Color.orange.opacity(0.5), radius: 10)
+                                        
                                     }
-                                    .offset(y: -50)
-
-                                    if distance > 0.5 {
-                                        Image(systemName: "arrow.up")
-                                            .font(.system(size: 240, weight: .bold))
-                                            .foregroundStyle(.white)
-                                            .matchedGeometryEffect(id: "arrow", in: arrowNamespace)
-                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                    }
-
+                                    .rotationEffect(Angle(degrees: -angle))
+                                    .animation(.easeInOut(duration: 0.5), value: angle)
+                                    
                                 }
-                                .rotationEffect(Angle(degrees: -angle))
-                                .animation(.easeInOut(duration: 0.5), value: angle)
+                                
                             }
                         }
                       }
@@ -214,10 +228,12 @@ struct ContentView: View {
                                     
                                     
                                     Image(systemName: isFlashlightOn ? "flashlight.on.fill" : "flashlight.off.fill")
+                                        .font(.title)
+
                                         .foregroundStyle(.black)
-                                        .frame(width: 50, height: 50)
+                                        .frame(width: 65, height: 65)
                                         .background(Color.white)
-                                        .cornerRadius(25)
+                                        .cornerRadius(40)
                                         .shadow(color: Color.white.opacity(0.5), radius: 10)
                                         .scaleEffect(isPressed ? 1.3 : (animateButton ? 1.4 : 1.0))
                                         .animation(.spring(response: 0.3, dampingFraction: 0.5, blendDuration: 0), value: isPressed)
@@ -239,7 +255,7 @@ struct ContentView: View {
                                             }
                                         }
                                 )
-                                .sensoryFeedback(.impact(weight: .heavy, intensity: 1), trigger: isFlashlightOn)
+                                .sensoryFeedback(.impact(weight: .heavy, intensity: 5), trigger: isFlashlightOn)
                                 
                                 .padding(30)
                             }
@@ -283,15 +299,18 @@ struct ContentView: View {
                                             
                                             HStack {
                                                 if distance < 0.9 {
-                                                    AnimateText<ATOffsetEffect>($itshere)
-                                                        .font(.system(.largeTitle, design: .rounded))
-                                                        .foregroundStyle(.white)
-                                                        .bold()
-                                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
-                                                        .onAppear {
-                                                            itshere = "it's here."
-                                                            animatedAngle = ""
-                                                        }
+                                                   
+                                                        AnimateText<ATOffsetEffect>($itshere)
+                                                            .font(.system(.largeTitle, design: .rounded))
+                                                            .foregroundStyle(.white)
+                                                            .bold()
+                                                            .matchedGeometryEffect(id: "itshere", in: itshereNamespace)
+                                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                                            .onAppear {
+                                                                itshere = "it's here."
+                                                                animatedAngle = ""
+                                                            }
+                                                    
                                                 } else {
                                                     
                                                     Text("\(String(format: "%.2f", distance))m")
@@ -381,12 +400,13 @@ struct ContentView: View {
                                                 // Solid white background when flashlight is OFF
                                                 Circle()
                                                     .fill(Color.white)
-                                                    .frame(width: 56, height: 56)
+                                                    .frame(width: 65, height: 65)
                                                 
                                                 // Flashlight icon
                                                 Image(systemName: "plus")
                                                     .foregroundStyle(.black)
-                                                    .font(.title)
+                                                    .font(.title2)
+                                                    .bold()
                                             }
                                             
                                         }
@@ -401,24 +421,18 @@ struct ContentView: View {
                                         
                                     } label: {
                                         ZStack {
-                                            if !isFlashlightOn {
-                                                // White ring when flashlight is ON
+//
                                                 Circle()
-                                                    .stroke(Color.white, lineWidth: 4)
-                                                    .frame(width: 54, height: 54)
-                                            } else {
-                                                // Solid white background when flashlight is OFF
-                                                Circle()
-                                                    .fill(Color.white)
-                                                    .frame(width: 56, height: 56)
-                                            }
-                                            // Flashlight icon
+                                                .fill(isFlashlightOn ? Color.white : Color.black.opacity(0.5))
+                                                    .frame(width: 65, height: 65)
+                                       
                                             Image(systemName: isFlashlightOn ? "flashlight.on.fill" : "flashlight.off.fill")
                                                 .foregroundStyle(isFlashlightOn ? .black : .white)
-                                                .font(.title)
+                                                .font(.title2)
+                                                .bold()
                                         }
                                     }
-                                    .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                    .shadow(color: isFlashlightOn ? Color.white.opacity(0.5) : Color.black.opacity(0.3), radius: 10)
                                     
                                     
                                     if isOpeningSharedWorld {
@@ -430,18 +444,18 @@ struct ContentView: View {
                                             } label: {
                                                 ZStack {
                                                     
-                                                    // White ring when flashlight is ON
                                                     Circle()
-                                                        .stroke(Color.white, lineWidth: 4)
-                                                        .frame(width: 54, height: 54)
+                                                    .fill(Color.black.opacity(0.5))
+                                                        .frame(width: 65, height: 65)
                                                     
                                                     // Flashlight icon
                                                     Image(systemName: "magnifyingglass")
                                                         .foregroundStyle(.white)
-                                                        .font(.title)
+                                                        .font(.title2)
+                                                        .bold()
                                                 }
                                             }
-                                            .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                            .shadow(color: Color.black.opacity(0.3), radius: 10)
                                             
                                         } else {
                                             Button {
@@ -456,12 +470,13 @@ struct ContentView: View {
                                                     // Solid white background when flashlight is OFF
                                                     Circle()
                                                         .fill(Color.white)
-                                                        .frame(width: 56, height: 56)
+                                                        .frame(width: 65, height: 65)
                                                     
                                                     // Flashlight icon
                                                     Image(systemName: "xmark")
                                                         .foregroundStyle(.black)
-                                                        .font(.title)
+                                                        .font(.title2)
+                                                        .bold()
                                                 }
                                             }
                                             .shadow(color: Color.white.opacity(0.5), radius: 10)
@@ -481,24 +496,21 @@ struct ContentView: View {
                                         } label: {
                                             
                                             ZStack {
-                                                if !worldManager.isShowingAll {
-                                                    // White ring when flashlight is ON
-                                                    Circle()
-                                                        .stroke(Color.white, lineWidth: 4)
-                                                        .frame(width: 54, height: 54)
-                                                } else {
+                                           
                                                     // Solid white background when flashlight is OFF
                                                     Circle()
-                                                        .fill(Color.white)
-                                                        .frame(width: 56, height: 56)
-                                                }
+                                                        .fill(worldManager.isShowingAll ? Color.white : Color.black.opacity(0.5))
+                                                        .frame(width: 65, height: 65)
+                                                
                                                 // Flashlight icon
                                                 Image(systemName: worldManager.isShowingAll ? "circle.hexagongrid.fill" : "circle.hexagongrid")
                                                     .foregroundStyle(worldManager.isShowingAll ? .black : .white)
-                                                    .font(.title)
+                                                    .font(.title2)
+                                                
+                                                    .bold()
                                             }
                                         }
-                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                        .shadow(color:worldManager.isShowingAll ? Color.white.opacity(0.5) : Color.black.opacity(0.3), radius: 10)
                                         
                                         Button {
                                             shouldPlay.toggle()
@@ -507,26 +519,22 @@ struct ContentView: View {
                                         } label: {
                                             
                                             ZStack {
-                                                if !shouldPlay  {
-                                                    // White ring when flashlight is ON
-                                                    Circle()
-                                                        .stroke(Color.white, lineWidth: 4)
-                                                        .frame(width: 54, height: 54)
-                                                } else {
+                                         
                                                     // Solid white background when flashlight is OFF
                                                     Circle()
-                                                        .fill(Color.white)
-                                                        .frame(width: 56, height: 56)
-                                                }
+                                                    .fill(shouldPlay ? Color.white : Color.black.opacity(0.5))
+                                                        .frame(width: 65, height: 65)
+                                                
                                                 // Flashlight icon
                                                 Image(systemName: shouldPlay ? "speaker.2.fill" : "speaker.2")
                                                     .foregroundStyle(shouldPlay ? .black : .white)
-                                                    .font(.title)
+                                                    .font(.title2)
+                                                    .bold()
                                             }
                                             
                                             
                                         }
-                                        .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                        .shadow(color: shouldPlay ? Color.white.opacity(0.5) : Color.black.opacity(0.3), radius: 10)
                                         
                                     }
                                 }
@@ -538,16 +546,22 @@ struct ContentView: View {
                                             if let coordinator = sceneView.delegate as? ARViewContainer.Coordinator {
                                                 
                                                 coordinator.addNewAnchorsFromPublicDatabase()
+                                                withAnimation {
+                                                    newAnchorsCount = 0
+                                                }
                                                 
                                             }
                                         } label: {
-                                            Text("Retrieve Collaborative Items")
-                                                .foregroundStyle(.black)
+                                            Text("Retrieve New Items")
+                                                .font(.system(.headline, design: .rounded))
+                                                .foregroundStyle(.white)
+                                                .bold()
                                                 .padding()
-                                                .frame(height: 50)
-                                                .background(Color.white)
-                                                .cornerRadius(25)
-                                                .shadow(color: Color.white.opacity(0.5), radius: 10)
+                                                .frame(maxWidth: .infinity)
+                                                .frame(height: 55)
+                                                .background(Color.blue)
+                                                .cornerRadius(22)
+                                                .shadow(color: Color.blue.opacity(0.4), radius: 10)
                                         }
                                     }
                                     Button {
@@ -586,10 +600,14 @@ struct ContentView: View {
                                         }
                                     } label: {
                                         Text("Done")
+                                            .font(.system(.headline, design: .rounded))
                                             .foregroundStyle(.black)
-                                            .frame(width: 100, height: 50)
+                                            .bold()
+                                            .padding()
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 55)
                                             .background(Color.white)
-                                            .cornerRadius(25)
+                                            .cornerRadius(22)
                                             .shadow(color: Color.white.opacity(0.5), radius: 10)
                                         
                                     }
@@ -604,6 +622,7 @@ struct ContentView: View {
                                     
                                     
                                 }
+                                .padding(.horizontal)
                             }
                         }
                         
@@ -724,9 +743,16 @@ struct ContentView: View {
 
                 
             }
-            .onDisappear {
-                
-            }
+            .onChange(of: distance) { newDistance in
+                      // If you only want to play once each time we cross below 0.3:
+                      if newDistance < 0.3 && !hasPlayedItshere {
+                          hasPlayedItshere = true
+                          playItshereMP3()
+                      } else if newDistance > 0.3 {
+                          // Reset so we can play again if the user goes away and comes back
+                          hasPlayedItshere = false
+                      }
+                  }
             .onChange(of: worldManager.scannedZones) {
                 updateScanningProgress()
             }
@@ -920,6 +946,32 @@ struct ContentView: View {
             }
         }
     }
+    
+    private func playItshereMP3() {
+          guard let fileURL = Bundle.main.url(forResource: "itshere", withExtension: "mp3") else {
+              print("❌ Could not find itshere.mp3 in the project bundle.")
+              return
+          }
+          do {
+              let audioFile = try AVAudioFile(forReading: fileURL)
+              
+              // Attach and connect the node if not already connected
+              audioEngine.attach(audioPlayer)
+              audioEngine.connect(audioPlayer, to: audioEngine.mainMixerNode, format: audioFile.processingFormat)
+              
+              // Make sure engine is running
+              if !audioEngine.isRunning {
+                  try audioEngine.start()
+              }
+              
+              // Schedule file to play once
+              audioPlayer.scheduleFile(audioFile, at: nil, completionHandler: nil)
+              audioPlayer.play()
+              
+          } catch {
+              print("❌ Error loading/playing itshere.mp3: \(error)")
+          }
+      }
 }
 
 
