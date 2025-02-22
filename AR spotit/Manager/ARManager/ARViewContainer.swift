@@ -130,7 +130,6 @@ struct ARViewContainer: UIViewRepresentable {
                     //                    parent.coachingOverlay.removeFromSuperview()
                     
                     print("Relocalization complete. Ready to add guide anchors.")
-                    worldIsLoaded = true
                     relocalizationCount += 1
                     
                     try? await Task.sleep(nanoseconds: 500_000_000)
@@ -184,7 +183,6 @@ struct ARViewContainer: UIViewRepresentable {
             
             // For user-labeled anchors
             guard let anchorName = anchor.name else {
-                print("No name found for anchor, skipping visualization.")
                 return
             }
             
@@ -327,9 +325,15 @@ struct ARViewContainer: UIViewRepresentable {
         //MARK: Did update ARFrame
          func session(_ session: ARSession, didUpdate frame: ARFrame) {
             let currentTime = Date()
+             if !self.parent.sceneView.session.currentFrame!.anchors.contains(where: { $0.name == "guide" }) {
+                 if !worldIsLoaded {
+                     worldIsLoaded = true
+                 }
+                 return
+             }
              if AppState.shared.isiCloudShare {
-                 
-                 if self.worldManager.isRelocalizationComplete && relocalizationCount > 1 {
+                
+                 if self.worldManager.isRelocalizationComplete {
                      if currentTime.timeIntervalSince(lastAnchorFetchTime) > 10.0 {
                          lastAnchorFetchTime = currentTime
                          if let worldRecord = WorldManager.shared.currentWorldRecord {
@@ -520,7 +524,7 @@ struct ARViewContainer: UIViewRepresentable {
                     // Position the arrow above the anchor.
                     let target3D = SCNVector3(
                         anchorWorldPosition.x,
-                        anchorWorldPosition.y + 0.10, // 30 cm above the anchor
+                        anchorWorldPosition.y + 0.20, // 30 cm above the anchor
                         anchorWorldPosition.z
                     )
                     

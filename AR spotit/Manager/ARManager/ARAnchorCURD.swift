@@ -15,8 +15,15 @@ import CloudKit
 extension ARViewContainer.Coordinator {
     //MARK: CURD on anchors
     func deleteAnchor(anchorName: String, recId: String) {
+      
         guard let anchor = parent.sceneView.session.currentFrame?.anchors.first(where: { $0.name == anchorName }) else {
             print("Anchor with name \(anchorName) not found.")
+            return
+        }
+        
+        if recId == "" {
+            parent.sceneView.session.remove(anchor: anchor)
+          
             return
         }
         
@@ -103,12 +110,7 @@ extension ARViewContainer.Coordinator {
         }
         
         parent.sceneView.session.remove(anchor: anchor)
-        let drop = Drop.init(title: "\(anchorName) deleted")
-        Drops.show(drop)
-        print("Anchor '\(anchorName)' deleted.")
-        if parent.findAnchor == "" {
-            HapticManager.shared.notification(type: .success)
-        }
+   
         
     }
     

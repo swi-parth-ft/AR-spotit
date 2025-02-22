@@ -59,6 +59,7 @@ struct AddAnchorView: View {
                     .padding(.horizontal)
                     .onAppear {
                                 isTextFieldFocused = true
+                        anchorName = ""
                             }
                 
                

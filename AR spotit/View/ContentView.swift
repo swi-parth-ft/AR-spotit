@@ -228,8 +228,8 @@ struct ContentView: View {
                                     
                                     
                                     Image(systemName: isFlashlightOn ? "flashlight.on.fill" : "flashlight.off.fill")
-                                        .font(.title)
-
+                                        .font(.title2)
+                                        .bold()
                                         .foregroundStyle(.black)
                                         .frame(width: 65, height: 65)
                                         .background(Color.white)
@@ -785,6 +785,10 @@ struct ContentView: View {
                         DispatchQueue.main.async {
                                        if let coordinator = coordinatorRef {  // <— use the stable reference
                                            coordinator.deleteAnchor(anchorName: anchorName, recId: recordId)
+                                           let drop = Drop.init(title: "\(anchorName) deleted")
+                                           Drops.show(drop)
+                                           print("Anchor '\(anchorName)' deleted.")
+                                      
                                        } else {
                                            print("Coordinator is nil — even with stable ref (unexpected).")
                                        }

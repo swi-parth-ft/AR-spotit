@@ -5,7 +5,6 @@ class MySceneDelegate: NSObject, UIWindowSceneDelegate {
     var originalDelegate: UISceneDelegate?
     
     func windowScene(_ windowScene: UIWindowScene, userDidAcceptCloudKitShareWith cloudKitShareMetadata: CKShare.Metadata) {
-        print("MySceneDelegate received share metadata: \(cloudKitShareMetadata)")
         NotificationCenter.default.post(name: Notifications.incomingShareURL, object: cloudKitShareMetadata)
         
         (originalDelegate as? UIWindowSceneDelegate)?.windowScene?(windowScene, userDidAcceptCloudKitShareWith: cloudKitShareMetadata)
