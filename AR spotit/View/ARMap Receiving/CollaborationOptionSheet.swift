@@ -18,6 +18,7 @@ struct CollaborationOptionSheet: View {
     var body: some View {
         NavigationView {
             VStack(alignment: .center) {
+                Spacer()
                 Text("Received \(roomName) invitation. You can view and find items in this area.")
                     .font(.subheadline)
                     .foregroundStyle(.gray)
@@ -47,7 +48,7 @@ struct CollaborationOptionSheet: View {
                 
                 
             }
-            .padding(.horizontal)
+            .padding()
 
             .navigationTitle("Open \(roomName) Map")
             .toolbar {

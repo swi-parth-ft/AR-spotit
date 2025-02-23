@@ -16,73 +16,93 @@ struct AddNewRoom: View {
     @FocusState private var isTextFieldFocused: Bool
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading) {
-                Text("Start with naming your area. e.g. Bedroom, Library 2nd floor, etc")
-                    .font(.subheadline)
-                    .foregroundStyle(.gray)
-                    .padding(.horizontal)
-                TextField("Name", text: $roomName)
-                    .focused($isTextFieldFocused)
-                    .foregroundStyle(colorScheme == .dark ? .white : .black)
-                    .padding()
-                    .frame(height: 55)
-                    .background(Color.secondary.opacity(0.4))
-                    .cornerRadius(10)
-                    .tint(.primary)
-                    .padding(.horizontal)
-                    .onAppear {
-                                isTextFieldFocused = true
-                            }
+            ZStack {
+//                VStack {
+//                    HStack {
+//                        Spacer()
+//                        
+//                        Image(systemName: "plus.circle")
+//                            .font(.system(size: 300))
+//                            .foregroundStyle(.secondary.opacity(0.5))
+//                            .ignoresSafeArea()
+//                    }
+//                    .padding(.top, -180)
+//                    .padding(.trailing, -120)
+//                    Spacer()
+//                }
                 
-                Button {
+                VStack(alignment: .leading) {
                     
-                    dismiss()
-                    //selectedWorld = WorldModel(name: roomName)
-                } label: {
-                    Text("Next")
-                        .font(.system(.headline, design: .rounded))
-                        .foregroundStyle(colorScheme == .dark ? .black : .white)
-                        .bold()
+                    
+                    Spacer()
+                    
+                    Text("Start with naming your area. e.g. Bedroom, Library 2nd floor, etc")
+                        .font(.subheadline)
+                        .foregroundStyle(.gray)
+                        .padding(.horizontal)
+                    TextField("Name", text: $roomName)
+                        .focused($isTextFieldFocused)
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                         .padding()
-                        .frame(maxWidth: .infinity)
                         .frame(height: 55)
-                        .background(Color.primary.opacity(1))
+                        .background(Color.secondary.opacity(0.4))
                         .cornerRadius(10)
-                }
-                .padding(.horizontal)
-            }
-            .onAppear {
-                roomName = ""
-            }
-            .navigationTitle("New Area")
-            .sheet(isPresented: $isShowingGuide) {
-                RoomScanGuideView()
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                        .tint(.primary)
+                        .padding(.horizontal)
+                        .onAppear {
+                            isTextFieldFocused = true
+                        }
+                    
                     Button {
-                        isShowingGuide.toggle()
-                    } label: {
-                        Image(systemName: "lightbulb.circle")
-                            .font(.title2)
-                            .foregroundStyle(colorScheme == .dark ? .white : .black)
-                    }
-                }
-                
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        roomName = ""
-
+                        
                         dismiss()
+                        //selectedWorld = WorldModel(name: roomName)
                     } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(colorScheme == .dark ? .white : .black)
+                        Text("Next")
+                            .font(.system(.headline, design: .rounded))
+                            .foregroundStyle(colorScheme == .dark ? .black : .white)
+                            .bold()
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 55)
+                            .background(Color.primary.opacity(1))
+                            .cornerRadius(10)
                     }
+                    .padding(.horizontal)
                 }
-                
+                .padding(.bottom)
+                .onAppear {
+                    roomName = ""
+                }
+                .navigationTitle("New Area")
+                .sheet(isPresented: $isShowingGuide) {
+                    RoomScanGuideView()
+                }
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            isShowingGuide.toggle()
+                        } label: {
+                            Image(systemName: "lightbulb.circle")
+                                .font(.title2)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
+                        }
+                    }
+                    
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            roomName = ""
+                            
+                            dismiss()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
+                        }
+                    }
+                    
+                }
             }
-           
         }
     }
 }

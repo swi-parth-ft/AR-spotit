@@ -20,7 +20,7 @@ struct DeleteConfirm: View {
         NavigationView {
             VStack(alignment: .leading) {
                
-                
+                Spacer()
                 if isCollab {
                     VStack(alignment: .leading) {
                         HStack(alignment: .top) {

@@ -6,29 +6,22 @@ import CoreSpotlight
 import MobileCoreServices
 
 struct WorldsView: View {
-    
-    
-    
     @StateObject var worldManager = WorldManager()
-    @State private var selectedWorld: WorldModel? // Track which world is selected for adding anchors
-    @State private var anchorsByWorld: [String: [String]] = [:] // Track anchors for each world
+    @State private var selectedWorld: WorldModel? // For fullScreen navigation to ContentView
+    @State private var anchorsByWorld: [String: [String]] = [:]
     let columns = [
         GridItem(.flexible(), spacing: 10),
         GridItem(.flexible(), spacing: 10),
         GridItem(.flexible(), spacing: 10)
-    ] // Two flexible columns
+    ]
     @State private var isAddingNewRoom = false
     @Environment(\.colorScheme) var colorScheme
     @State private var isFindingAnchor = false
     @State private var findingAnchorName: String = ""
     @State private var showFocusedAnchor: Bool = false
-    @State private var isRenaming = false
-    @State private var currentName = ""
     @State private var isTestingAudio = false
-    @State private var searchText = "" // New State for Search Text
-  //  @State private var sortingOption: SortingOption = .name // Sorting Option
-    
-    @ObservedObject var appState = AppState.shared // Observe AppState
+    @State private var searchText = ""
+    @ObservedObject var appState = AppState.shared
     @State private var roomName: String = ""
     @State private var updateRoomName: String?
     @State private var isShowingAnchors: Bool = false
@@ -37,190 +30,126 @@ struct WorldsView: View {
     
     @Namespace private var animationNamespace
     @State private var isShowingQR = false
-    
-    
     @State private var showPinPopover = false
     @State private var selectedPin: String = ""
-@State private var isShowingPIN = false
+    @State private var isShowingPIN = false
     @State private var isChecking = false
-    
     @State private var isCollab = false
     @State private var newAnchors = 0
     @State private var isDeleting = false
-//    enum SortingOption {
-//        case name
-//        case lastModified
-//    }
-//
-    
-    
+    @State private var isRenaming = false
+    @State private var showCollaboratedOnly: Bool = false
     enum SortingField: String, CaseIterable, Identifiable {
         case name, date
         var id: String { self.rawValue }
     }
-    
+    @State private var hasLoadedWorlds = false
+
     @AppStorage("sortingField") private var sortingFieldRawValue: String = SortingField.name.rawValue
     @AppStorage("sortingAscending") private var sortingAscending: Bool = true
-
+    
     private var sortingField: SortingField {
         get { SortingField(rawValue: sortingFieldRawValue) ?? .name }
         set { sortingFieldRawValue = newValue.rawValue }
     }
-   
-
-   
+    
     func extractEmoji(from string: String) -> String? {
         for char in string {
-            if char.isEmoji {
-                return String(char)
-            }
+            if char.isEmoji { return String(char) }
         }
         return nil
     }
     
     var filteredWorlds: [WorldModel] {
         let sortedWorlds: [WorldModel]
-        
         if sortingField == .name {
             sortedWorlds = worldManager.savedWorlds.sorted {
-                if sortingAscending {
-                    return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-                } else {
-                    return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedDescending
-                }
+                sortingAscending ?
+                    $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending :
+                    $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedDescending
             }
-        } else { // sortingField == .date
+        } else {
             sortedWorlds = worldManager.savedWorlds.sorted {
-                if sortingAscending {
-                    return $0.lastModified < $1.lastModified
-                } else {
-                    return $0.lastModified > $1.lastModified
-                }
+                sortingAscending ?
+                    $0.lastModified < $1.lastModified :
+                    $0.lastModified > $1.lastModified
             }
         }
         
-        if searchText.isEmpty {
-            return sortedWorlds
-        } else {
-            return sortedWorlds.filter { world in
-                world.name.localizedCaseInsensitiveContains(searchText) ||
-                (anchorsByWorld[world.name]?.contains(where: { $0.localizedCaseInsensitiveContains(searchText) }) ?? false)
-            }
+        // Apply collaborated filter if enabled
+        let filtered = showCollaboratedOnly ? sortedWorlds.filter { $0.isCollaborative } : sortedWorlds
+        
+        if searchText.isEmpty { return filtered }
+        return filtered.filter { world in
+            world.name.localizedCaseInsensitiveContains(searchText) ||
+            (anchorsByWorld[world.name]?.contains(where: { $0.localizedCaseInsensitiveContains(searchText) }) ?? false)
         }
-    }//    var filteredWorlds: [WorldModel] {
-//
-//        let sortedWorlds: [WorldModel]
-//        switch sortingOption {
-//        case .name:
-//            sortedWorlds = worldManager.savedWorlds.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-//        case .lastModified:
-//            sortedWorlds = worldManager.savedWorlds.sorted { $0.lastModified > $1.lastModified }
-//        }
-//        
-//        
-//        if searchText.isEmpty {
-//            return sortedWorlds
-//        } else {
-//            return sortedWorlds.filter { world in
-//                world.name.localizedCaseInsensitiveContains(searchText) ||
-//                (anchorsByWorld[world.name]?.contains(where: { $0.localizedCaseInsensitiveContains(searchText) }) ?? false)
-//            }
-//        }
-//    }
+    }
     
     func filteredAnchors(for worldName: String) -> [String] {
-        if searchText.isEmpty {
-            return anchorsByWorld[worldName] ?? [] // Show all anchors when search is empty
-        }
-        // If searchText matches the worldName, return all anchors for this world
-        if worldName.localizedCaseInsensitiveContains(searchText) {
-            return anchorsByWorld[worldName] ?? []
-        }
-        // Otherwise, filter anchors by searchText
+        if searchText.isEmpty { return anchorsByWorld[worldName] ?? [] }
+        if worldName.localizedCaseInsensitiveContains(searchText) { return anchorsByWorld[worldName] ?? [] }
         return (anchorsByWorld[worldName]?.filter { $0.localizedCaseInsensitiveContains(searchText) }) ?? []
     }
     
-    init()  {
-        
-        
-        var titleFont = UIFont.preferredFont(forTextStyle: .largeTitle) /// the default large title font
+    init() {
+        var titleFont = UIFont.preferredFont(forTextStyle: .largeTitle)
         titleFont = UIFont(
-            descriptor:
-                titleFont.fontDescriptor
-                .withDesign(.rounded)? /// make rounded
-                .withSymbolicTraits(.traitBold) /// make bold
-            ??
-            titleFont.fontDescriptor, /// return the normal title if customization failed
+            descriptor: titleFont.fontDescriptor.withDesign(.rounded)?
+                .withSymbolicTraits(.traitBold) ?? titleFont.fontDescriptor,
             size: titleFont.pointSize
         )
-        
-        /// set the rounded font
         UINavigationBar.appearance().largeTitleTextAttributes = [.font: titleFont]
     }
     
-    
+    // New state variables to track which world to act on:
+    @State private var worldForRename: WorldModel? = nil
+    @State private var worldForQR: WorldModel? = nil
+    @State private var worldForPin: WorldModel? = nil
+    @State private var worldForDelete: WorldModel? = nil
+    @State private var worldForAnchors: WorldModel? = nil
+
     var body: some View {
         NavigationStack {
             ZStack {
                 ScrollView {
                     VStack(alignment: .leading) {
-                        
-                        
                         if filteredWorlds.isEmpty && searchText.isEmpty {
                             VStack {
                                 Spacer()
                                 ContentUnavailableView {
                                     Label("No Area saved yet!", systemImage: "viewfinder")
                                         .font(.system(.title2, design: .rounded))
-                                    
                                 } description: {
-                                    Text("Start adding a area by tapping the plus \(Image(systemName: "plus.circle")) button.")
-                                    //   .font(.system(design: .rounded))
-                                    
+                                    Text("Start adding an area by tapping the plus \(Image(systemName: "plus.circle")) button.")
                                 }
                                 Spacer()
                             }
                             .frame(height: UIScreen.main.bounds.height * 0.7)
-                            
                         }
                         
-                        
-                        
-                        if !searchText.isEmpty && filteredWorlds.isEmpty{
+                        if !searchText.isEmpty && filteredWorlds.isEmpty {
                             VStack {
                                 Spacer()
                                 ContentUnavailableView {
                                     Label("No Results for '\(searchText)'", systemImage: "magnifyingglass")
                                         .font(.system(.title2, design: .rounded))
-                                    
                                 } description: {
                                     Text("Check spelling or try new search.")
-                                    //   .font(.system(design: .rounded))
-                                    
                                 }
-                                
-                                
                                 Spacer()
-                                
                             }
                             .frame(height: UIScreen.main.bounds.height * 0.7)
-                            
                         }
-                        
                         
                         ForEach(filteredWorlds) { world in
                             VStack(alignment: .leading) {
-                                
                                 ZStack {
-                                    
-                                    
-                                    // (NEW) Show snapshot preview if it exists
                                     let snapshotPath = WorldModel.appSupportDirectory
                                         .appendingPathComponent("\(world.name)_snapshot.png")
                                     
                                     if FileManager.default.fileExists(atPath: snapshotPath.path),
                                        let uiImage = UIImage(contentsOfFile: snapshotPath.path) {
-                                        
                                         if colorScheme == .dark {
                                             Image(uiImage: uiImage)
                                                 .resizable()
@@ -230,9 +159,8 @@ struct WorldsView: View {
                                                 .cornerRadius(15)
                                                 .overlay(
                                                     RoundedRectangle(cornerRadius: 15)
-                                                        .fill(LinearGradient(colors: [.black.opacity(0.8), .black.opacity(0.0)], startPoint: .bottom, endPoint: .top))
-                                                    
-                                                    
+                                                        .fill(LinearGradient(colors: [.black.opacity(0.8), .black.opacity(0.0)],
+                                                                               startPoint: .bottom, endPoint: .top))
                                                 )
                                                 .padding(.horizontal)
                                                 .shadow(color: .white.opacity(0.4), radius: 5)
@@ -245,18 +173,14 @@ struct WorldsView: View {
                                                 .cornerRadius(15)
                                                 .overlay(
                                                     RoundedRectangle(cornerRadius: 15)
-                                                        .fill(LinearGradient(colors: [.black.opacity(0.8), .black.opacity(0.0)], startPoint: .bottom, endPoint: .top))
-                                                    
-                                                    
+                                                        .fill(LinearGradient(colors: [.black.opacity(0.8), .black.opacity(0.0)],
+                                                                               startPoint: .bottom, endPoint: .top))
                                                 )
                                                 .padding(.horizontal)
                                                 .colorInvert()
                                                 .shadow(radius: 5)
-                                            
                                         }
-                                        
                                     } else {
-                                        // fallback if no image
                                         Text("No Snapshot")
                                             .font(.footnote)
                                             .foregroundColor(.secondary)
@@ -264,28 +188,19 @@ struct WorldsView: View {
                                     }
                                     
                                     VStack {
-                                        
                                         if world.isCollaborative {
                                             HStack {
-                                                
                                                 Spacer()
-                                                
                                                 Image(systemName: "person.2.fill")
-                                                    .font(.title2)
+                                                    .font(.headline)
                                                     .foregroundStyle(colorScheme == .dark ? .white : .black)
                                                     .symbolEffect(.pulse)
-                                                
-                                                
-                                                
-                                                
                                             }
                                             .padding(.horizontal)
                                         }
                                         
                                         Spacer()
-                                        // Room Title
                                         HStack {
-                                            
                                             Text(world.name)
                                                 .font(.system(.title2, design: .rounded))
                                                 .bold()
@@ -294,48 +209,36 @@ struct WorldsView: View {
                                             Button(action: {
                                                 updateRoomName = world.name
                                                 worldManager.isShowingAll = true
-                                                selectedWorld = world // Set the selected world
+                                                selectedWorld = world
                                             }) {
                                                 Image(systemName: "arkit")
                                                     .font(.title)
                                                     .foregroundStyle(colorScheme == .dark ? .white : .black)
-                                                
                                             }
-                                            
-                                            
                                         }
                                         .padding(.horizontal)
                                     }
-                                    
                                     .padding()
-                                    
-                                    
-                                    
                                 }
                                 .frame(height: 200)
                                 .padding(.vertical, 10)
                                 .matchedTransitionSource(id: "zoom-\(world.name)", in: animationNamespace)
+                                .contentShape(Rectangle()) // This makes the entire cell tappable
                                 .onTapGesture {
-                                    
-                                    currentName = world.name
                                     HapticManager.shared.impact(style: .heavy)
-                                    
-                                    //  DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                    
+                                    worldForAnchors = world
                                     isShowingAnchors = true
-                                    //  }
                                 }
                                 .contextMenu {
                                     Button {
                                         HapticManager.shared.impact(style: .medium)
-                                        currentName = world.name
-                                      
-                                        isCollab = world.isCollaborative
-                                          withAnimation {
-                                              isRenaming.toggle()
-                                          }
-                                      
-                                        
+                                        DispatchQueue.main.async {
+                                            worldForRename = world
+                                        }
+                                        withAnimation {
+                                            // Present the rename sheet for this specific world
+                                            isRenaming = true
+                                        }
                                     } label: {
                                         HStack {
                                             Text("Rename")
@@ -348,137 +251,150 @@ struct WorldsView: View {
                                     Button {
                                         worldManager.shareWorld(currentRoomName: world.name)
                                         HapticManager.shared.impact(style: .medium)
-                                        
                                     } label: {
                                         HStack {
                                             Text("Share")
                                             Image(systemName: "square.and.arrow.up")
                                                 .font(.title)
                                                 .foregroundStyle(colorScheme == .dark ? .white : .black)
-                                            
                                         }
                                         .font(.title)
-                                        
                                     }
-                             
                                     
-                                   
-                                    
-                                    
-                                    if let world = worldManager.savedWorlds.first(where: { $0.name == world.name }), world.isCollaborative {
-                                        
+                                    if world.isCollaborative {
                                         Button {
-                                            currentName = world.name
-                                                isShowingQR = true
-
-                                            
-
+                                            DispatchQueue.main.async {
+                                                
+                                                worldForQR = world
+                                            }
+                                            isShowingQR = true
                                         } label: {
                                             HStack {
                                                 Text("Share QR code")
                                                 Image(systemName: "qrcode")
                                                     .font(.title2)
                                                     .foregroundStyle(colorScheme == .dark ? .white : .black)
-                                                
                                             }
                                             .font(.title2)
-                                            
                                         }
                                         
                                         Button {
-                                            currentName = world.name
-
-                                            print(world.pin ?? "")
-                                            
-                                            
+                                            DispatchQueue.main.async {
+                                                
+                                                worldForPin = world
+                                            }
                                             selectedPin = world.pin ?? ""
-                                            
-                                            
                                             showPinPopover = true
-                                            
-                                            
                                         } label: {
                                             HStack {
                                                 Text("Show PIN")
                                                 Image(systemName: "key")
                                                     .font(.title2)
                                                     .foregroundStyle(colorScheme == .dark ? .white : .black)
-                                                
                                             }
                                             .font(.title2)
                                         }
-                                        .onAppear {
-                                            isChecking = true
-                                        }
+                                        .onAppear { isChecking = true }
                                     }
                                     
                                     Button(role: .destructive) {
-                                        currentName = world.name
-                                        isCollab = world.isCollaborative
+                                        DispatchQueue.main.async {
+                                            
+                                            worldForDelete = world
+                                        }
                                         isDeleting = true
                                     } label: {
                                         HStack {
                                             Text("Delete")
-                                                .foregroundColor(.red) // Use this for text
+                                                .foregroundColor(.red)
                                             Image(systemName: "trash.fill")
                                                 .foregroundStyle(.red)
-                                            
                                         }
                                         .font(.title)
+                                    }
+                                }
+                                // Sheets for specific world actions
+                                .sheet(item: $worldForQR) { qrWorld in
+                                    if UIDevice.isIpad {
+                                        QRview(roomName: qrWorld.name)
+                                            .id(qrWorld.id)
+
+                                    } else {
+                                        QRview(roomName: qrWorld.name)
+                                        .id(qrWorld.id)
+                                        .presentationDetents([.fraction(0.5)])
+                                    }
+                                    
+                                }
+                                .sheet(item: $worldForRename) { renameWorld in
+                                    if UIDevice.isIpad {
+                                        renameWorldView(worldName: renameWorld.name,
+                                                        worldManager: worldManager,
+                                                        showWarning: renameWorld.isCollaborative,
+                                                        newAnchors: newAnchors)
+                                        .id(renameWorld.id)
+                                    } else {
+                                        renameWorldView(worldName: renameWorld.name,
+                                                        worldManager: worldManager,
+                                                        showWarning: renameWorld.isCollaborative,
+                                                        newAnchors: newAnchors)
+                                        .id(renameWorld.id) // Force a refresh when renameWorld changes
                                         
+                                        .presentationDetents(renameWorld.isCollaborative ? [.fraction(0.5)] : [.fraction(0.4)])
                                     }
                                     
-                                    .onAppear {
-                                        currentName = world.name
-                                    }
                                 }
-                                .sheet(isPresented: $showPinPopover) {
-                                    PinView(roomName: currentName, pin: $selectedPin, isChecking: isChecking)
+                                .sheet(item: $worldForPin) { pinWorld in
+                                    if UIDevice.isIpad {
+                                        PinView(roomName: pinWorld.name,
+                                                pin: $selectedPin,
+                                                isChecking: true)
+                                        .id(pinWorld.id)
+                                    } else {
+                                        PinView(roomName: pinWorld.name,
+                                                pin: $selectedPin,
+                                                isChecking: true)
+                                        .id(pinWorld.id)
                                         .presentationDetents([.fraction(0.4)])
-                                    
-                                }
-                                .sheet(isPresented: $isRenaming) {
-                                    
-                                    renameWorldView(worldName: currentName, worldManager: worldManager, showWarning: isCollab, newAnchors: newAnchors)
-                                        .presentationDetents(isCollab ? [.fraction(0.5)] : [.fraction(0.4)])
-
-                                    
-                                }
-                                .sheet(isPresented: $isDeleting) {
-                                    DeleteConfirm(isCollab: isCollab, roomName: currentName) { name in
-                                        worldManager.deleteWorld(roomName: name) {
-                                            print("Deletion process completed.")
-                                            let drop = Drop.init(title: "\(world.name) deleted!")
-                                            
-                                            Drops.show(drop)
-                                            
-                                            HapticManager.shared.notification(type: .success)
-                                            
-                                            isDeleting = false
-                                            
-                                        }
-
                                     }
-                                    .presentationDetents([.fraction(0.5)])
+                                    
                                 }
+                                .sheet(item: $worldForDelete) { deleteWorld in
+                                    if UIDevice.isIpad {
+                                        DeleteConfirm(isCollab: deleteWorld.isCollaborative,
+                                                      roomName: deleteWorld.name) { name in
+                                            worldManager.deleteWorld(roomName: name) {
+                                                let drop = Drop(title: "\(deleteWorld.name) deleted!")
+                                                Drops.show(drop)
+                                                HapticManager.shared.notification(type: .success)
+                                                isDeleting = false
+                                            }
+                                        }
+                                                      .id(deleteWorld.id)
+                                    } else {
+                                        DeleteConfirm(isCollab: deleteWorld.isCollaborative,
+                                                      roomName: deleteWorld.name) { name in
+                                            worldManager.deleteWorld(roomName: name) {
+                                                let drop = Drop(title: "\(deleteWorld.name) deleted!")
+                                                Drops.show(drop)
+                                                HapticManager.shared.notification(type: .success)
+                                                isDeleting = false
+                                            }
+                                        }
+                                                      .id(deleteWorld.id)
+                                                      .presentationDetents([.fraction(0.5)])
+                                    }
                                 
+                                }
                                 
                                 if searchText != "" {
-                                    
-                                    
-                                    // Anchors Section
                                     ScrollView(.vertical, showsIndicators: false) {
                                         LazyVGrid(columns: columns, spacing: 10) {
                                             if let anchors = anchorsByWorld[world.name], !anchors.isEmpty {
-                                                // Filter out "guide" anchors
-                                                
-                                                
                                                 let anchors = filteredAnchors(for: world.name)
                                                 let filteredAnchors = anchors.filter { $0 != "guide" }
-                                                // Show non-guide anchors
-                                                ForEach(Array(filteredAnchors.enumerated()), id: \.0) { index, anchorName in
+                                                ForEach(Array(filteredAnchors.enumerated()), id: \.0) { _, anchorName in
                                                     VStack {
-                                                        // Extract and display the emoji if present
                                                         let emoji = extractEmoji(from: anchorName)
                                                         HStack {
                                                             Text(emoji ?? "📍")
@@ -486,15 +402,12 @@ struct WorldsView: View {
                                                             Spacer()
                                                         }
                                                         .frame(maxWidth: .infinity)
-                                                        
-                                                        // Display the anchor name without the emoji
                                                         let cleanAnchorName = anchorName.filter { !$0.isEmoji }
                                                         Text(cleanAnchorName)
                                                             .font(.system(.headline, design: .rounded))
                                                             .multilineTextAlignment(.center)
                                                             .bold()
                                                             .foregroundStyle(.white)
-                                                        
                                                     }
                                                     .frame(maxWidth: .infinity)
                                                     .frame(height: 90)
@@ -502,10 +415,10 @@ struct WorldsView: View {
                                                     .background(
                                                         VStack {
                                                             Spacer().frame(height: 55)
-                                                            
-                                                            Color(getDominantColor(for: extractEmoji(from: anchorName) ?? "📍")).opacity(0.9).frame(height: 55) // Use extracted color
+                                                            Color(getDominantColor(for: extractEmoji(from: anchorName) ?? "📍"))
+                                                                .opacity(0.9)
+                                                                .frame(height: 55)
                                                                 .cornerRadius(22)
-                                                            
                                                         }
                                                     )
                                                     .cornerRadius(22)
@@ -514,14 +427,11 @@ struct WorldsView: View {
                                                         worldManager.isShowingAll = false
                                                         isFindingAnchor = true
                                                         findingAnchorName = anchorName
-                                                        
                                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                                             selectedWorld = world
                                                         }
-                                                        
                                                     }
                                                 }
-                                                
                                             } else {
                                                 Text("No anchors found.")
                                                     .foregroundColor(.secondary)
@@ -534,138 +444,95 @@ struct WorldsView: View {
                                 }
                             }
                             .onAppear {
-                                // Fetch anchors for this specific world
-                                if anchorsByWorld[world.name] == nil || anchorsByWorld[world.name]?.isEmpty == true {
+                                if anchorsByWorld[world.name] == nil ||
+                                    anchorsByWorld[world.name]?.isEmpty == true {
                                     worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
                                         DispatchQueue.main.async {
                                             anchorsByWorld[world.name] = fetchedAnchors
-                                            
                                             let tupleAnchors = fetchedAnchors.map { (anchorName: $0, worldName: world.name) }
                                             worldManager.indexItems(anchors: tupleAnchors)
-                                            
                                         }
-                                        
                                     }
                                 }
                             }
                         }
                     }
                     .onAppear {
-                        if currentName == "" {
-                            worldManager.loadSavedWorlds {
-                                
-                            }
-                        }
-                        
+                        if !hasLoadedWorlds {
+                                        hasLoadedWorlds = true
+                                        worldManager.loadSavedWorlds {
+                                            // Handle completion if needed
+                                        }
+                                    }
                     }
                     .onChange(of: AppState.shared.isWorldUpdated) {
-                        worldManager.loadSavedWorlds {
-                            
-                        }
-                        
+                        worldManager.loadSavedWorlds {}
                     }
                     .padding(.top)
-                  
-                    .sheet(isPresented: $isShowingQR) {
-                        QRview(roomName: currentName)
-                            .presentationDetents([.fraction(0.5)])
-                        
-                    }
                 }
-                .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic)).tint(colorScheme == .dark ? .white : .black)
-                .onReceive(
-                    NotificationCenter.default.publisher(for: Notifications.openWorldNotification)
-                ) { notification in
+                .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
+                .tint(colorScheme == .dark ? .white : .black)
+                .onReceive(NotificationCenter.default.publisher(for: Notifications.openWorldNotification)) { notification in
                     guard let userInfo = notification.userInfo,
                           let worldName = userInfo["worldName"] as? String else { return }
-                    
                     Task {
-                        // Load saved worlds if necessary
                         await withCheckedContinuation { continuation in
-                            worldManager.loadSavedWorlds {
-                                continuation.resume()
-                            }
+                            worldManager.loadSavedWorlds { continuation.resume() }
                         }
-                        
-                        // Assign the matching world
-                        if let matchingWorld = worldManager.savedWorlds.first(where: { $0.name.lowercased() == worldName.lowercased() }) {
+                        if let matchingWorld = worldManager.savedWorlds.first(where: {
+                            $0.name.lowercased() == worldName.lowercased()
+                        }) {
                             await MainActor.run {
                                 let drop = Drop(title: "Loading \(matchingWorld.name)")
                                 Drops.show(drop)
-                                //  DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                
                                 selectedWorld = matchingWorld
-                                //}
                             }
                         }
                     }
-                    
                 }
-                .onReceive(
-                    NotificationCenter.default.publisher(for: Notifications.createWorldNotification)
-                ) { notification in
+                .onReceive(NotificationCenter.default.publisher(for: Notifications.createWorldNotification)) { notification in
                     guard let userInfo = notification.userInfo,
                           let worldName = userInfo["worldName"] as? String else { return }
-                    
-                    if worldName != "" {
-                        //   DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        
+                    if !worldName.isEmpty {
                         selectedWorld = WorldModel(name: worldName)
-                        // }
                     }
-                    
                 }
-                .onReceive(
-                    NotificationCenter.default.publisher(for: Notifications.incomingShareMapReady),
-                    perform: { _ in
-                        selectedWorld = WorldModel(name: WorldManager.shared.sharedWorldName ?? "")
-                    }
-                )
-                .onReceive(
-                    NotificationCenter.default.publisher(for: Notifications.findItemNotification)
-                ) { notification in
+                .onReceive(NotificationCenter.default.publisher(for: Notifications.incomingShareMapReady)) { _ in
+                    selectedWorld = WorldModel(name: WorldManager.shared.sharedWorldName ?? "")
+                }
+                .onReceive(NotificationCenter.default.publisher(for: Notifications.findItemNotification)) { notification in
                     Task {
                         guard let userInfo = notification.userInfo,
                               let itemName = userInfo["itemName"] as? String else { return }
                         let providedWorldName = userInfo["worldName"] as? String ?? ""
-                        
-                        // Option 1: Use the provided world name directly if it exists
                         if !providedWorldName.isEmpty,
                            let matchingWorld = worldManager.savedWorlds.first(where: { $0.name == providedWorldName }) {
                             findingAnchorName = itemName
                             worldManager.isShowingAll = false
                             isFindingAnchor = true
-                            // Optionally, show a drop or perform any other UI feedback
                             await MainActor.run {
-                                // Set findingAnchorName to the original anchor name with emoji
-                                
                                 let drop = Drop(title: "Anchor \(itemName) found in \(providedWorldName)")
                                 Drops.show(drop)
                                 selectedWorld = matchingWorld
                             }
                         } else {
-                            // Option 2: Fallback to the logic that searches for an anchor if the world name isn’t provided
-                            // Load anchors for all worlds if not already loaded
                             for world in worldManager.savedWorlds where anchorsByWorld[world.name] == nil {
                                 await worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
                                     anchorsByWorld[world.name] = fetchedAnchors
                                 }
                             }
-                            
-                            // Normalize names by removing emojis for comparison
                             func removeEmojis(from string: String) -> String {
                                 return string.filter { !$0.isEmoji }
                             }
-                            
                             if let (worldName, originalAnchorName) = anchorsByWorld.compactMap({ worldEntry -> (String, String)? in
                                 let worldName = worldEntry.key
-                                if let matchingAnchor = worldEntry.value.first(where: { removeEmojis(from: $0)
-                                    .localizedCaseInsensitiveContains(removeEmojis(from: itemName)) }) {
+                                if let matchingAnchor = worldEntry.value.first(where: {
+                                    removeEmojis(from: $0).localizedCaseInsensitiveContains(removeEmojis(from: itemName))
+                                }) {
                                     return (worldName, matchingAnchor)
                                 }
                                 return nil
                             }).first {
-                                // Set findingAnchorName to the original anchor name with emoji
                                 findingAnchorName = originalAnchorName
                                 worldManager.isShowingAll = false
                                 isFindingAnchor = true
@@ -688,71 +555,62 @@ struct WorldsView: View {
                 .navigationTitle("it's here.")
                 .toolbar {
                     Menu {
-                        // Name Button
-                        Button {
-                            if sortingField == .name {
-                                sortingAscending.toggle()
-                            } else {
-                                sortingFieldRawValue = SortingField.name.rawValue
-                                sortingAscending = true
-                            }
-                            HapticManager.shared.impact(style: .medium)
-                        } label: {
-                            HStack {
-                                Text("Name")
-                                Spacer()
-                                SortingIcon(mainIcon: "textformat", showArrow: sortingField == .name, ascending: sortingAscending)
-                            }
-                        }
                         
-                        // Date Button
                         Button {
-                            if sortingField == .date {
-                                sortingAscending.toggle()
-                            } else {
-                                sortingFieldRawValue = SortingField.date.rawValue
-                                sortingAscending = true
-                            }
-                            HapticManager.shared.impact(style: .medium)
+                           showCollaboratedOnly.toggle()
+                           HapticManager.shared.impact(style: .medium)
                         } label: {
-                            HStack {
-                                Text("Date")
-                                Spacer()
-                                SortingIcon(mainIcon: "calendar", showArrow: sortingField == .date, ascending: sortingAscending)
+                           HStack {
+                               Text(showCollaboratedOnly ? "Show All" : "Show Collaborated Only")
+                               Spacer()
+                               Image(systemName: showCollaboratedOnly ? "globe" : "person.2")
+                           }
+                        }
+                        Picker("Sort By", selection: Binding<SortingField>(
+                            get: {
+                                SortingField(rawValue: sortingFieldRawValue) ?? .name
+                            },
+                            set: { newValue in
+                                if SortingField(rawValue: sortingFieldRawValue) == newValue {
+                                    sortingAscending.toggle()
+                                } else {
+                                    sortingFieldRawValue = newValue.rawValue
+                                    sortingAscending = true
+                                }
+                                HapticManager.shared.impact(style: .medium)
+                            }
+                        )) {
+                            ForEach(SortingField.allCases) { field in
+                                HStack {
+                                    Text(field.rawValue.capitalized)
+                                    Spacer()
+                                    if field == .name {
+                                        Image(systemName: "textformat")
+                                    } else if field == .date {
+                                        Image(systemName: "calendar")
+                                    }
+                                }
+                                .tag(field)
                             }
                         }
+                        .pickerStyle(.menu)
                     } label: {
-                        Label("Sort", systemImage: "arrow.up.arrow.down")
-                            .tint(colorScheme == .dark ? .white : .black)
+                        Image(systemName: "arrow.up.arrow.down")
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
                     }
                     .tint(colorScheme == .dark ? .white : .black)
                     
                     Button {
                         isAddingNewRoom.toggle()
                         HapticManager.shared.impact(style: .medium)
-                        
                     } label: {
                         Image(systemName: "plus.circle")
                             .font(.title2)
                             .foregroundStyle(colorScheme == .dark ? .white : .black)
                     }
-                    
-                    //                Button {
-                    //                    isTestingAudio.toggle()
-                    //                    HapticManager.shared.impact(style: .medium)
-                    //
-                    //                } label: {
-                    //                    Image(systemName: "ladybug.fill")
-                    //                        .font(.title2)
-                    //                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                    //                }
                 }
-                .sheet(item: $selectedWorld, onDismiss: {
-                    
-                    worldManager.loadSavedWorlds {
-                        
-                    }
-                    
+                .fullScreenCover(item: $selectedWorld, onDismiss: {
+                    worldManager.loadSavedWorlds {}
                     if let anchorsToUpdate = updateRoomName {
                         worldManager.getAnchorNames(for: anchorsToUpdate) { fetchedAnchors in
                             DispatchQueue.main.async {
@@ -768,96 +626,84 @@ struct WorldsView: View {
                         isShowingFocusedAnchor: $showFocusedAnchor
                     )
                     .interactiveDismissDisabled()
-                    
                 }
                 .sheet(isPresented: $isAddingNewRoom, onDismiss: {
                     if roomName != "" {
-                        // Start with the entered room name.
                         var newRoomName = roomName
                         var counter = 1
-                        
-                        // Check if the room name already exists (case-insensitive).
                         while worldManager.savedWorlds.contains(where: { $0.name.lowercased() == newRoomName.lowercased() }) {
-                            // Append a counter to the original name to create a new candidate.
                             newRoomName = "\(roomName)\(counter)"
                             counter += 1
                         }
-                        
-                        // Create a new world with the unique name.
                         selectedWorld = WorldModel(name: newRoomName)
                     }
                 }) {
-                    AddNewRoom(roomName: $roomName)
-                        .presentationDetents([.fraction(0.4)])
-                        .interactiveDismissDisabled()
                     
-                    //  }
+                    if UIDevice.isIpad {
+                        AddNewRoom(roomName: $roomName)
+                            .interactiveDismissDisabled()
+                    } else {
+                        AddNewRoom(roomName: $roomName)
+                            .presentationDetents([.fraction(0.4)])
+                            .interactiveDismissDisabled()
+                    }
                 }
                 .sheet(isPresented: $isTestingAudio, content: {
                     SensoryFeedbackView()
                 })
-                .onChange(of: worldManager.reload) {
-                    print("reloaded")
-                }
                 .navigationDestination(isPresented: $isShowingAnchors) {
                     AnchorsListView(
                         worldManager: worldManager,
-                        worldName: $currentName,
+                        worldName: .constant(worldForAnchors?.name ?? ""),
                         findingAnchorName: $findingAnchorName,
                         isOpeningFromAnchorListView: $isOpeningFromAnchorListView
                     )
-                    .navigationTransition(.zoom(sourceID: "zoom-\(currentName)", in: animationNamespace))
-                    
+                    .navigationTransition(.zoom(sourceID: "zoom-\(worldForAnchors?.name ?? "")", in: animationNamespace))
                     .onDisappear {
                         if findingAnchorName != "" {
                             worldManager.isShowingAll = false
                             isFindingAnchor = true
-                            if let world = worldManager.savedWorlds.first(where: { $0.name == currentName }) {
+                            if let world = worldManager.savedWorlds.first(where: { $0.name == worldForAnchors?.name }) {
                                 selectedWorld = world
                             }
                         }
-                        
                         if isOpeningFromAnchorListView {
-                            if let world = worldManager.savedWorlds.first(where: { $0.name == currentName }) {
+                            if let world = worldManager.savedWorlds.first(where: { $0.name == worldForAnchors?.name }) {
                                 worldManager.isShowingAll = true
                                 selectedWorld = world
-                                
                                 isOpeningFromAnchorListView = false
                             }
                         }
-                        currentName = ""
+                        worldForAnchors = nil
                     }
                 }
                 
                 if AppState.shared.isCreatingLink {
                     VisualEffectBlur(blurStyle: .systemUltraThinMaterial)
-                              .frame(maxWidth: .infinity, maxHeight: .infinity)
-                              .ignoresSafeArea()
-
-                          VStack {
-                              ProgressView {
-                                  Text("Creating Collaboration Link.")
-                                      .font(.system(.headline, design: .rounded))
-
-                              }
-                              .padding()
-                          }
-                          .frame(maxWidth: .infinity, maxHeight: .infinity) // Expand ProgressView to full height
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .ignoresSafeArea()
+                    VStack {
+                        ProgressView {
+                            Text("Creating Collaboration Link.")
+                                .font(.system(.headline, design: .rounded))
+                        }
+                        .padding()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 
+                
+                
+               
             }
         }
     }
-    
-    
 }
-
 
 struct SortingIcon: View {
     let mainIcon: String
     let showArrow: Bool
     let ascending: Bool
-
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             Image(systemName: mainIcon)
@@ -866,9 +712,15 @@ struct SortingIcon: View {
             if showArrow {
                 Image(systemName: ascending ? "arrow.up" : "arrow.down")
                     .font(.system(size: 10))
-                    .foregroundColor(.red) // use red temporarily for visibility
+                    .foregroundColor(.red)
                     .offset(x: 4, y: 4)
             }
         }
     }
 }
+
+
+
+
+
+

@@ -109,9 +109,14 @@ struct AR_spotitApp: App {
                         }
                     }
                     .sheet(isPresented: $worldManager.isImportingWorld) {
-                        ImportWorldSheet()
-                            .environmentObject(worldManager)
-                            .presentationDetents([.fraction(0.4)])
+                        if UIDevice.isIpad {
+                            ImportWorldSheet()
+                                .environmentObject(worldManager)
+                        } else {
+                            ImportWorldSheet()
+                                .environmentObject(worldManager)
+                                .presentationDetents([.fraction(0.4)])
+                        }
                     }
                 
                 if !isActive {
@@ -125,27 +130,52 @@ struct AR_spotitApp: App {
                    let sharedRecord = appState.pendingSharedRecord {
                     // Get the stored PIN hash from the record.
                     let storedPinHash = sharedRecord["pinHash"] as? String ?? ""
-                    PinEntrySheet(
-                        roomName: roomName,
-                        storedPinHash: storedPinHash,
-                        onConfirm: { enteredPin in
-                            // Verify the entered PIN.
-                            if verifyPin(enteredPin, against: storedPinHash) {
-                                print("✅ PIN correct; proceeding to open/save sheet.")
+                    
+                    if UIDevice.isIpad {
+                        PinEntrySheet(
+                            roomName: roomName,
+                            storedPinHash: storedPinHash,
+                            onConfirm: { enteredPin in
+                                // Verify the entered PIN.
+                                if verifyPin(enteredPin, against: storedPinHash) {
+                                    print("✅ PIN correct; proceeding to open/save sheet.")
+                                    appState.isShowingPinSheet = false
+                                    appState.isShowingOpenSaveSheet = true
+                                } else {
+                                    
+                                    print("❌ Incorrect PIN.")
+                                    Drops.show("⚠️ Incorrect Key, please try again.")
+                                    // appState.isShowingPinSheet = false
+                                }
+                            },
+                            onCancel: {
                                 appState.isShowingPinSheet = false
-                                appState.isShowingOpenSaveSheet = true
-                            } else {
-                                
-                                print("❌ Incorrect PIN.")
-                                Drops.show("⚠️ Incorrect Key, please try again.")
-                               // appState.isShowingPinSheet = false
                             }
-                        },
-                        onCancel: {
-                            appState.isShowingPinSheet = false
-                        }
-                    )
-                    .presentationDetents([.fraction(0.4)])
+                        )
+                    } else {
+                        PinEntrySheet(
+                            roomName: roomName,
+                            storedPinHash: storedPinHash,
+                            onConfirm: { enteredPin in
+                                // Verify the entered PIN.
+                                if verifyPin(enteredPin, against: storedPinHash) {
+                                    print("✅ PIN correct; proceeding to open/save sheet.")
+                                    appState.isShowingPinSheet = false
+                                    appState.isShowingOpenSaveSheet = true
+                                } else {
+                                    
+                                    print("❌ Incorrect PIN.")
+                                    Drops.show("⚠️ Incorrect Key, please try again.")
+                                    // appState.isShowingPinSheet = false
+                                }
+                            },
+                            onCancel: {
+                                appState.isShowingPinSheet = false
+                            }
+                        )
+                        
+                        .presentationDetents([.fraction(0.4)])
+                    }
 
                 } else {
                     Text("Missing pending record data.")
@@ -155,23 +185,43 @@ struct AR_spotitApp: App {
                 if let roomName = appState.pendingRoomName,
                    let assetURL = appState.pendingAssetFileURL,
                    let sharedRecord = appState.pendingSharedRecord {
-                    OpenOrSaveSheet(
-                        roomName: roomName,
-                        assetFileURL: assetURL,
-                        sharedRecord: sharedRecord,
-                        onOpen: {
-                            openSharedWorld(sharedRecord: sharedRecord, assetURL: assetURL)
-                            appState.isShowingOpenSaveSheet = false
-                        },
-                        onSave: {
-                            saveSharedWorld(sharedRecord: sharedRecord, assetURL: assetURL, roomName: roomName)
-                            appState.isShowingOpenSaveSheet = false
-                        },
-                        onCancel: {
-                            appState.isShowingOpenSaveSheet = false
-                        }
-                    )
-                    .presentationDetents([.fraction(0.4)])
+                    
+                    if UIDevice.isIpad {
+                        OpenOrSaveSheet(
+                            roomName: roomName,
+                            assetFileURL: assetURL,
+                            sharedRecord: sharedRecord,
+                            onOpen: {
+                                openSharedWorld(sharedRecord: sharedRecord, assetURL: assetURL)
+                                appState.isShowingOpenSaveSheet = false
+                            },
+                            onSave: {
+                                saveSharedWorld(sharedRecord: sharedRecord, assetURL: assetURL, roomName: roomName)
+                                appState.isShowingOpenSaveSheet = false
+                            },
+                            onCancel: {
+                                appState.isShowingOpenSaveSheet = false
+                            }
+                        )
+                    } else {
+                        OpenOrSaveSheet(
+                            roomName: roomName,
+                            assetFileURL: assetURL,
+                            sharedRecord: sharedRecord,
+                            onOpen: {
+                                openSharedWorld(sharedRecord: sharedRecord, assetURL: assetURL)
+                                appState.isShowingOpenSaveSheet = false
+                            },
+                            onSave: {
+                                saveSharedWorld(sharedRecord: sharedRecord, assetURL: assetURL, roomName: roomName)
+                                appState.isShowingOpenSaveSheet = false
+                            },
+                            onCancel: {
+                                appState.isShowingOpenSaveSheet = false
+                            }
+                        )
+                        .presentationDetents([.fraction(0.4)])
+                    }
 
                 } else {
                     Text("Missing pending record data.")
@@ -179,25 +229,46 @@ struct AR_spotitApp: App {
             }
             .sheet(isPresented: $appState.isShowingCollaborationChoiceSheet) {
                 if let roomName = appState.pendingRoomName {
-                    CollaborationOptionSheet(
-                        roomName: roomName,
-                        onCollaborate: {
-                            // User chose to collaborate: they must enter a PIN.
-                            appState.isViewOnly = false
-                            appState.isShowingCollaborationChoiceSheet = false
-                            appState.isShowingPinSheet = true
-                        },
-                        onViewOnly: {
-                            // User chose view-only: set flag and show open/save sheet.
-                            appState.isViewOnly = true
-                            appState.isShowingCollaborationChoiceSheet = false
-                            appState.isShowingOpenSaveSheet = true
-                        },
-                        onCancel: {
-                            appState.isShowingCollaborationChoiceSheet = false
-                        }
-                    )
-                    .presentationDetents([.fraction(0.4)])
+                    if UIDevice.isIpad {
+                        CollaborationOptionSheet(
+                            roomName: roomName,
+                            onCollaborate: {
+                                // User chose to collaborate: they must enter a PIN.
+                                appState.isViewOnly = false
+                                appState.isShowingCollaborationChoiceSheet = false
+                                appState.isShowingPinSheet = true
+                            },
+                            onViewOnly: {
+                                // User chose view-only: set flag and show open/save sheet.
+                                appState.isViewOnly = true
+                                appState.isShowingCollaborationChoiceSheet = false
+                                appState.isShowingOpenSaveSheet = true
+                            },
+                            onCancel: {
+                                appState.isShowingCollaborationChoiceSheet = false
+                            }
+                        )
+                    } else {
+                        CollaborationOptionSheet(
+                            roomName: roomName,
+                            onCollaborate: {
+                                // User chose to collaborate: they must enter a PIN.
+                                appState.isViewOnly = false
+                                appState.isShowingCollaborationChoiceSheet = false
+                                appState.isShowingPinSheet = true
+                            },
+                            onViewOnly: {
+                                // User chose view-only: set flag and show open/save sheet.
+                                appState.isViewOnly = true
+                                appState.isShowingCollaborationChoiceSheet = false
+                                appState.isShowingOpenSaveSheet = true
+                            },
+                            onCancel: {
+                                appState.isShowingCollaborationChoiceSheet = false
+                            }
+                        )
+                        .presentationDetents([.fraction(0.4)])
+                    }
                 } else {
                     Text("Missing room data.")
                 }
@@ -683,5 +754,13 @@ private extension AR_spotitApp {
     private func verifyPin(_ enteredPin: String, against storedPinHash: String) -> Bool {
         let enteredHash = sha256(enteredPin) // implement your sha256() function
         return enteredHash == storedPinHash
+    }
+}
+
+
+
+extension UIDevice {
+    static var isIpad: Bool {
+        return UIDevice.current.userInterfaceIdiom == .pad
     }
 }

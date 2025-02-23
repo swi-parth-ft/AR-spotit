@@ -20,6 +20,7 @@ struct PinEntrySheet: View {
         
         NavigationStack {
             VStack(alignment: .leading) {
+                Spacer()
                 Text("Enter Key for \(roomName) collaboration")
                     .font(.subheadline)
                     .foregroundStyle(.gray)
@@ -59,7 +60,7 @@ struct PinEntrySheet: View {
                 }
                 .padding(.horizontal)
             }
-
+            .padding(.bottom)
             .navigationTitle("Key Required")
      
             .toolbar {
@@ -100,6 +101,7 @@ struct OpenOrSaveSheet: View {
         
         NavigationStack {
             VStack(alignment: .leading) {
+                Spacer()
                 if AppState.shared.isViewOnly {
                     Text("Would you like to open now and start exploring or save copy locally?")
                         .font(.subheadline)
@@ -144,7 +146,7 @@ struct OpenOrSaveSheet: View {
                 }
                 .padding(.horizontal)
             }
-
+            .padding(.bottom)
             .navigationTitle("Choose Action")
      
             .toolbar {

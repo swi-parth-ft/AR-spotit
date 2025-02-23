@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Drops
 
 struct AddAnchorView: View {
     
@@ -18,11 +19,12 @@ struct AddAnchorView: View {
     @State private var isSelectingEmoji = false
     @State private var selectedEmoji: EmojiDetails? = {
           let emojis = loadEmojis()
-          return emojis.first { $0.id == "🎣" }
+          return emojis.first { $0.id == "🏴‍☠️" }
       }()
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading) {
+                
                 HStack {
                     Spacer()
                     Button {
@@ -67,7 +69,8 @@ struct AddAnchorView: View {
                 Button {
                     anchorName = "\(anchorName) \(selectedEmoji?.id ?? "🏴‍☠️")"
                     worldManager.isAddingAnchor = true
-                    
+                    let drop = Drop.init(title: "Tap on \(anchorName) to save!")
+                    Drops.show(drop)
                     dismiss()
                 } label: {
                     Text("Add")

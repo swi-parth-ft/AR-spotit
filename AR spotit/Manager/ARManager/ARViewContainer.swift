@@ -327,7 +327,9 @@ struct ARViewContainer: UIViewRepresentable {
             let currentTime = Date()
              if !self.parent.sceneView.session.currentFrame!.anchors.contains(where: { $0.name == "guide" }) {
                  if !worldIsLoaded {
-                     worldIsLoaded = true
+                     withAnimation {
+                         worldIsLoaded = true
+                     }
                  }
                  return
              }
@@ -585,7 +587,7 @@ struct ARViewContainer: UIViewRepresentable {
         
         
         @MainActor func updateNodeVisibility(in sceneView: ARSCNView) {
-            let allNodes = sceneView.scene.rootNode.childNodes
+            let allNodes = parent.sceneView.scene.rootNode.childNodes
             for node in allNodes {
                 refreshVisibilityRecursive(node: node)
             }

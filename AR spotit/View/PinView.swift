@@ -22,6 +22,7 @@ struct PinView: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading) {
+                Spacer()
                 Text(isChecking ? "Your collaboration Key for \(roomName)" : "Set your Key for \(roomName) collaboration")
                     .font(.subheadline)
                     .foregroundStyle(.gray)
@@ -79,6 +80,7 @@ struct PinView: View {
                 }
                 .padding(.horizontal)
             }
+            .padding(.bottom)
             .navigationTitle(isChecking ? "Key for \(roomName)" : "Set Key")
             .sheet(isPresented: $isShowingGuide) {
                 RoomScanGuideView()

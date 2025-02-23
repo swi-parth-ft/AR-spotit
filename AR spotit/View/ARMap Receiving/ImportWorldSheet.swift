@@ -18,6 +18,7 @@ struct ImportWorldSheet: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading) {
+                Spacer()
                 Text("Start with naming this area. e.g. Bedroom, Library 2nd floor, etc")
                     .font(.subheadline)
                     .foregroundStyle(.gray)

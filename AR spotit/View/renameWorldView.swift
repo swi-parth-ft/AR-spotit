@@ -20,7 +20,7 @@ struct renameWorldView: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading) {
-                
+                Spacer()
                 if showWarning {
                     VStack(alignment: .leading) {
                         HStack {
@@ -100,6 +100,7 @@ struct renameWorldView: View {
                 }
                 .padding(.horizontal)
             }
+            .padding(.bottom)
             .navigationTitle("Rename \(worldName)")
           
             .toolbar {

@@ -568,6 +568,9 @@ struct ContentView: View {
                                         if AppState.shared.isiCloudShare {
                                             AppState.shared.isiCloudShare = false
                                         }
+                                        if AppState.shared.isViewOnly {
+                                            AppState.shared.isViewOnly = false
+                                        }
                                         isFlashlightOn = false
                                         shouldPlay = false
                                         findAnchor = ""
@@ -747,7 +750,7 @@ struct ContentView: View {
                       // If you only want to play once each time we cross below 0.3:
                       if newDistance < 0.3 && !hasPlayedItshere {
                           hasPlayedItshere = true
-                          playItshereMP3()
+                          playItshereMP3(sound: "itshere")
                       } else if newDistance > 0.3 {
                           // Reset so we can play again if the user goes away and comes back
                           hasPlayedItshere = false
@@ -758,11 +761,31 @@ struct ContentView: View {
             }
             .onChange(of: worldManager.isShowingAll) {
                 // We can access the coordinator if needed:
-               
-                coordinatorRef?.updateNodeVisibility(in: sceneView)
+                DispatchQueue.main.async {
+                    if let coref = coordinatorRef {
+                        coref.updateNodeVisibility(in: sceneView)
+
+                    } else {
+                        print("coordinatorRef is nil")
+                    }
+                }
                 
             }
+            .onChange(of: worldManager.isRelocalizationComplete) {
+                if worldManager.isRelocalizationComplete {
+                    playItshereMP3(sound: "opened")
+                }
+            }
             .sheet(isPresented: $showAnchorListSheet) {
+                if UIDevice.isIpad {
+                    AnchorListSheet(sceneView: sceneView, onSelectAnchor: { selectedAnchorName in
+                        // For instance, make it your findAnchor
+                        findAnchor = selectedAnchorName
+                        print(findAnchor)
+                        worldManager.isShowingAll = false
+                        showAnchorListSheet = false
+                    })
+                } else {
                     AnchorListSheet(sceneView: sceneView, onSelectAnchor: { selectedAnchorName in
                         // For instance, make it your findAnchor
                         findAnchor = selectedAnchorName
@@ -772,51 +795,99 @@ struct ContentView: View {
                     })
                     .presentationDetents([.medium, .large])
                 }
+                }
             .sheet(isPresented: $isAddingNewAnchor) {
-                AddAnchorView(anchorName: $currentAnchorName, worldManager: worldManager)
-                    .presentationDetents([.fraction(0.6)])
+                if UIDevice.isIpad {
+                    AddAnchorView(anchorName: $currentAnchorName, worldManager: worldManager)
+
+                } else {
+                    AddAnchorView(anchorName: $currentAnchorName, worldManager: worldManager)
+                        .presentationDetents([.fraction(0.6)])
+                }
                 
             }
             .sheet(isPresented: $isEditingAnchor) {
-                EditAnchorView(
-                    anchorName: $nameOfAnchorToEdit,
-                    onDelete: { anchorName in
-                        // 1️⃣ Access the Coordinator via sceneView.delegate
-                        DispatchQueue.main.async {
-                                       if let coordinator = coordinatorRef {  // <— use the stable reference
-                                           coordinator.deleteAnchor(anchorName: anchorName, recId: recordId)
-                                           let drop = Drop.init(title: "\(anchorName) deleted")
-                                           Drops.show(drop)
-                                           print("Anchor '\(anchorName)' deleted.")
-                                      
-                                       } else {
-                                           print("Coordinator is nil — even with stable ref (unexpected).")
+                if UIDevice.isIpad {
+                    EditAnchorView(
+                        anchorName: $nameOfAnchorToEdit,
+                        onDelete: { anchorName in
+                            // 1️⃣ Access the Coordinator via sceneView.delegate
+                            DispatchQueue.main.async {
+                                           if let coordinator = coordinatorRef {  // <— use the stable reference
+                                               coordinator.deleteAnchor(anchorName: anchorName, recId: recordId)
+                                               let drop = Drop.init(title: "\(anchorName) deleted")
+                                               Drops.show(drop)
+                                               print("Anchor '\(anchorName)' deleted.")
+                                          
+                                           } else {
+                                               print("Coordinator is nil — even with stable ref (unexpected).")
+                                           }
                                        }
-                                   }
-                        // Optionally dismiss the sheet:
-                        isEditingAnchor = false
-                    },
-                    onMove: { anchorName in
-                        
-                        DispatchQueue.main.async {
-                            if let coordinator = coordinatorRef {                            coordinator.prepareToMoveAnchor(anchorName: anchorName, recId: recordId)
+                            // Optionally dismiss the sheet:
+                            isEditingAnchor = false
+                        },
+                        onMove: { anchorName in
+                            
+                            DispatchQueue.main.async {
+                                if let coordinator = coordinatorRef {                            coordinator.prepareToMoveAnchor(anchorName: anchorName, recId: recordId)
+                                }
                             }
-                        }
-                        // Optionally dismiss the sheet:
-                        isEditingAnchor = false
-                    },
-                    onRename: { oldName, newName in
-                        
-                        DispatchQueue.main.async {
-                            if let coordinator = coordinatorRef {
-                                coordinator.renameAnchor(oldName: oldName, newName: newName, recId: recordId)
+                            // Optionally dismiss the sheet:
+                            isEditingAnchor = false
+                        },
+                        onRename: { oldName, newName in
+                            
+                            DispatchQueue.main.async {
+                                if let coordinator = coordinatorRef {
+                                    coordinator.renameAnchor(oldName: oldName, newName: newName, recId: recordId)
+                                }
                             }
+                            // Optionally dismiss the sheet:
+                            isEditingAnchor = false
                         }
-                        // Optionally dismiss the sheet:
-                        isEditingAnchor = false
-                    }
-                )
-                .presentationDetents([.fraction(0.6)])
+                    )
+
+                } else {
+                    EditAnchorView(
+                        anchorName: $nameOfAnchorToEdit,
+                        onDelete: { anchorName in
+                            // 1️⃣ Access the Coordinator via sceneView.delegate
+                            DispatchQueue.main.async {
+                                if let coordinator = coordinatorRef {  // <— use the stable reference
+                                    coordinator.deleteAnchor(anchorName: anchorName, recId: recordId)
+                                    let drop = Drop.init(title: "\(anchorName) deleted")
+                                    Drops.show(drop)
+                                    print("Anchor '\(anchorName)' deleted.")
+                                    
+                                } else {
+                                    print("Coordinator is nil — even with stable ref (unexpected).")
+                                }
+                            }
+                            // Optionally dismiss the sheet:
+                            isEditingAnchor = false
+                        },
+                        onMove: { anchorName in
+                            
+                            DispatchQueue.main.async {
+                                if let coordinator = coordinatorRef {                            coordinator.prepareToMoveAnchor(anchorName: anchorName, recId: recordId)
+                                }
+                            }
+                            // Optionally dismiss the sheet:
+                            isEditingAnchor = false
+                        },
+                        onRename: { oldName, newName in
+                            
+                            DispatchQueue.main.async {
+                                if let coordinator = coordinatorRef {
+                                    coordinator.renameAnchor(oldName: oldName, newName: newName, recId: recordId)
+                                }
+                            }
+                            // Optionally dismiss the sheet:
+                            isEditingAnchor = false
+                        }
+                    )
+                    .presentationDetents([.fraction(0.6)])
+                }
                 
             }
             .toolbar {
@@ -824,6 +895,9 @@ struct ContentView: View {
                     Button {
                         if AppState.shared.isiCloudShare {
                             AppState.shared.isiCloudShare = false
+                        }
+                        if AppState.shared.isViewOnly {
+                            AppState.shared.isViewOnly = false
                         }
                         
                         worldManager.isWorldLoaded = false
@@ -951,8 +1025,8 @@ struct ContentView: View {
         }
     }
     
-    private func playItshereMP3() {
-          guard let fileURL = Bundle.main.url(forResource: "itshere", withExtension: "mp3") else {
+    private func playItshereMP3(sound: String) {
+        guard let fileURL = Bundle.main.url(forResource: sound, withExtension: "mp3") else {
               print("❌ Could not find itshere.mp3 in the project bundle.")
               return
           }

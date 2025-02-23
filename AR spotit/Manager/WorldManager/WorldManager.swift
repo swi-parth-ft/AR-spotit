@@ -186,23 +186,27 @@ class WorldManager: ObservableObject {
     
     private let metadataRecordType = "WorldMetadata"
 
-    func syncLocalWorldsToCloudKit() {
+    func syncLocalWorldsToCloudKit(roomName: String) {
         let privateDB = CKContainer.default().privateCloudDatabase
         var recordsToSave: [CKRecord] = []
         
         for world in savedWorlds {
-            // Create a stable recordID for each world
-            let recordID = CKRecord.ID(recordName: "metadata-\(world.name)")
-            let record = CKRecord(recordType: metadataRecordType, recordID: recordID)
-            
-            // Map WorldModel fields to CKRecord fields
-            record["roomName"] = world.name as CKRecordValue
-            record["pin"] = world.pin as CKRecordValue?
-            record["cloudRecordID"] = world.cloudRecordID as CKRecordValue?
-            record["isCollaborative"] = world.isCollaborative as CKRecordValue
-            record["lastModified"] = world.lastModified as CKRecordValue
-            
-            recordsToSave.append(record)
+            if world.name == roomName {
+                
+                
+                // Create a stable recordID for each world
+                let recordID = CKRecord.ID(recordName: "metadata-\(world.name)")
+                let record = CKRecord(recordType: metadataRecordType, recordID: recordID)
+                
+                // Map WorldModel fields to CKRecord fields
+                record["roomName"] = world.name as CKRecordValue
+                record["pin"] = world.pin as CKRecordValue?
+                record["cloudRecordID"] = world.cloudRecordID as CKRecordValue?
+                record["isCollaborative"] = world.isCollaborative as CKRecordValue
+                record["lastModified"] = world.lastModified as CKRecordValue
+                
+                recordsToSave.append(record)
+            }
         }
         
         let operation = CKModifyRecordsOperation(recordsToSave: recordsToSave, recordIDsToDelete: nil)
@@ -488,6 +492,23 @@ class WorldManager: ObservableObject {
             try FileManager.default.copyItem(at: sourceFilePath, to: destinationURL)
             print("File ready for sharing at: \(destinationURL)")
             let activityController = UIActivityViewController(activityItems: [destinationURL], applicationActivities: nil)
+            
+            if let popoverController = activityController.popoverPresentationController,
+                    let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                    let rootViewController = windowScene.windows.first?.rootViewController,
+                    let baseView = rootViewController.view {
+                     
+                     // Set the popover’s anchor (for iPad)
+                     popoverController.sourceView = baseView
+                     popoverController.sourceRect = CGRect(
+                         x: baseView.bounds.midX,
+                         y: baseView.bounds.midY,
+                         width: 0,
+                         height: 0
+                     )
+                     popoverController.permittedArrowDirections = []
+                 }
+            
             if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                let rootViewController = windowScene.windows.first?.rootViewController {
                 DispatchQueue.main.async {
@@ -578,7 +599,8 @@ class WorldManager: ObservableObject {
                                 self.savedWorlds[index].pin = pin
                             }
                             self.saveWorldList()
-                            self.syncLocalWorldsToCloudKit()
+                            self.syncLocalWorldsToCloudKit(roomName: roomName)
+                            
                         }
                         print("Collaborative info updated for room: \(roomName)")
                     } else {
@@ -593,6 +615,23 @@ class WorldManager: ObservableObject {
             // Present the share link using an activity controller.
             DispatchQueue.main.async {
                 let activityController = UIActivityViewController(activityItems: [shareURL], applicationActivities: nil)
+                
+                if let popoverController = activityController.popoverPresentationController,
+                   let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                   let rootViewController = windowScene.windows.first?.rootViewController,
+                   let baseView = rootViewController.view {  // <-- Unwrap the optional here
+
+                    popoverController.sourceView = baseView
+                    popoverController.sourceRect = CGRect(
+                        x: baseView.bounds.midX,
+                        y: baseView.bounds.midY,
+                        width: 0,
+                        height: 0
+                    )
+                    popoverController.permittedArrowDirections = []
+                }
+                
+                
                 if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                    let rootViewController = windowScene.windows.first?.rootViewController {
                     if let presentedVC = rootViewController.presentedViewController {

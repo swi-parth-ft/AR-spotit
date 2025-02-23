@@ -39,7 +39,8 @@ struct AnchorsListView: View {
     @State private var showCollaborators = false
     @State private var collaboratorNames: [String] = []
     @State private var isCollab = false
-    
+    @State private var isDeleting = false
+
     func extractEmoji(from string: String) -> String? {
         for char in string {
                 if char.isEmoji {
@@ -226,10 +227,12 @@ struct AnchorsListView: View {
                 .sheet(isPresented: $isRenaming, onDismiss: {
                     dismiss()
                 }) {
-                    
-                    renameWorldView(worldName: worldName, worldManager: worldManager, showWarning: isCollab, newAnchors: newAnchors.count)
-                        .presentationDetents(isCollab ? [.fraction(0.5)] : [.fraction(0.4)])
-                    
+                    if UIDevice.isIpad {
+                        renameWorldView(worldName: worldName, worldManager: worldManager, showWarning: isCollab, newAnchors: newAnchors.count)
+                    } else {
+                        renameWorldView(worldName: worldName, worldManager: worldManager, showWarning: isCollab, newAnchors: newAnchors.count)
+                            .presentationDetents(isCollab ? [.fraction(0.5)] : [.fraction(0.4)])
+                    }
                     
                 }
                 .onAppear {
@@ -295,18 +298,32 @@ struct AnchorsListView: View {
                        }
                 }
                 .sheet(isPresented: $isShowingQR) {
-                    QRview(roomName: worldName)
-                        .presentationDetents([.fraction(0.4)])
+                    if UIDevice.isIpad {
+                        QRview(roomName: worldName)
+
+                    } else {
+                        QRview(roomName: worldName)
+                            .presentationDetents([.fraction(0.4)])
+                    }
 
                 }
                 .sheet(isPresented: $showPinPopover) {
-                    PinView(roomName: worldName, pin: $selectedPin, isChecking: isChecking) {
-                        // This runs when "Done" is pressed
-                        if !isChecking && !selectedPin.isEmpty {
-                            worldManager.shareWorldViaCloudKit(roomName: worldName, pin: selectedPin)
+                    if UIDevice.isIpad {
+                        PinView(roomName: worldName, pin: $selectedPin, isChecking: isChecking) {
+                            // This runs when "Done" is pressed
+                            if !isChecking && !selectedPin.isEmpty {
+                                worldManager.shareWorldViaCloudKit(roomName: worldName, pin: selectedPin)
+                            }
                         }
+                    } else {
+                        PinView(roomName: worldName, pin: $selectedPin, isChecking: isChecking) {
+                            // This runs when "Done" is pressed
+                            if !isChecking && !selectedPin.isEmpty {
+                                worldManager.shareWorldViaCloudKit(roomName: worldName, pin: selectedPin)
+                            }
+                        }
+                        .presentationDetents([.fraction(0.4)])
                     }
-                    .presentationDetents([.fraction(0.4)])
                 }
                 .sheet(isPresented: $showCollaborators) {
                     // Simple SwiftUI list of collaborator names
@@ -316,6 +333,46 @@ struct AnchorsListView: View {
                         }
                         .navigationTitle("Collaborators")
                         .navigationBarTitleDisplayMode(.inline)
+                    }
+                }
+                .sheet(isPresented: $isDeleting) {
+                    if UIDevice.isIpad {
+                        DeleteConfirm(isCollab: isCollab, roomName: worldName) { name in
+                            worldManager.deleteWorld(roomName: worldName) {
+                                print("Deletion process completed.")
+                                let drop = Drop.init(title: "\(worldName) deleted!")
+                                
+                                Drops.show(drop)
+                                
+                                HapticManager.shared.notification(type: .success)
+                                
+                                isDeleting = false
+                                
+                            }
+                            
+                            
+                            
+                            
+                        }
+                    } else {
+                        DeleteConfirm(isCollab: isCollab, roomName: worldName) { name in
+                            worldManager.deleteWorld(roomName: worldName) {
+                                print("Deletion process completed.")
+                                let drop = Drop.init(title: "\(worldName) deleted!")
+                                
+                                Drops.show(drop)
+                                
+                                HapticManager.shared.notification(type: .success)
+                                
+                                isDeleting = false
+                                
+                            }
+                            
+                            
+                            
+                            
+                        }
+                        .presentationDetents([.fraction(0.5)])
                     }
                 }
                 .navigationTitle(worldName)
@@ -459,12 +516,9 @@ struct AnchorsListView: View {
                     }
                          
                         Button(role: .destructive) {
-                            worldManager.deleteWorld(roomName: worldName) {
-                                dismiss()
-                                print("Deletion process completed.")
-                                let drop = Drop.init(title: "\(worldName) deleted!")
-                                Drops.show(drop)
-                            }
+                            isDeleting = true
+
+                         
                         } label: {
                             HStack {
                                 Text("Delete")
