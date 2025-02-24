@@ -131,7 +131,7 @@ class iCloudManager {
                                             predicate: customZonePredicate,
                                             zoneID: self.customZoneID,
                                             desiredKeys: nil) { [weak self] result in
-            guard let self = self else { return }
+            guard self != nil else { return }
             switch result {
             case .success(let records):
                 if !records.isEmpty {
@@ -165,7 +165,7 @@ class iCloudManager {
                                             predicate: publicZonePredicate,
                                             zoneID: nil,
                                             desiredKeys: nil) { [weak self] result in
-            guard let self = self else { return }
+            guard self != nil else { return }
             switch result {
             case .success(let records):
                 if !records.isEmpty {

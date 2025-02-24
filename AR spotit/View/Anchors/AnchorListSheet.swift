@@ -38,7 +38,7 @@ struct AnchorListSheet: View {
     
     private func reloadAnchorNames() {
             guard let anchors = sceneView.session.currentFrame?.anchors else {
-                anchorNames = WorldManager.shared.sharedWorldsAnchors ?? []
+                anchorNames = WorldManager.shared.sharedWorldsAnchors
                 
                 return
             }

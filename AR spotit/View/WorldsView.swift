@@ -563,7 +563,7 @@ struct WorldsView: View {
                            HStack {
                                Text(showCollaboratedOnly ? "Show All" : "Show Collaborated Only")
                                Spacer()
-                               Image(systemName: showCollaboratedOnly ? "globe" : "person.2")
+                               Image(systemName: showCollaboratedOnly ? "square.split.1x2.fill" : "person.2")
                            }
                         }
                         Picker("Sort By", selection: Binding<SortingField>(

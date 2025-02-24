@@ -40,7 +40,7 @@ struct AnchorsListView: View {
     @State private var collaboratorNames: [String] = []
     @State private var isCollab = false
     @State private var isDeleting = false
-
+    @State private var isRemovingCollab = false
     func extractEmoji(from string: String) -> String? {
         for char in string {
                 if char.isEmoji {
@@ -375,6 +375,30 @@ struct AnchorsListView: View {
                         .presentationDetents([.fraction(0.5)])
                     }
                 }
+                .sheet(isPresented: $isRemovingCollab) {
+                    if UIDevice.isIpad {
+                        RemoveCollabView(roomName: worldName) {
+                        
+                            
+                            worldManager.removeCollab(roomName: worldName)
+                            
+                            
+                            
+                            
+                        }
+                    } else {
+                        RemoveCollabView(roomName: worldName) {
+                        
+                            
+                            worldManager.removeCollab(roomName: worldName)
+                            
+                            
+                            
+                            
+                        }
+                        .presentationDetents([.fraction(0.5)])
+                    }
+                }
                 .navigationTitle(worldName)
                 .toolbar {
                     
@@ -507,6 +531,19 @@ struct AnchorsListView: View {
                             HStack {
                                 Text("Show PIN")
                                 Image(systemName: "key")
+                                    .font(.title2)
+                                    .foregroundStyle(colorScheme == .dark ? .white : .black)
+                                
+                            }
+                            .font(.title2)
+                        }
+                            
+                            Button {
+                                isRemovingCollab = true
+                        } label: {
+                            HStack {
+                                Text("Remove Collaboration")
+                                Image(systemName: "person.2.slash")
                                     .font(.title2)
                                     .foregroundStyle(colorScheme == .dark ? .white : .black)
                                 
@@ -662,5 +699,6 @@ struct AnchorsListView: View {
             }
         }
     }
+    
 }
 

@@ -160,9 +160,7 @@ struct ARViewContainer: UIViewRepresentable {
             node.name = anchor.name
             anchorNodes[anchor.name ?? ""] = node
             
-            let anchorPosition = SIMD3<Float>(anchor.transform.columns.3.x,
-                                              anchor.transform.columns.3.y,
-                                              anchor.transform.columns.3.z)
+            
           //  checkZoneCoverage(for: anchorPosition)
             
             if let planeAnchor = anchor as? ARPlaneAnchor {
@@ -429,7 +427,6 @@ struct ARViewContainer: UIViewRepresentable {
             let horizontalDirection = SIMD3<Float>(direction.x, 0, direction.z)
             
             // Normalize Direction
-            let normalizedDirection = normalize(horizontalDirection)
             
             // Calculate Angle
             
@@ -471,7 +468,7 @@ struct ARViewContainer: UIViewRepresentable {
                     }
                 }
             }
-            guard let node = anchorNodes[anchor.name ?? ""] else {
+             guard anchorNodes[anchor.name ?? ""] != nil else {
                 return
             }
             //            DispatchQueue.main.async {
@@ -652,7 +649,6 @@ struct ARViewContainer: UIViewRepresentable {
                 
                 
                 // Place anchor at the raycast result's position
-                let name = parent.anchorName.isEmpty ? "defaultAnchor" : parent.anchorName
                 let anchor = ARAnchor(name: uniqueName, transform: result.worldTransform)
                 
                 

@@ -95,7 +95,7 @@ extension ARViewContainer.Coordinator {
 extension ARViewContainer {
     func configureCoachingOverlay(for sceneView: ARSCNView, coordinator: Coordinator) {
         // 1. Create and add a blur view
-        var blurView = UIVisualEffectView(effect: nil)  // Start with no blur
+        let blurView = UIVisualEffectView(effect: nil)  // Start with no blur
         blurView.translatesAutoresizingMaskIntoConstraints = false
         sceneView.addSubview(blurView)
         

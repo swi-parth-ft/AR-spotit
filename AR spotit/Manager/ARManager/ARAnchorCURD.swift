@@ -64,7 +64,7 @@ extension ARViewContainer.Coordinator {
                     print("Error fetching world record from public DB: \(error.localizedDescription)")
                     return
                 }
-                guard let pRecord = record else {
+                guard record != nil else {
                     
                     print("No world record found for recordID: \(recId)")
                     return

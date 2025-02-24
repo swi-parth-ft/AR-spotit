@@ -13,14 +13,33 @@
 		08E77F772D65719700F94599 /* Drawer in Frameworks */ = {isa = PBXBuildFile; productRef = 08E77F762D65719700F94599 /* Drawer */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		08E77F9C2D6BF4FC00F94599 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		0815EBFE2D287B4F00F23F12 /* it's here..app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "it's here..app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		08E77F8A2D6BF4FC00F94599 /* QuickLook.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuickLook.framework; path = System/Library/Frameworks/QuickLook.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		0815EC002D287B4F00F23F12 /* AR spotit */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "AR spotit";
+			sourceTree = "<group>";
+		};
+		08E77F8C2D6BF4FC00F94599 /* WorldMapThumbnail */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = WorldMapThumbnail;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -44,6 +63,8 @@
 			isa = PBXGroup;
 			children = (
 				0815EC002D287B4F00F23F12 /* AR spotit */,
+				08E77F8C2D6BF4FC00F94599 /* WorldMapThumbnail */,
+				08E77F892D6BF4FC00F94599 /* Frameworks */,
 				0815EBFF2D287B4F00F23F12 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -56,6 +77,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		08E77F892D6BF4FC00F94599 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				08E77F8A2D6BF4FC00F94599 /* QuickLook.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -66,6 +95,7 @@
 				0815EBFA2D287B4F00F23F12 /* Sources */,
 				0815EBFB2D287B4F00F23F12 /* Frameworks */,
 				0815EBFC2D287B4F00F23F12 /* Resources */,
+				08E77F9C2D6BF4FC00F94599 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);

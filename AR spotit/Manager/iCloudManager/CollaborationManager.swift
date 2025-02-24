@@ -392,7 +392,7 @@ extension iCloudManager {
                 DispatchQueue.main.async { completion(nil) }
                 return
             }
-            guard let publicRecord = publicRecord else {
+            guard publicRecord != nil else {
                 DispatchQueue.main.async { completion(nil) }
                 return
             }
@@ -403,6 +403,127 @@ extension iCloudManager {
             }
             
             
+        }
+    }
+    
+    
+    func removeCollaboration(for roomName: String, completion: @escaping (Error?) -> Void) {
+        // 1) Fetch the private world record for this roomName in the custom zone.
+        let predicate = NSPredicate(format: "roomName == %@", roomName)
+        CloudKitService.shared.performQuery(recordType: recordType,
+                                            predicate: predicate,
+                                            zoneID: self.customZoneID,
+                                            desiredKeys: ["publicRecordName", "share", "pinRequired", "pinHash"]) { [weak self] result in
+            guard let self = self else { return }
+            
+            switch result {
+            case .failure(let error):
+                print("❌ Error fetching private record for \(roomName): \(error.localizedDescription)")
+                DispatchQueue.main.async { completion(error) }
+                
+            case .success(let records):
+                guard let privateRecord = records.first else {
+                    print("⚠️ No private record found for \(roomName). Nothing to remove.")
+                    DispatchQueue.main.async { completion(nil) }
+                    return
+                }
+                
+                // Store any existing public record name; we’ll delete that from the public DB if it exists.
+                let publicRecordName = privateRecord["publicRecordName"] as? String
+                
+                // 2) If we have a public record, delete it + all related anchor records from the public DB.
+                self.deletePublicRecordAndAnchorsIfNeeded(publicRecordName: publicRecordName) { error in
+                    if let error = error {
+                        print("❌ Error deleting public record or anchors: \(error.localizedDescription)")
+                        // Continue even if public deletion failed, since we still want to fix local metadata.
+                    }
+                    
+                    let recordID = CKRecord.ID(recordName: "\(roomName)_Record")
+                    CKContainer.default().publicCloudDatabase.delete(withRecordID: recordID) { deletedID, error in
+                        if let error = error {
+                            print("❌ Direct ID delete failed: \(error)")
+                        } else {
+                            print("✅ Direct ID delete succeeded for Room_Record")
+                        }
+                    }
+                    // 3) Remove share + PIN fields from the private record, then save it.
+                    privateRecord["share"] = nil
+                    privateRecord["pinRequired"] = nil
+                    privateRecord["pinHash"] = nil
+                    privateRecord["publicRecordName"] = nil
+                    let modifyOp = CKModifyRecordsOperation(recordsToSave: [privateRecord], recordIDsToDelete: nil)
+                    modifyOp.savePolicy = .allKeys
+                    modifyOp.modifyRecordsCompletionBlock = { _, _, saveError in
+                        if let saveError = saveError {
+                            print("❌ Error removing share/PIN from private record: \(saveError.localizedDescription)")
+                        } else {
+                            print("✅ Successfully removed collaboration fields for \(roomName) in private record.")
+                        }
+                        
+                        // 4) Update local metadata so isCollaborative = false, pin = nil, then sync.
+                        DispatchQueue.main.async {
+                            if let index = self.worldManager?.savedWorlds.firstIndex(where: { $0.name == roomName }) {
+                                self.worldManager?.savedWorlds[index].isCollaborative = false
+                                self.worldManager?.savedWorlds[index].pin = nil
+                                self.worldManager?.saveWorldList()
+                                // Optionally sync updated metadata to CloudKit again
+                                self.worldManager?.syncLocalWorldsToCloudKit(roomName: roomName)
+                            }
+                            completion(saveError)
+                        }
+                    }
+                    self.privateDB.add(modifyOp)
+                }
+            }
+        }
+        
+        
+        
+    }
+
+    // MARK: - Helper function to delete the public record and all related anchors
+    private func deletePublicRecordAndAnchorsIfNeeded(publicRecordName: String?, completion: @escaping (Error?) -> Void) {
+        guard let publicRecordName = publicRecordName else {
+            // No public record name => no action needed
+            completion(nil)
+            return
+        }
+        
+        let publicDB = CKContainer.default().publicCloudDatabase
+        let publicRecordID = CKRecord.ID(recordName: publicRecordName) // default (public) zone
+        
+        // First, delete any anchors in the public DB referencing this world record.
+        let predicate = NSPredicate(format: "worldRecordName == %@", publicRecordName)
+        let query = CKQuery(recordType: "Anchor", predicate: predicate)
+        publicDB.perform(query, inZoneWith: nil) { anchorRecords, anchorError in
+            if let anchorError = anchorError {
+                print("⚠️ Error fetching anchors for \(publicRecordName): \(anchorError.localizedDescription)")
+            }
+            
+            // Delete all anchor records referencing this public record
+            let anchorRecordIDs = anchorRecords?.map { $0.recordID } ?? []
+            let deleteAnchorsOp = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: anchorRecordIDs)
+            deleteAnchorsOp.modifyRecordsCompletionBlock = { _, deletedIDs, anchorDeleteError in
+                if let anchorDeleteError = anchorDeleteError {
+                    print("⚠️ Error deleting anchor records: \(anchorDeleteError.localizedDescription)")
+                } else if let deletedIDs = deletedIDs, !deletedIDs.isEmpty {
+                    print("✅ Deleted \(deletedIDs.count) anchor(s) referencing \(publicRecordName)")
+                }
+                
+                // Finally, delete the public world record itself
+                publicDB.delete(withRecordID: publicRecordID) { _, publicDeleteError in
+                    if let publicDeleteError = publicDeleteError {
+                        print("❌ Error deleting public world record \(publicRecordName): \(publicDeleteError.localizedDescription)")
+                    } else {
+                        print("✅ Public world record \(publicRecordName) deleted.")
+                    }
+                    completion(publicDeleteError)
+                }
+                
+                
+              
+            }
+            publicDB.add(deleteAnchorsOp)
         }
     }
 }

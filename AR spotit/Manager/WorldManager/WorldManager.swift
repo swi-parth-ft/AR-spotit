@@ -11,6 +11,7 @@ import ARKit
 import CloudKit
 import SwiftUI
 import CoreSpotlight
+import Drops
 
 
 class WorldManager: ObservableObject {
@@ -483,32 +484,46 @@ class WorldManager: ObservableObject {
             print("World map file not found.")
             return
         }
+        
+        // Copy the file to the Documents directory to prepare it for sharing.
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let destinationURL = documentsURL.appendingPathComponent("\(currentRoomName)_Map.worldmap")
+        let destinationURL = documentsURL.appendingPathComponent("\(currentRoomName).worldmap")
         do {
             if FileManager.default.fileExists(atPath: destinationURL.path) {
                 try FileManager.default.removeItem(at: destinationURL)
             }
             try FileManager.default.copyItem(at: sourceFilePath, to: destinationURL)
             print("File ready for sharing at: \(destinationURL)")
-            let activityController = UIActivityViewController(activityItems: [destinationURL], applicationActivities: nil)
             
+            // Optional: Load a thumbnail for the preview (for example, the snapshot image saved when the world was saved).
+            let snapshotPath = WorldModel.appSupportDirectory.appendingPathComponent("\(currentRoomName)_snapshot.png")
+            let thumbnailImage = UIImage(contentsOfFile: snapshotPath.path)
+            
+            // Wrap the file URL in the FilePreviewMetadataProvider.
+            let metadataProvider = FilePreviewMetadataProvider(
+                fileURL: destinationURL,
+                title: "\(currentRoomName) World Map",
+                thumbnail: thumbnailImage
+            )
+            
+            let activityController = UIActivityViewController(activityItems: [metadataProvider], applicationActivities: nil)
+            
+            // Configure the popover presentation for iPad.
             if let popoverController = activityController.popoverPresentationController,
-                    let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                    let rootViewController = windowScene.windows.first?.rootViewController,
-                    let baseView = rootViewController.view {
-                     
-                     // Set the popover’s anchor (for iPad)
-                     popoverController.sourceView = baseView
-                     popoverController.sourceRect = CGRect(
-                         x: baseView.bounds.midX,
-                         y: baseView.bounds.midY,
-                         width: 0,
-                         height: 0
-                     )
-                     popoverController.permittedArrowDirections = []
-                 }
+               let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let rootViewController = windowScene.windows.first?.rootViewController,
+               let baseView = rootViewController.view {
+                popoverController.sourceView = baseView
+                popoverController.sourceRect = CGRect(
+                    x: baseView.bounds.midX,
+                    y: baseView.bounds.midY,
+                    width: 0,
+                    height: 0
+                )
+                popoverController.permittedArrowDirections = []
+            }
             
+            // Present the share sheet.
             if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                let rootViewController = windowScene.windows.first?.rootViewController {
                 DispatchQueue.main.async {
@@ -525,7 +540,6 @@ class WorldManager: ObservableObject {
             print("Error preparing file for sharing: \(error.localizedDescription)")
         }
     }
-    
     // MARK: - Check And Sync If Newer
     func checkAndSyncIfNewer(for roomName: String, completion: @escaping () -> Void) {
         guard let localWorld = savedWorlds.first(where: { $0.name == roomName }) else {
@@ -577,17 +591,16 @@ class WorldManager: ObservableObject {
     }
     //MARK: Share iCloud Link
     // In WorldManager.swift
-
     func shareWorldViaCloudKit(roomName: String, pin: String) {
-        // Call the new collaboration function in iCloudManager to migrate and create a share.
+        // Create the iCloud collaboration link.
         iCloudManager.createCollabLink(for: roomName, with: pin) { shareURL in
             guard let shareURL = shareURL else {
                 print("Failed to create collaboration share link for room: \(roomName)")
                 AppState.shared.isCreatingLink = false
-
                 return
             }
-            // Update local state for collaboration.
+            
+            // Fetch the world record to update local collaborative state.
             self.fetchWorldRecord(for: roomName) { record in
                 if let record = record {
                     self.startCollaborativeSession(with: record, roomName: roomName)
@@ -600,7 +613,6 @@ class WorldManager: ObservableObject {
                             }
                             self.saveWorldList()
                             self.syncLocalWorldsToCloudKit(roomName: roomName)
-                            
                         }
                         print("Collaborative info updated for room: \(roomName)")
                     } else {
@@ -612,15 +624,23 @@ class WorldManager: ObservableObject {
             }
             
             AppState.shared.isCreatingLink = false
-            // Present the share link using an activity controller.
+            
+            // Optional: Load a thumbnail image for the preview from your saved snapshot.
+            let snapshotPath = WorldModel.appSupportDirectory.appendingPathComponent("\(roomName)_snapshot.png")
+            let thumbnailImage = UIImage(contentsOfFile: snapshotPath.path)
+            
+            // Wrap the URL with rich metadata.
+            let metadataProvider = LinkMetadataProvider(url: shareURL, title: roomName, image: thumbnailImage)
+            
+            // Present the share sheet.
             DispatchQueue.main.async {
-                let activityController = UIActivityViewController(activityItems: [shareURL], applicationActivities: nil)
+                let activityController = UIActivityViewController(activityItems: [metadataProvider], applicationActivities: nil)
                 
+                // Configure popover for iPad.
                 if let popoverController = activityController.popoverPresentationController,
                    let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                    let rootViewController = windowScene.windows.first?.rootViewController,
-                   let baseView = rootViewController.view {  // <-- Unwrap the optional here
-
+                   let baseView = rootViewController.view {
                     popoverController.sourceView = baseView
                     popoverController.sourceRect = CGRect(
                         x: baseView.bounds.midX,
@@ -631,7 +651,7 @@ class WorldManager: ObservableObject {
                     popoverController.permittedArrowDirections = []
                 }
                 
-                
+                // Present the activity controller.
                 if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                    let rootViewController = windowScene.windows.first?.rootViewController {
                     if let presentedVC = rootViewController.presentedViewController {
@@ -644,7 +664,74 @@ class WorldManager: ObservableObject {
                 }
             }
         }
-    }    //MARK: Fetch names from cloudKit
+    }
+//    func shareWorldViaCloudKit(roomName: String, pin: String) {
+//        // Call the new collaboration function in iCloudManager to migrate and create a share.
+//        iCloudManager.createCollabLink(for: roomName, with: pin) { shareURL in
+//            guard let shareURL = shareURL else {
+//                print("Failed to create collaboration share link for room: \(roomName)")
+//                AppState.shared.isCreatingLink = false
+//
+//                return
+//            }
+//            // Update local state for collaboration.
+//            self.fetchWorldRecord(for: roomName) { record in
+//                if let record = record {
+//                    self.startCollaborativeSession(with: record, roomName: roomName)
+//                    if let index = self.savedWorlds.firstIndex(where: { $0.name == roomName }) {
+//                        DispatchQueue.main.async {
+//                            self.savedWorlds[index].cloudRecordID = record.recordID.recordName
+//                            self.savedWorlds[index].isCollaborative = true
+//                            if self.savedWorlds[index].pin == nil {
+//                                self.savedWorlds[index].pin = pin
+//                            }
+//                            self.saveWorldList()
+//                            self.syncLocalWorldsToCloudKit(roomName: roomName)
+//                            
+//                        }
+//                        print("Collaborative info updated for room: \(roomName)")
+//                    } else {
+//                        print("Saved world for \(roomName) not found.")
+//                    }
+//                } else {
+//                    print("World record for \(roomName) not found.")
+//                }
+//            }
+//            
+//            AppState.shared.isCreatingLink = false
+//            // Present the share link using an activity controller.
+//            DispatchQueue.main.async {
+//                let activityController = UIActivityViewController(activityItems: [shareURL], applicationActivities: nil)
+//                
+//                if let popoverController = activityController.popoverPresentationController,
+//                   let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+//                   let rootViewController = windowScene.windows.first?.rootViewController,
+//                   let baseView = rootViewController.view {  // <-- Unwrap the optional here
+//
+//                    popoverController.sourceView = baseView
+//                    popoverController.sourceRect = CGRect(
+//                        x: baseView.bounds.midX,
+//                        y: baseView.bounds.midY,
+//                        width: 0,
+//                        height: 0
+//                    )
+//                    popoverController.permittedArrowDirections = []
+//                }
+//                
+//                
+//                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+//                   let rootViewController = windowScene.windows.first?.rootViewController {
+//                    if let presentedVC = rootViewController.presentedViewController {
+//                        presentedVC.dismiss(animated: false) {
+//                            rootViewController.present(activityController, animated: true, completion: nil)
+//                        }
+//                    } else {
+//                        rootViewController.present(activityController, animated: true, completion: nil)
+//                    }
+//                }
+//            }
+//        }
+//    }    //MARK: Fetch names from cloudKit
     func fetchWorldNamesFromCloudKit(completion: @escaping () -> Void) {
         let privateDB = CKContainer.default().privateCloudDatabase
         let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
@@ -736,6 +823,13 @@ class WorldManager: ObservableObject {
                     print("Error restoring collaborative world: \(error?.localizedDescription ?? "unknown error")")
                 }
             }
+        }
+    }
+    
+    func removeCollab(roomName: String) {
+        iCloudManager.removeCollaboration(for: roomName) { _ in
+            let drop = Drop.init(title: "Removed \(roomName) collaboration")
+            Drops.show(drop)
         }
     }
 
