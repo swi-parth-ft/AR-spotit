@@ -115,3 +115,18 @@ func extractEmoji(from string: String) -> String? {
     }
     return nil
 }
+
+
+extension View {
+    @ViewBuilder
+    func conditionalModifier<Content: View>(
+        _ condition: Bool,
+        modifier: (Self) -> Content
+    ) -> some View {
+        if condition {
+            modifier(self)
+        } else {
+            self
+        }
+    }
+}

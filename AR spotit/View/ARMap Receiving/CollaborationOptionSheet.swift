@@ -19,9 +19,12 @@ struct CollaborationOptionSheet: View {
         NavigationView {
             VStack(alignment: .center) {
                 Spacer()
-                Text("Received \(roomName) invitation. You can view and find items in this area.")
-                    .font(.subheadline)
-                    .foregroundStyle(.gray)
+                HStack {
+                    Text("Received \(roomName) invitation. You can view and find items in this area.")
+                        .font(.subheadline)
+                        .foregroundStyle(.gray)
+                    Spacer()
+                }
               
                 Button {
                     onViewOnly()

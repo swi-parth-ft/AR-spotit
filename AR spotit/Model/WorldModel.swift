@@ -10,6 +10,8 @@ struct WorldModel: Identifiable, Codable {
     
     var cloudRecordID: String?
     var pin: String?
+    var metadataRecordID: String?
+    var publicRecordName: String?    // <— Make sure this exists!
 
     // Computed property for dynamic file path
     var filePath: URL {

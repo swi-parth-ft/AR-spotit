@@ -253,10 +253,10 @@ extension iCloudManager {
         }
     }
     
-    func fetchNewAnchors(for worldRecordID: CKRecord.ID, completion: @escaping ([CKRecord]) -> Void) {
+    func fetchNewAnchors(for recordName: String, completion: @escaping ([CKRecord]) -> Void) {
         let publicDB = CKContainer.default().publicCloudDatabase
         // We store the world record's recordName in the anchor's "worldRecordName" field.
-        let predicate = NSPredicate(format: "worldRecordName == %@", worldRecordID.recordName)
+        let predicate = NSPredicate(format: "worldRecordName == %@", recordName)
         let query = CKQuery(recordType: "Anchor", predicate: predicate)
         
         // For the public DB, using nil zone means the default zone.
@@ -266,7 +266,7 @@ extension iCloudManager {
                 completion([])
             } else {
                 let count = records?.count ?? 0
-                print("Fetched \(count) anchors from public DB for world record \(worldRecordID.recordName)")
+                print("Fetched \(count) anchors from public DB for world record \(recordName)")
                 completion(records ?? [])
             }
         }
@@ -294,96 +294,124 @@ extension iCloudManager {
     }
     
     func migrateWorldRecordToPublic(roomName: String, pin: String, completion: @escaping (CKRecord?, Error?) -> Void) {
-        let publicRecordID = CKRecord.ID(recordName: "\(roomName)_Record")
         let publicDB = CKContainer.default().publicCloudDatabase
         
-        // Attempt to fetch the world record from the public DB.
-        publicDB.fetch(withRecordID: publicRecordID) { (existingRecord, error) in
-            if let existingRecord = existingRecord {
-                print("✅ Found existing public world record: \(existingRecord.recordID)")
-                completion(existingRecord, nil)
-                return
-            }
-            
-            // If the error indicates the record doesn't exist, proceed.
-            if let ckError = error as? CKError, ckError.code == .unknownItem {
-                // Query the private database for the world record.
-                let predicate = NSPredicate(format: "roomName == %@", roomName)
-                CloudKitService.shared.performQuery(recordType: self.recordType,
-                                                    predicate: predicate,
-                                                    zoneID: self.customZoneID,
-                                                    desiredKeys: ["roomName", "mapAsset", "lastModified"]) { result in
-                    switch result {
-                    case .success(let records):
-                        guard let privateRecord = records.first else {
-                            print("No world record found in private DB for room: \(roomName)")
-                            let error = NSError(domain: "com.yourapp.error", code: 404, userInfo: [NSLocalizedDescriptionKey: "World record not found"])
-                            completion(nil, error)
-                            return
-                        }
+        // 1) Query the private DB for the record by "roomName" (same as your existing code)
+        let predicate = NSPredicate(format: "roomName == %@", roomName)
+        CloudKitService.shared.performQuery(recordType: self.recordType,
+                                            predicate: predicate,
+                                            zoneID: self.customZoneID,
+                                            desiredKeys: ["roomName", "mapAsset", "lastModified", "publicRecordName", "pinRequired", "pinHash"]) { queryResult in
+            switch queryResult {
+            case .failure(let error):
+                print("❌ Error querying private DB for world record: \(error.localizedDescription)")
+                completion(nil, error)
+                
+            case .success(let privateRecords):
+                guard let privateRecord = privateRecords.first else {
+                    print("⚠️ No world record found in private DB for room: \(roomName)")
+                    let notFoundError = NSError(domain: "com.yourapp.error", code: 404, userInfo: [NSLocalizedDescriptionKey: "World record not found"])
+                    completion(nil, notFoundError)
+                    return
+                }
+                
+                // 2) Check if we already have a "publicRecordName" from a prior migration
+                var publicRecordName = privateRecord["publicRecordName"] as? String
+                
+                // If nil, create a brand new one
+                if publicRecordName == nil {
+                    publicRecordName = UUID().uuidString
+                }
+                
+                // Then build the recordID from that stable string
+                let publicRecordID = CKRecord.ID(recordName: publicRecordName!)
+                
+                // 3) Attempt to fetch from the public DB
+                publicDB.fetch(withRecordID: publicRecordID) { (existingRecord, error) in
+                    if let existingRecord = existingRecord {
+                        // => We already have a public record with this ID => update it or just return
+                        print("✅ Found existing public world record: \(existingRecord.recordID)")
                         
-                        // Create a new record in the public DB's default zone.
+                        // If you want, you can update fields or do nothing:
+                        existingRecord["pinHash"] = sha256(pin) as CKRecordValue
+                        existingRecord["pinRequired"] = true as CKRecordValue
+                        publicDB.save(existingRecord) { updated, updateError in
+                            completion(updated, updateError)
+                        }
+                        return
+                    }
+                    
+                    // If error indicates "not found", we create a new record
+                    if let ckError = error as? CKError, ckError.code == .unknownItem {
+                        // 4) Create a new record in the public DB’s default zone
                         let publicRecord = CKRecord(recordType: self.recordType, recordID: publicRecordID)
                         
-                        // Copy the room name.
+                        // Copy fields from the private record
                         publicRecord["roomName"] = privateRecord["roomName"]
-                        
-                        // Create a new CKAsset using the same file URL.
                         if let privateAsset = privateRecord["mapAsset"] as? CKAsset,
                            let fileURL = privateAsset.fileURL {
-                            let newAsset = CKAsset(fileURL: fileURL)
-                            publicRecord["mapAsset"] = newAsset
-                        } else {
-                            print("No valid mapAsset found in private record for room: \(roomName)")
+                            publicRecord["mapAsset"] = CKAsset(fileURL: fileURL)
                         }
-                        
-                        // Copy the lastModified field.
                         publicRecord["lastModified"] = privateRecord["lastModified"]
-                        
                         
                         let pinHash = sha256(pin)
                         publicRecord["pinHash"] = pinHash as CKRecordValue
                         publicRecord["pinRequired"] = true as CKRecordValue
                         
-                        
-                        // Save the new public record.
+                        // Save the new public record
                         publicDB.save(publicRecord) { savedRecord, error in
                             if let error = error {
-                                print("❌ Error migrating world record to public DB: \(error.localizedDescription)")
+                                print("❌ Error migrating record to public DB: \(error.localizedDescription)")
                                 completion(nil, error)
                             } else if let savedRecord = savedRecord {
+                                print("✅ Successfully migrated record to public DB: \(savedRecord.recordID)")
                                 
+                                // 5) Store the stable name back into the private record so we can remove collisions
                                 privateRecord["publicRecordName"] = savedRecord.recordID.recordName
                                 privateRecord["pinRequired"] = true as CKRecordValue
                                 privateRecord["pinHash"] = pinHash as CKRecordValue
+                                if let room = privateRecord["roomName"] as? String {
+                                            if let idx = self.worldManager?.savedWorlds.firstIndex(where: { $0.name == room }) {
+                                                DispatchQueue.main.async {
+                                                    self.worldManager?.savedWorlds[idx].publicRecordName = savedRecord.recordID.recordName
+                                                    self.worldManager?.saveWorldList()
+                                                    self.worldManager?.syncLocalWorldsToCloudKit(roomName: roomName)
+                                                }
+                                               
+                                                
+                                            }
+                                        }
+                                // Save the updated private record
                                 self.privateDB.save(privateRecord) { _, privateError in
                                     if let privateError = privateError {
                                         print("❌ Error saving private record with publicRecordName: \(privateError.localizedDescription)")
                                     } else {
                                         print("✅ Updated private record with publicRecordName: \(savedRecord.recordID.recordName)")
                                     }
+                                    // Return the new public record
                                     completion(savedRecord, nil)
                                 }
+                                
+                                // Show or share the PIN to User1 so they can pass it along
                                 print("✅ Saved PIN hash: \(pinHash)")
-                                // Show or share the PIN to User1 so they can pass it along to others
                                 print("Your PIN is: \(pin)")
-                                print("✅ Successfully migrated world record to public DB: \(savedRecord.recordID)")
-                                completion(savedRecord, nil)
+                                
+                            } else {
+                                // no error, but no savedRecord => weird
+                                completion(nil, nil)
                             }
                         }
-                        
-                    case .failure(let error):
-                        print("❌ Error querying private DB for world record: \(error.localizedDescription)")
+                    } else {
+                        // Some other fetch error
+                        print("❌ Error fetching from public DB: \(error?.localizedDescription ?? "Unknown error")")
                         completion(nil, error)
                     }
                 }
-            } else {
-                // Some other error occurred while fetching from public DB.
-                print("❌ Error fetching public record: \(error?.localizedDescription ?? "Unknown error")")
-                completion(nil, error)
             }
         }
     }
+    
+    
     func createCollabLink(for roomName: String, with pin: String, completion: @escaping (URL?) -> Void) {
         // Migrate the world record from the private DB to the public DB.
         self.migrateWorldRecordToPublic(roomName: roomName, pin: pin) { publicRecord, error in
@@ -438,14 +466,7 @@ extension iCloudManager {
                         // Continue even if public deletion failed, since we still want to fix local metadata.
                     }
                     
-                    let recordID = CKRecord.ID(recordName: "\(roomName)_Record")
-                    CKContainer.default().publicCloudDatabase.delete(withRecordID: recordID) { deletedID, error in
-                        if let error = error {
-                            print("❌ Direct ID delete failed: \(error)")
-                        } else {
-                            print("✅ Direct ID delete succeeded for Room_Record")
-                        }
-                    }
+                   
                     // 3) Remove share + PIN fields from the private record, then save it.
                     privateRecord["share"] = nil
                     privateRecord["pinRequired"] = nil
@@ -482,7 +503,7 @@ extension iCloudManager {
     }
 
     // MARK: - Helper function to delete the public record and all related anchors
-    private func deletePublicRecordAndAnchorsIfNeeded(publicRecordName: String?, completion: @escaping (Error?) -> Void) {
+    func deletePublicRecordAndAnchorsIfNeeded(publicRecordName: String?, completion: @escaping (Error?) -> Void) {
         guard let publicRecordName = publicRecordName else {
             // No public record name => no action needed
             completion(nil)
@@ -527,4 +548,5 @@ extension iCloudManager {
         }
     }
 }
+
 

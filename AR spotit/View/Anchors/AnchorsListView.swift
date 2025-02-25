@@ -20,7 +20,6 @@ struct AnchorsListView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.colorScheme) var colorScheme
     @State private var isRenaming = false
-    @State private var isOpeningWorld = false
     @State private var showFocusedAnchor: Bool = false
     @Binding var isOpeningFromAnchorListView: Bool
     @State private var isLoading = true
@@ -41,6 +40,7 @@ struct AnchorsListView: View {
     @State private var isCollab = false
     @State private var isDeleting = false
     @State private var isRemovingCollab = false
+    @State private var currentWorld: WorldModel?
     func extractEmoji(from string: String) -> String? {
         for char in string {
                 if char.isEmoji {
@@ -86,7 +86,6 @@ struct AnchorsListView: View {
                         if FileManager.default.fileExists(atPath: snapshotPath.path),
                            let uiImage = UIImage(contentsOfFile: snapshotPath.path) {
                             
-                            if colorScheme == .dark {
                                 Image(uiImage: uiImage)
                                     .resizable()
                                     .scaledToFill()
@@ -98,22 +97,10 @@ struct AnchorsListView: View {
                                                     .fill(LinearGradient(colors: [.black.opacity(1.0), .black.opacity(0.0)], startPoint: .bottom, endPoint: .top))
 
                                             )
-                                
-                            } else {
-                                Image(uiImage: uiImage)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(height: 400)
-                                    .clipped()
-                                    .cornerRadius(15)
-                                    .overlay(
-                                                RoundedRectangle(cornerRadius: 15)
-                                                    .fill(LinearGradient(colors: [.black.opacity(1.0), .black.opacity(0.0)], startPoint: .bottom, endPoint: .top))
+                                    .conditionalModifier(colorScheme != .dark) { view in
+                                          view.colorInvert()
+                                      }
 
-                                            )
-                                    .colorInvert()
-                                
-                            }
                             
                         } else {
                             // fallback if no image
@@ -122,14 +109,6 @@ struct AnchorsListView: View {
                                 .foregroundColor(.secondary)
                                 .padding(.horizontal)
                         }
-                        
-                        
-                        
-                
-                        
-                        
-                        
-                        
                         
                         
                     }
@@ -227,17 +206,20 @@ struct AnchorsListView: View {
                 .sheet(isPresented: $isRenaming, onDismiss: {
                     dismiss()
                 }) {
-                    if UIDevice.isIpad {
-                        renameWorldView(worldName: worldName, worldManager: worldManager, showWarning: isCollab, newAnchors: newAnchors.count)
-                    } else {
-                        renameWorldView(worldName: worldName, worldManager: worldManager, showWarning: isCollab, newAnchors: newAnchors.count)
-                            .presentationDetents(isCollab ? [.fraction(0.5)] : [.fraction(0.4)])
-                    }
+                    
+                        renameWorldView(worldName: worldName, worldManager: worldManager, showWarning: isCollab, newAnchors: newAnchors.count, publicName: currentWorld?.publicRecordName ?? "")
+                            .conditionalModifier(!UIDevice.isIpad) { view in
+                                
+                                    view.presentationDetents(isCollab ? [.fraction(0.5)] : [.fraction(0.4)])
+                            }
+                    
                     
                 }
                 .onAppear {
                     // Fetch anchors for this specific world
                     worldManager.loadSavedWorlds {
+                        
+                        currentWorld = worldManager.savedWorlds.first { $0.name == worldName }
                         worldManager.getAnchorNames(for: worldName) { fetchedAnchors in
                                DispatchQueue.main.async {
                                    anchorsByWorld[worldName] = fetchedAnchors
@@ -246,11 +228,10 @@ struct AnchorsListView: View {
                                    // Now, if the world is collaborative, fetch new anchors
                                    if let world = worldManager.savedWorlds.first(where: { $0.name == worldName }),
                                       world.isCollaborative,
-                                      let publicRecordID = world.cloudRecordID {
+                                      let recordName = world.publicRecordName {
                                        isCollab = true
 
-                                       let recordID = CKRecord.ID(recordName: publicRecordID)
-                                       iCloudManager.shared.fetchNewAnchors(for: recordID) { records in
+                                       iCloudManager.shared.fetchNewAnchors(for: recordName) { records in
                                            DispatchQueue.main.async {
                                                // Extract new anchor names from the records (assuming each record has a "name" field)
                                                let fetchedNewAnchorNames = records.compactMap { $0["name"] as? String }
@@ -272,58 +253,28 @@ struct AnchorsListView: View {
 
                     
                 }
-                .sheet(isPresented: $isOpeningWorld, onDismiss: {
-                    worldManager.loadSavedWorlds {
-                        
-                    }
-                    
-                    worldManager.getAnchorNames(for: worldName) { fetchedAnchors in
-                            DispatchQueue.main.async {
-                                anchorsByWorld[worldName] = fetchedAnchors
-                            }
-                        }
-                    
-                }) {
-                    ContentView(
-                        currentRoomName: worldName,
-                        directLoading: true,
-                        findAnchor: $findingAnchorName,
-                        isShowingFocusedAnchor: $showFocusedAnchor
-                    )
-                    .interactiveDismissDisabled()
-                    
-                    .onDisappear {
-                           findingAnchorName = ""
-                           print("ContentView dismissed")
-                       }
-                }
+          
                 .sheet(isPresented: $isShowingQR) {
-                    if UIDevice.isIpad {
+                   
                         QRview(roomName: worldName)
-
-                    } else {
-                        QRview(roomName: worldName)
-                            .presentationDetents([.fraction(0.4)])
-                    }
+                            .conditionalModifier(!UIDevice.isIpad) { view in
+                                 view.presentationDetents([.fraction(0.4)])
+                             }
+                    
 
                 }
                 .sheet(isPresented: $showPinPopover) {
-                    if UIDevice.isIpad {
+                   
                         PinView(roomName: worldName, pin: $selectedPin, isChecking: isChecking) {
                             // This runs when "Done" is pressed
                             if !isChecking && !selectedPin.isEmpty {
                                 worldManager.shareWorldViaCloudKit(roomName: worldName, pin: selectedPin)
                             }
                         }
-                    } else {
-                        PinView(roomName: worldName, pin: $selectedPin, isChecking: isChecking) {
-                            // This runs when "Done" is pressed
-                            if !isChecking && !selectedPin.isEmpty {
-                                worldManager.shareWorldViaCloudKit(roomName: worldName, pin: selectedPin)
-                            }
-                        }
-                        .presentationDetents([.fraction(0.4)])
-                    }
+                        .conditionalModifier(!UIDevice.isIpad) { view in
+                             view.presentationDetents([.fraction(0.4)])
+                         }
+                    
                 }
                 .sheet(isPresented: $showCollaborators) {
                     // Simple SwiftUI list of collaborator names
@@ -336,9 +287,9 @@ struct AnchorsListView: View {
                     }
                 }
                 .sheet(isPresented: $isDeleting) {
-                    if UIDevice.isIpad {
+                   
                         DeleteConfirm(isCollab: isCollab, roomName: worldName) { name in
-                            worldManager.deleteWorld(roomName: worldName) {
+                            worldManager.deleteWorld(roomName: worldName, publicName: currentWorld?.publicRecordName ?? "") {
                                 print("Deletion process completed.")
                                 let drop = Drop.init(title: "\(worldName) deleted!")
                                 
@@ -349,55 +300,23 @@ struct AnchorsListView: View {
                                 isDeleting = false
                                 
                             }
-                            
-                            
-                            
-                            
                         }
-                    } else {
-                        DeleteConfirm(isCollab: isCollab, roomName: worldName) { name in
-                            worldManager.deleteWorld(roomName: worldName) {
-                                print("Deletion process completed.")
-                                let drop = Drop.init(title: "\(worldName) deleted!")
-                                
-                                Drops.show(drop)
-                                
-                                HapticManager.shared.notification(type: .success)
-                                
-                                isDeleting = false
-                                
-                            }
-                            
-                            
-                            
-                            
-                        }
-                        .presentationDetents([.fraction(0.5)])
-                    }
+                        .conditionalModifier(!UIDevice.isIpad) { view in
+                             view.presentationDetents([.fraction(0.5)])
+                         }
+                    
                 }
                 .sheet(isPresented: $isRemovingCollab) {
-                    if UIDevice.isIpad {
+                   
                         RemoveCollabView(roomName: worldName) {
                         
-                            
                             worldManager.removeCollab(roomName: worldName)
-                            
-                            
-                            
-                            
+                           
                         }
-                    } else {
-                        RemoveCollabView(roomName: worldName) {
-                        
-                            
-                            worldManager.removeCollab(roomName: worldName)
-                            
-                            
-                            
-                            
-                        }
-                        .presentationDetents([.fraction(0.5)])
-                    }
+                        .conditionalModifier(!UIDevice.isIpad) { view in
+                             view.presentationDetents([.fraction(0.5)])
+                         }
+                    
                 }
                 .navigationTitle(worldName)
                 .toolbar {
@@ -664,8 +583,8 @@ struct AnchorsListView: View {
 
         // We'll assume you have a method that fetches anchor records by worldRecordName
         // e.g. iCloudManager.shared.fetchAnchors(for: CKRecord.ID)
-        let recordID = CKRecord.ID(recordName: publicRecordID)
-        iCloudManager.shared.fetchNewAnchors(for: recordID) { anchorRecords in
+       
+        iCloudManager.shared.fetchNewAnchors(for: world.publicRecordName ?? "") { anchorRecords in
             // anchorRecords are CKRecords for your "Anchor" type in the public DB
             var discoveredNames: [String] = []
             

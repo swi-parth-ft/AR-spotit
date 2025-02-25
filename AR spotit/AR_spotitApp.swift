@@ -12,40 +12,6 @@ import CoreSpotlight
 import CloudKit
 import Drops
 
-class AppState: ObservableObject {
-    static let shared = AppState() // Singleton instance
-    @Published var isWorldUpdated: Bool = false {
-        didSet {
-            print("isWorldUpdated changed to: \(isWorldUpdated)")
-        }
-    }
-    @Published var isiCloudShare: Bool = false {
-        didSet {
-            print("isCloudShare changed to: \(isiCloudShare)")
-        }
-    }
-    
-    @Published var publicRecordName: String = "" {
-        didSet {
-            print("publicRecordName changed to: \(publicRecordName)")
-        }
-    }
-    @Published var isCreatingLink: Bool = false {
-        didSet {
-            print("isCreatingLink changed to: \(isCreatingLink)")
-        }
-    }
-    
-    @Published var isShowingPinSheet = false
-        @Published var isShowingOpenSaveSheet = false
-    @Published var pendingSharedRecord: CKRecord?
-        @Published var pendingAssetFileURL: URL?
-        @Published var pendingRoomName: String?
-    
-    @Published var isShowingCollaborationChoiceSheet = false
-    @Published var isViewOnly: Bool = false
-    
-}
 
 @main
 struct AR_spotitApp: App {
@@ -109,14 +75,13 @@ struct AR_spotitApp: App {
                         }
                     }
                     .sheet(isPresented: $worldManager.isImportingWorld) {
-                        if UIDevice.isIpad {
+                       
                             ImportWorldSheet()
                                 .environmentObject(worldManager)
-                        } else {
-                            ImportWorldSheet()
-                                .environmentObject(worldManager)
-                                .presentationDetents([.fraction(0.4)])
-                        }
+                                .conditionalModifier(!UIDevice.isIpad) { view in
+                                       view.presentationDetents([.fraction(0.4)])
+                                   }
+                        
                     }
                 
                 if !isActive {
@@ -131,28 +96,7 @@ struct AR_spotitApp: App {
                     // Get the stored PIN hash from the record.
                     let storedPinHash = sharedRecord["pinHash"] as? String ?? ""
                     
-                    if UIDevice.isIpad {
-                        PinEntrySheet(
-                            roomName: roomName,
-                            storedPinHash: storedPinHash,
-                            onConfirm: { enteredPin in
-                                // Verify the entered PIN.
-                                if verifyPin(enteredPin, against: storedPinHash) {
-                                    print("✅ PIN correct; proceeding to open/save sheet.")
-                                    appState.isShowingPinSheet = false
-                                    appState.isShowingOpenSaveSheet = true
-                                } else {
-                                    
-                                    print("❌ Incorrect PIN.")
-                                    Drops.show("⚠️ Incorrect Key, please try again.")
-                                    // appState.isShowingPinSheet = false
-                                }
-                            },
-                            onCancel: {
-                                appState.isShowingPinSheet = false
-                            }
-                        )
-                    } else {
+                    
                         PinEntrySheet(
                             roomName: roomName,
                             storedPinHash: storedPinHash,
@@ -174,8 +118,10 @@ struct AR_spotitApp: App {
                             }
                         )
                         
-                        .presentationDetents([.fraction(0.4)])
-                    }
+                        .conditionalModifier(!UIDevice.isIpad) { view in
+                               view.presentationDetents([.fraction(0.4)])
+                           }
+                    
 
                 } else {
                     Text("Missing pending record data.")
@@ -185,43 +131,27 @@ struct AR_spotitApp: App {
                 if let roomName = appState.pendingRoomName,
                    let assetURL = appState.pendingAssetFileURL,
                    let sharedRecord = appState.pendingSharedRecord {
+                   
+                        OpenOrSaveSheet(
+                            roomName: roomName,
+                            assetFileURL: assetURL,
+                            sharedRecord: sharedRecord,
+                            onOpen: {
+                                openSharedWorld(sharedRecord: sharedRecord, assetURL: assetURL)
+                                appState.isShowingOpenSaveSheet = false
+                            },
+                            onSave: {
+                                saveSharedWorld(sharedRecord: sharedRecord, assetURL: assetURL, roomName: roomName)
+                                appState.isShowingOpenSaveSheet = false
+                            },
+                            onCancel: {
+                                appState.isShowingOpenSaveSheet = false
+                            }
+                        )
+                        .conditionalModifier(!UIDevice.isIpad) { view in
+                               view.presentationDetents([.fraction(0.4)])
+                           }
                     
-                    if UIDevice.isIpad {
-                        OpenOrSaveSheet(
-                            roomName: roomName,
-                            assetFileURL: assetURL,
-                            sharedRecord: sharedRecord,
-                            onOpen: {
-                                openSharedWorld(sharedRecord: sharedRecord, assetURL: assetURL)
-                                appState.isShowingOpenSaveSheet = false
-                            },
-                            onSave: {
-                                saveSharedWorld(sharedRecord: sharedRecord, assetURL: assetURL, roomName: roomName)
-                                appState.isShowingOpenSaveSheet = false
-                            },
-                            onCancel: {
-                                appState.isShowingOpenSaveSheet = false
-                            }
-                        )
-                    } else {
-                        OpenOrSaveSheet(
-                            roomName: roomName,
-                            assetFileURL: assetURL,
-                            sharedRecord: sharedRecord,
-                            onOpen: {
-                                openSharedWorld(sharedRecord: sharedRecord, assetURL: assetURL)
-                                appState.isShowingOpenSaveSheet = false
-                            },
-                            onSave: {
-                                saveSharedWorld(sharedRecord: sharedRecord, assetURL: assetURL, roomName: roomName)
-                                appState.isShowingOpenSaveSheet = false
-                            },
-                            onCancel: {
-                                appState.isShowingOpenSaveSheet = false
-                            }
-                        )
-                        .presentationDetents([.fraction(0.4)])
-                    }
 
                 } else {
                     Text("Missing pending record data.")
@@ -229,7 +159,7 @@ struct AR_spotitApp: App {
             }
             .sheet(isPresented: $appState.isShowingCollaborationChoiceSheet) {
                 if let roomName = appState.pendingRoomName {
-                    if UIDevice.isIpad {
+                    
                         CollaborationOptionSheet(
                             roomName: roomName,
                             onCollaborate: {
@@ -248,27 +178,9 @@ struct AR_spotitApp: App {
                                 appState.isShowingCollaborationChoiceSheet = false
                             }
                         )
-                    } else {
-                        CollaborationOptionSheet(
-                            roomName: roomName,
-                            onCollaborate: {
-                                // User chose to collaborate: they must enter a PIN.
-                                appState.isViewOnly = false
-                                appState.isShowingCollaborationChoiceSheet = false
-                                appState.isShowingPinSheet = true
-                            },
-                            onViewOnly: {
-                                // User chose view-only: set flag and show open/save sheet.
-                                appState.isViewOnly = true
-                                appState.isShowingCollaborationChoiceSheet = false
-                                appState.isShowingOpenSaveSheet = true
-                            },
-                            onCancel: {
-                                appState.isShowingCollaborationChoiceSheet = false
-                            }
-                        )
-                        .presentationDetents([.fraction(0.4)])
-                    }
+                        .conditionalModifier(!UIDevice.isIpad) { view in
+                               view.presentationDetents([.fraction(0.4)])
+                           }
                 } else {
                     Text("Missing room data.")
                 }
@@ -301,6 +213,15 @@ struct AR_spotitApp: App {
             }
         }
     }
+    
+   
+    
+}
+
+
+// MARK: - URL, CloudKit Share, & Spotlight Handling
+private extension AR_spotitApp {
+    
     
     private func openSharedWorld(sharedRecord: CKRecord, assetURL: URL) {
             do {
@@ -341,12 +262,6 @@ struct AR_spotitApp: App {
             }
         }
  
-    
-}
-
-
-// MARK: - URL, CloudKit Share, & Spotlight Handling
-private extension AR_spotitApp {
     // MARK: -iCLoud Share Link
     
     private func processSharedRecord(_ sharedRecord: CKRecord, withShare share: CKShare) {
@@ -359,7 +274,7 @@ private extension AR_spotitApp {
                 AppState.shared.publicRecordName = publicRecordName
                 AppState.shared.isiCloudShare = true
             }
-            
+        
             // Start the collaborative session.
             WorldManager.shared.startCollaborativeSession(with: sharedRecord, roomName: roomName)
             
@@ -479,107 +394,6 @@ private extension AR_spotitApp {
         }
     }
 
-//    private func processSharedRecord(_ sharedRecord: CKRecord, withShare share: CKShare) {
-//    
-//        let roomName = sharedRecord["roomName"] as? String ?? "Untitled"
-//        let publicRecordName = sharedRecord["publicRecordName"] as? String ?? ""
-//        
-//        DispatchQueue.main.async {
-//            WorldManager.shared.sharedZoneID = share.recordID.zoneID
-//            print("Shared zone ID set to: \(WorldManager.shared.sharedZoneID!)")
-//
-//            AppState.shared.publicRecordName = publicRecordName
-//            AppState.shared.isiCloudShare = true
-//        }
-//     
-//        
-//          // Start a collaborative session in WorldManager
-//        WorldManager.shared.startCollaborativeSession(with: sharedRecord, roomName: roomName)
-//        
-//        guard
-//            let asset = sharedRecord["mapAsset"] as? CKAsset,
-//            let assetFileURL = asset.fileURL
-//        else {
-//            print("❌ Failed to get CKAsset or assetFileURL")
-//            return
-//        }
-//        
-//        do {
-//            let data = try Data(contentsOf: assetFileURL)
-//            print("✅ Loaded asset data of size: \(data.count) bytes")
-//            
-//            DispatchQueue.main.async() {
-//                // 1) Create a UIKit alert
-//                let alert = UIAlertController(
-//                    title: "\(sharedRecord["roomName"] ?? "AR Area") Received",
-//                    message: "Would you like to open now or save locally?",
-//                    preferredStyle: .alert
-//                )
-//                
-//                // 2) "Open Now" → Decode ARWorldMap in memory
-//                let openAction = UIAlertAction(title: "Open Now", style: .default) { _ in
-//                    do {
-//                        if let container = try NSKeyedUnarchiver.unarchivedObject(
-//                            ofClass: ARWorldMapContainer.self,
-//                            from: data
-//                        ) {
-//                            let arWorldMap = container.map
-//                            WorldManager.shared.sharedARWorldMap = arWorldMap
-//                            WorldManager.shared.sharedWorldName = sharedRecord["roomName"] as? String ?? "Untitled"
-//                            print("✅ Will open shared ARWorldMap in memory.")
-//                            
-//                            // Optionally post a notification or navigate to your AR screen:
-//                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-//                                NotificationCenter.default.post(
-//                                    name: Notifications.incomingShareMapReady,
-//                                    object: nil
-//                                )
-//                            }
-//                        } else {
-//                            print("❌ Could not decode ARWorldMap from container.")
-//                        }
-//                    } catch {
-//                        print("❌ Error decoding ARWorldMap: \(error.localizedDescription)")
-//                    }
-//                }
-//                
-//                // 3) "Save Locally" → old logic (write to local file)
-//                let saveAction = UIAlertAction(title: "Save Locally", style: .default) { _ in
-//                    do {
-//                        let roomName = (sharedRecord["roomName"] as? String) ?? "UnknownWorld"
-//                        let localFilePath = WorldModel.appSupportDirectory
-//                            .appendingPathComponent("\(roomName)_worldMap")
-//                        
-//                        try data.write(to: localFilePath, options: .atomic)
-//                        print("✅ Shared asset data written to local file: \(localFilePath.path)")
-//                        
-//                        // Then import so it shows in your saved worlds
-//                        WorldManager.shared.importWorldFromURL(localFilePath)
-//                    } catch {
-//                        print("❌ Error saving shared asset data: \(error.localizedDescription)")
-//                    }
-//                }
-//                
-//                // 4) "Cancel"
-//                let cancelAction = UIAlertAction(title: "Cancel", style: .cancel)
-//                
-//                // 5) Add actions
-//                alert.addAction(openAction)
-//                alert.addAction(saveAction)
-//                alert.addAction(cancelAction)
-//                
-//                // 6) Present the alert on the root VC
-//                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-//                   let rootVC = windowScene.windows.first?.rootViewController {
-//                    rootVC.present(alert, animated: true)
-//                } else {
-//                    print("❌ Could not find a rootViewController to present alert.")
-//                }
-//            }
-//        } catch {
-//            print("❌ Error processing ARWorldMap data: \(error.localizedDescription)")
-//        }
-//    }
     
     private func handleIncomingShareMetadata(_ metadata: CKShare.Metadata) {
         print("Handling incoming share metadata directly: \(metadata)")

@@ -14,49 +14,7 @@ import CloudKit
 
 
 extension ARViewContainer {
-    //MARK: Audio Setup functions
-    func setupAudio() {
-        configureAudioSession()
-        guard let audioFileURL = Bundle.main.url(forResource: "Morse", withExtension: "aiff"),
-              let audioFile = try? AVAudioFile(forReading: audioFileURL) else {
-            print("Audio file not found.")
-            return
-        }
-        
-        audioEngine.attach(audioPlayer)
-        audioEngine.attach(audioEnvironmentNode)
-        audioEnvironmentNode.renderingAlgorithm = .HRTF
-        
-        audioEngine.connect(audioPlayer, to: audioEnvironmentNode, format: audioFile.processingFormat)
-        audioEngine.connect(audioEnvironmentNode, to: audioEngine.mainMixerNode, format: nil)
-        
-        do {
-            try audioEngine.start()
-        } catch {
-            print("Failed to start audio engine: \(error)")
-        }
-        func scheduleAudio() {
-            audioPlayer.scheduleFile(audioFile, at: nil, completionHandler: {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    scheduleAudio() // Recursively schedule audio with a delay
-                }
-            })
-        }
-        
-        scheduleAudio()
-        audioPlayer.play()
-    }
-    
-    func configureAudioSession() {
-        let audioSession = AVAudioSession.sharedInstance()
-        do {
-            try audioSession.setCategory(.playback, mode: .moviePlayback, options: [.allowAirPlay, .mixWithOthers])
-            try audioSession.setActive(true)
-            print("Audio session configured for spatial audio.")
-        } catch {
-            print("Failed to configure audio session: \(error)")
-        }
-    }
+
     
     func stopAudio() {
         audioPlayer.stop()

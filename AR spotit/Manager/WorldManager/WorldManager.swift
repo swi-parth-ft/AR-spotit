@@ -33,7 +33,6 @@ class WorldManager: ObservableObject {
     @Published var sharedARWorldMap: ARWorldMap?
     @Published var sharedWorldName: String?
     @Published var sharedWorldsAnchors: [String] = []
-    
     @Published var savedWorlds: [WorldModel] = []
     @Published var cachedAnchorNames: [String: [String]] = [:]
     @Published var isShowingAll = true
@@ -49,7 +48,8 @@ class WorldManager: ObservableObject {
     @Published var isWorldLoaded = false
     @Published var isShowingARGuide = false
     @Published var is3DArrowActive = false
-    
+    private let metadataRecordType = "WorldMetadata"
+
     init() { }
     func startCollaborativeSession(with sharedRecord: CKRecord, roomName: String) {
         DispatchQueue.main.async {
@@ -68,6 +68,7 @@ class WorldManager: ObservableObject {
            self.isCollaborative = false
            print("Collaborative session ended.")
        }
+    
     // MARK: - Save World Map
     func saveWorldMap(for roomName: String, sceneView: ARSCNView) {
         sceneView.session.getCurrentWorldMap { worldMap, error in
@@ -78,7 +79,9 @@ class WorldManager: ObservableObject {
                 isNew = false
                 self.savedWorlds[index].lastModified = timestamp
             } else {
-                self.savedWorlds.append(WorldModel(name: roomName, lastModified: timestamp))
+                var newWorld = WorldModel(name: roomName, lastModified: timestamp)
+                newWorld.cloudRecordID = UUID().uuidString
+                self.savedWorlds.append(newWorld)
             }
             
             let filePath = WorldModel.appSupportDirectory.appendingPathComponent("\(roomName)_worldMap")
@@ -120,6 +123,7 @@ class WorldManager: ObservableObject {
             }
         }
     }
+    
     // MARK: - Load World Map
     func loadWorldMap(for roomName: String, sceneView: ARSCNView) {
         print("Attempting to load world map for room: \(roomName)")
@@ -128,6 +132,7 @@ class WorldManager: ObservableObject {
             isShowingARGuide = true
             return
         }
+       
         let filePath = world.filePath
         print("Loading from file: \(filePath)")
         guard FileManager.default.fileExists(atPath: filePath.path) else {
@@ -185,21 +190,38 @@ class WorldManager: ObservableObject {
         }
     }
     
-    private let metadataRecordType = "WorldMetadata"
 
     func syncLocalWorldsToCloudKit(roomName: String) {
         let privateDB = CKContainer.default().privateCloudDatabase
         var recordsToSave: [CKRecord] = []
         
         for world in savedWorlds {
+            // Only sync if the world matches the given roomName (same as your existing code).
             if world.name == roomName {
                 
+                // 1) Ensure we have a stable metadataRecordID
+                if world.metadataRecordID == nil {
+                    // Create a unique ID for the metadata record.
+                    // e.g. "metadata-<UUID>"
+                    let newMetadataID = "metadata-\(UUID().uuidString)"
+                    
+                    // or just UUID().uuidString – up to you
+                    if let index = savedWorlds.firstIndex(where: { $0.name == world.name }) {
+                        savedWorlds[index].metadataRecordID = newMetadataID
+                        saveWorldList()
+                    }
+                }
                 
-                // Create a stable recordID for each world
-                let recordID = CKRecord.ID(recordName: "metadata-\(world.name)")
+                // 2) Build the record ID from the stable metadataRecordID
+                guard let metaIDString = world.metadataRecordID else {
+                    // If it's STILL nil, skip or handle the error gracefully
+                    print("❌ metadataRecordID is still nil for world: \(world.name)")
+                    continue
+                }
+                let recordID = CKRecord.ID(recordName: metaIDString)
+                
+                // 3) Create or update the 'WorldMetadata' record
                 let record = CKRecord(recordType: metadataRecordType, recordID: recordID)
-                
-                // Map WorldModel fields to CKRecord fields
                 record["roomName"] = world.name as CKRecordValue
                 record["pin"] = world.pin as CKRecordValue?
                 record["cloudRecordID"] = world.cloudRecordID as CKRecordValue?
@@ -210,18 +232,20 @@ class WorldManager: ObservableObject {
             }
         }
         
+        // If no matching worlds => nothing to do
+        guard !recordsToSave.isEmpty else { return }
+        
         let operation = CKModifyRecordsOperation(recordsToSave: recordsToSave, recordIDsToDelete: nil)
         operation.savePolicy = .allKeys
         operation.modifyRecordsCompletionBlock = { saved, deleted, error in
             if let error = error {
                 print("❌ Error syncing worlds to CloudKit: \(error.localizedDescription)")
             } else {
-                print("✅ Successfully synced \(saved?.count ?? 0) worlds to CloudKit.")
+                print("✅ Successfully synced \(saved?.count ?? 0) metadata record(s) to CloudKit.")
             }
         }
         privateDB.add(operation)
     }
-    
     // MARK: - Load Saved Worlds
     func loadSavedWorlds(completion: @escaping () -> Void) {
         let fileURL = WorldModel.appSupportDirectory.appendingPathComponent("worldsList.json")
@@ -402,41 +426,60 @@ class WorldManager: ObservableObject {
     }
     
     // MARK: - Delete World
-    func deleteWorld(roomName: String, completion: (() -> Void)? = nil) {
+    func deleteWorld(roomName: String, publicName: String, completion: (() -> Void)? = nil) {
+        // 1. Locate the world model locally.
         guard let index = savedWorlds.firstIndex(where: { $0.name == roomName }) else {
             print("No world found with name \(roomName)")
             completion?()
             return
         }
         let world = savedWorlds[index]
+        
+        // 2. Delete the local world map file.
         let filePath = world.filePath
-        if FileManager.default.fileExists(atPath: filePath.path) {
-            do {
+        do {
+            if FileManager.default.fileExists(atPath: filePath.path) {
                 try FileManager.default.removeItem(at: filePath)
                 print("Local world file for \(roomName) deleted.")
-                let uniqueIdentifier = "com.parthant.AR-spotit.\(world.name)"
-                CSSearchableIndex.default().deleteSearchableItems(withIdentifiers: [uniqueIdentifier]) { error in
-                    if let error = error {
-                        print("Error deleting world from Spotlight index: \(error.localizedDescription)")
-                    } else {
-                        print("Successfully removed \(roomName) from Spotlight index.")
-                    }
-                }
-                DispatchQueue.main.async {
-                    self.cachedAnchorNames[roomName] = nil
-                    completion?()
-                }
-            } catch {
-                print("Error deleting local world file: \(error.localizedDescription)")
+            }
+            // Optionally, delete the associated snapshot if it exists.
+            let snapshotPath = WorldModel.appSupportDirectory.appendingPathComponent("\(roomName)_snapshot.png")
+            if FileManager.default.fileExists(atPath: snapshotPath.path) {
+                try FileManager.default.removeItem(at: snapshotPath)
+                print("Local snapshot for \(roomName) deleted.")
+            }
+        } catch {
+            print("Error deleting local files for \(roomName): \(error.localizedDescription)")
+        }
+        
+        // 3. Remove the world from the Spotlight index.
+        let uniqueIdentifier = "com.parthant.AR-spotit.\(world.name)"
+        CSSearchableIndex.default().deleteSearchableItems(withIdentifiers: [uniqueIdentifier]) { error in
+            if let error = error {
+                print("Error deleting world from Spotlight index: \(error.localizedDescription)")
+            } else {
+                print("Successfully removed \(roomName) from Spotlight index.")
             }
         }
+        
+        // 4. Clear any cached anchor names for this room.
+        DispatchQueue.main.async {
+            self.cachedAnchorNames[roomName] = nil
+        }
+        
+        // 5. Remove the world from the local saved list and update storage.
         savedWorlds.remove(at: index)
         saveWorldList()
-        iCloudManager.deleteWorld(roomName: roomName) { error in
+        
+        // 6. Delete all CloudKit records for the world, including public records, custom-zone records, and metadata.
+        iCloudManager.deleteWorld(roomName: roomName, publicName: publicName) { error in
             if let error = error {
                 print("Error deleting world from CloudKit: \(error.localizedDescription)")
             } else {
                 print("Deleted world \(roomName) from CloudKit.")
+            }
+            DispatchQueue.main.async {
+                completion?()
             }
         }
     }
@@ -540,6 +583,7 @@ class WorldManager: ObservableObject {
             print("Error preparing file for sharing: \(error.localizedDescription)")
         }
     }
+    
     // MARK: - Check And Sync If Newer
     func checkAndSyncIfNewer(for roomName: String, completion: @escaping () -> Void) {
         guard let localWorld = savedWorlds.first(where: { $0.name == roomName }) else {
@@ -590,7 +634,6 @@ class WorldManager: ObservableObject {
         }
     }
     //MARK: Share iCloud Link
-    // In WorldManager.swift
     func shareWorldViaCloudKit(roomName: String, pin: String) {
         // Create the iCloud collaboration link.
         iCloudManager.createCollabLink(for: roomName, with: pin) { shareURL in
@@ -665,73 +708,7 @@ class WorldManager: ObservableObject {
             }
         }
     }
-//    func shareWorldViaCloudKit(roomName: String, pin: String) {
-//        // Call the new collaboration function in iCloudManager to migrate and create a share.
-//        iCloudManager.createCollabLink(for: roomName, with: pin) { shareURL in
-//            guard let shareURL = shareURL else {
-//                print("Failed to create collaboration share link for room: \(roomName)")
-//                AppState.shared.isCreatingLink = false
-//
-//                return
-//            }
-//            // Update local state for collaboration.
-//            self.fetchWorldRecord(for: roomName) { record in
-//                if let record = record {
-//                    self.startCollaborativeSession(with: record, roomName: roomName)
-//                    if let index = self.savedWorlds.firstIndex(where: { $0.name == roomName }) {
-//                        DispatchQueue.main.async {
-//                            self.savedWorlds[index].cloudRecordID = record.recordID.recordName
-//                            self.savedWorlds[index].isCollaborative = true
-//                            if self.savedWorlds[index].pin == nil {
-//                                self.savedWorlds[index].pin = pin
-//                            }
-//                            self.saveWorldList()
-//                            self.syncLocalWorldsToCloudKit(roomName: roomName)
-//                            
-//                        }
-//                        print("Collaborative info updated for room: \(roomName)")
-//                    } else {
-//                        print("Saved world for \(roomName) not found.")
-//                    }
-//                } else {
-//                    print("World record for \(roomName) not found.")
-//                }
-//            }
-//            
-//            AppState.shared.isCreatingLink = false
-//            // Present the share link using an activity controller.
-//            DispatchQueue.main.async {
-//                let activityController = UIActivityViewController(activityItems: [shareURL], applicationActivities: nil)
-//                
-//                if let popoverController = activityController.popoverPresentationController,
-//                   let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-//                   let rootViewController = windowScene.windows.first?.rootViewController,
-//                   let baseView = rootViewController.view {  // <-- Unwrap the optional here
-//
-//                    popoverController.sourceView = baseView
-//                    popoverController.sourceRect = CGRect(
-//                        x: baseView.bounds.midX,
-//                        y: baseView.bounds.midY,
-//                        width: 0,
-//                        height: 0
-//                    )
-//                    popoverController.permittedArrowDirections = []
-//                }
-//                
-//                
-//                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-//                   let rootViewController = windowScene.windows.first?.rootViewController {
-//                    if let presentedVC = rootViewController.presentedViewController {
-//                        presentedVC.dismiss(animated: false) {
-//                            rootViewController.present(activityController, animated: true, completion: nil)
-//                        }
-//                    } else {
-//                        rootViewController.present(activityController, animated: true, completion: nil)
-//                    }
-//                }
-//            }
-//        }
-//    }    //MARK: Fetch names from cloudKit
+   //MARK: Fetch names from cloudKit
     func fetchWorldNamesFromCloudKit(completion: @escaping () -> Void) {
         let privateDB = CKContainer.default().privateCloudDatabase
         let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))

@@ -152,14 +152,14 @@ extension ARViewContainer.Coordinator {
                 if publicRecord == nil {
                     
                     
-                    CKContainer.default().publicCloudDatabase.fetch(withRecordID: CKRecord.ID(recordName: parent.recordID)) { record, error in
+                    CKContainer.default().publicCloudDatabase.fetch(withRecordID: CKRecord.ID(recordName: parent.recordName)) { record, error in
                         if let error = error {
                             print("Error fetching world record from public DB: \(error.localizedDescription)")
                             return
                         }
                         guard let pRecord = record else {
                             
-                            print("No world record found for recordID: \(self.parent.recordID)")
+                            print("No world record found for recordID: \(self.parent.recordName)")
                             return
                         }
                         
@@ -282,14 +282,13 @@ extension ARViewContainer.Coordinator {
         return newName
     }
     
-    
     //MARK: Add new Anchors from public database
     func addNewAnchorsFromPublicDatabase() {
         var uniqueRecords = 0
         if let world = worldManager.savedWorlds.first(where: { $0.name == parent.roomName }), world.isCollaborative,
-           let publicRecordID = world.cloudRecordID {
-            let recordID = CKRecord.ID(recordName: publicRecordID)
-            iCloudManager.shared.fetchNewAnchors(for: recordID) { records in
+           let recordName = world.publicRecordName {
+          
+            iCloudManager.shared.fetchNewAnchors(for: recordName) { records in
                 DispatchQueue.main.async {
                     for record in records {
 

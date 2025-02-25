@@ -26,7 +26,7 @@ struct ARViewContainer: UIViewRepresentable {
     @Binding var distanceForUI: Double
      var roomName: String
     @Binding var isCollab: Bool
-    @Binding var recordID: String
+    @Binding var recordName: String
     @Binding var isCameraPointingDown: Bool
 
     var onCoordinatorMade: ((Coordinator) -> Void)?
@@ -337,7 +337,7 @@ struct ARViewContainer: UIViewRepresentable {
                      if currentTime.timeIntervalSince(lastAnchorFetchTime) > 10.0 {
                          lastAnchorFetchTime = currentTime
                          if let worldRecord = WorldManager.shared.currentWorldRecord {
-                             iCloudManager.shared.fetchNewAnchors(for: worldRecord.recordID) { records in
+                             iCloudManager.shared.fetchNewAnchors(for: AppState.shared.publicRecordName) { records in
                                  DispatchQueue.main.async {
                                      for record in records {
                                          if let transformData = record["transform"] as? Data {
@@ -447,33 +447,11 @@ struct ARViewContainer: UIViewRepresentable {
                 playDub()
                 nextPulseTime = Date().addingTimeInterval(interval)
             }
-            
-            if parent.shouldPlay {
-                if !isAudioPlaying {
-                    isAudioPlaying = true
-                    parent.setupAudio()
-                }
-                
-                updateAudioPan(with: smoothedAngle)
-                
-                
-                // Adjust volume based on distance
-                parent.audioPlayer.volume = max(0.1, 1.0 - Float(distance) / 10.0)
-                //
-            } else {
-                if isAudioPlaying {
-                    isAudioPlaying = false
-                    DispatchQueue.global(qos: .background).async {
-                        self.parent.stopAudio()
-                    }
-                }
-            }
+ 
              guard anchorNodes[anchor.name ?? ""] != nil else {
                 return
             }
-            //            DispatchQueue.main.async {
-            //                self.addJumpingAnimation(to: node, basedOn: clampedDistance)
-            //            }
+        
             
             //MARK: 3DArrow handling
             DispatchQueue.main.async {
@@ -665,15 +643,20 @@ struct ARViewContainer: UIViewRepresentable {
                     } else {
                         if publicRecord == nil {
                             
+                            let recordName = parent.recordName
+                              guard !recordName.isEmpty else {
+                                  print("No known publicRecordName. Cannot fetch from public DB.")
+                                  return
+                              }
                             
-                            CKContainer.default().publicCloudDatabase.fetch(withRecordID: CKRecord.ID(recordName: parent.recordID)) { record, error in
+                            CKContainer.default().publicCloudDatabase.fetch(withRecordID: CKRecord.ID(recordName: parent.recordName)) { record, error in
                                 if let error = error {
                                     print("Error fetching world record from public DB: \(error.localizedDescription)")
                                     return
                                 }
                                 guard let pRecord = record else {
                                     
-                                    print("No world record found for recordID: \(self.parent.recordID)")
+                                    print("No world record found for recordID: \(self.parent.recordName)")
                                     return
                                 }
                                 
@@ -778,7 +761,7 @@ struct ARViewContainer: UIViewRepresentable {
                         let newAnchor = ARAnchor(name: tempAnchor.name ?? "defaultAnchor", transform: result.worldTransform)
 //                        sceneView.session.add(anchor: newAnchor)
                         
-                        addNewAnchor(anchor: newAnchor, recId: parent.recordID)
+                        addNewAnchor(anchor: newAnchor, recId: parent.recordName)
                         parent.tempAnchor = nil
                         let drop = Drop.init(title: "\(tempAnchor.name ?? "") moved")
                         Drops.show(drop)

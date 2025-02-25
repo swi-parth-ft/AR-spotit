@@ -6,10 +6,11 @@
 //
 
 import SwiftUI
+import Drops
 
 
 extension WorldManager {
-    func renameWorld(currentName: String, newName: String, completion: (() -> Void)? = nil) {
+    func renameWorld(currentName: String, newName: String, publicName: String, completion: (() -> Void)? = nil) {
         // Ensure new name is not empty
         guard !newName.isEmpty else {
             print("❌ New name cannot be empty.")
@@ -29,7 +30,7 @@ extension WorldManager {
         // Try to load world map data from local storage first
         do {
             let data = try Data(contentsOf: oldFilePath)
-            renameAndSaveWorld(data: data, currentName: currentName, newName: newName, completion: completion)
+            renameAndSaveWorld(data: data, currentName: currentName, newName: newName, publicName: publicName, completion: completion)
             completion?()
             return
         } catch {
@@ -50,11 +51,12 @@ extension WorldManager {
             }
             
             // Now we have the actual container data from CloudKit
-            self.renameAndSaveWorld(data: data, currentName: currentName, newName: newName, completion: completion)
+            self.renameAndSaveWorld(data: data, currentName: currentName, newName: newName, publicName: publicName, completion: completion)
         }
     }
     
-    private func renameAndSaveWorld(data: Data, currentName: String, newName: String, completion: (() -> Void)?) {
+    private func renameAndSaveWorld(data: Data, currentName: String, newName: String, publicName: String, completion: (() -> Void)?) {
+        print("renaming with public name: \(publicName)")
         saveImportedWorld(data: data, worldName: newName)
         // 2) Rename the snapshot file, if it exists
            let oldSnapshotURL = WorldModel.appSupportDirectory
@@ -72,15 +74,25 @@ extension WorldManager {
            } else {
                print("No existing snapshot found for \(currentName).")
            }
-        
-        deleteWorld(roomName: currentName) {
-            print("✅ Renamed \(currentName) to \(newName) successfully.")
+  
+        deleteWorld(roomName: currentName, publicName: publicName) {
             
+         
+            print("✅ Renamed \(currentName) to \(newName) successfully.")
+          
+                
             
             DispatchQueue.main.async {
                 self.reload.toggle()
+                AppState.shared.isWorldUpdated.toggle() // Notify WorldsView
+
                 
             }
+            
+            HapticManager.shared.notification(type: .success)
+
+            let drop = Drop.init(title: "Renamed \(currentName) to \(newName)")
+            Drops.show(drop)
             
             completion?()
         }

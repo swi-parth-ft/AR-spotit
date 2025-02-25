@@ -17,6 +17,7 @@ struct renameWorldView: View {
     @FocusState private var isTextFieldFocused: Bool
     var showWarning: Bool = false
     var newAnchors: Int = 0
+    var publicName: String
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading) {
@@ -74,15 +75,9 @@ struct renameWorldView: View {
                                 isTextFieldFocused = true
                             }
                 Button {
-                    worldManager.renameWorld(currentName: worldName, newName: newName) {
+                    worldManager.renameWorld(currentName: worldName, newName: newName, publicName: publicName) {
                         
-                        DispatchQueue.main.async {
-                                AppState.shared.isWorldUpdated.toggle() // Notify WorldsView
-                            }// Notify WorldsView
-                        HapticManager.shared.notification(type: .success)
-
-                        let drop = Drop.init(title: "Renamed \(worldName) to \(newName)")
-                        Drops.show(drop)
+                    
                         dismiss()
                                
                     }
