@@ -329,7 +329,9 @@ struct AnchorsListView: View {
 
                            } label: {
                                Image(systemName: "link.circle.fill")
-                                   .foregroundColor(.blue)
+                                   .symbolRenderingMode(.palette)
+                                   .foregroundStyle(.white, .blue)
+                                   .font(.headline)
                                    .symbolEffect(.breathe)
                            }
 //                           .popover(isPresented: $showPinPopover) {
@@ -504,7 +506,9 @@ struct AnchorsListView: View {
                     if !newAnchors.isEmpty {
                         Drawer {
                             ZStack {
-                                VisualEffectBlur(blurStyle: .systemThinMaterial)
+                                VisualEffectBlur(blurStyle: .systemUltraThinMaterial)
+                                    .shadow(color: colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.4), radius: 10)
+
                                 VStack {
                                     RoundedRectangle(cornerRadius: 3.0)
                                         .foregroundColor(.gray)
@@ -546,6 +550,7 @@ struct AnchorsListView: View {
                                     Spacer()
                                 }
                             }
+
                         }
                         .rest(at: .constant([50, 340, 600]))
                         .impact(.light)

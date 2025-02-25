@@ -11,6 +11,7 @@ import CloudKit
 
 class AppState: ObservableObject {
     static let shared = AppState()
+    @Published var pendingShare: CKShare?
     @Published var isWorldUpdated: Bool = false
     @Published var isiCloudShare: Bool = false
     @Published var publicRecordName: String = ""

@@ -478,8 +478,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "118"
-            endingLineNumber = "118"
+            startingLineNumber = "120"
+            endingLineNumber = "120"
             landmarkName = "saveWorldMap(for:sceneView:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -558,8 +558,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "310"
-            endingLineNumber = "310"
+            startingLineNumber = "314"
+            endingLineNumber = "314"
             landmarkName = "fetchWorldMetadataFromCloudKit(completion:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -574,8 +574,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "325"
-            endingLineNumber = "325"
+            startingLineNumber = "329"
+            endingLineNumber = "329"
             landmarkName = "fetchWorldMetadataFromCloudKit(completion:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -590,8 +590,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "366"
-            endingLineNumber = "366"
+            startingLineNumber = "370"
+            endingLineNumber = "370"
             landmarkName = "mergeCloudKitWorlds(_:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -606,8 +606,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "358"
-            endingLineNumber = "358"
+            startingLineNumber = "362"
+            endingLineNumber = "362"
             landmarkName = "mergeCloudKitWorlds(_:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -830,8 +830,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "266"
-            endingLineNumber = "266"
+            startingLineNumber = "268"
+            endingLineNumber = "268"
             landmarkName = "loadSavedWorlds(completion:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -846,8 +846,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "286"
-            endingLineNumber = "286"
+            startingLineNumber = "288"
+            endingLineNumber = "288"
             landmarkName = "loadSavedWorlds(completion:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -862,8 +862,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "269"
-            endingLineNumber = "269"
+            startingLineNumber = "271"
+            endingLineNumber = "271"
             landmarkName = "loadSavedWorlds(completion:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -878,8 +878,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "258"
-            endingLineNumber = "258"
+            startingLineNumber = "260"
+            endingLineNumber = "260"
             landmarkName = "loadSavedWorlds(completion:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -974,8 +974,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "250"
-            endingLineNumber = "250"
+            startingLineNumber = "252"
+            endingLineNumber = "252"
             landmarkName = "loadSavedWorlds(completion:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -990,13 +990,13 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "610"
-            endingLineNumber = "610"
+            startingLineNumber = "614"
+            endingLineNumber = "614"
             landmarkName = "loadSavedWorldsAsync()"
             landmarkType = "7">
             <Locations>
                <Location
-                  uuid = "082AA109-1787-47A5-BB09-13465B5C3E9C - b4e75d77b4f94f5c"
+                  uuid = "082AA109-1787-47A5-BB09-13465B5C3E9C - b4e75d77b4f948d8"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -1006,11 +1006,11 @@
                   urlString = "file:///Users/parthantala/Desktop/Swift/spot%20it/AR%20spotit%20copy%202/AR%20spotit/Manager/WorldManager/WorldManager.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "610"
-                  endingLineNumber = "610">
+                  startingLineNumber = "614"
+                  endingLineNumber = "614">
                </Location>
                <Location
-                  uuid = "082AA109-1787-47A5-BB09-13465B5C3E9C - 94773ada1fcd419d"
+                  uuid = "082AA109-1787-47A5-BB09-13465B5C3E9C - 94773ada1fcd4619"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -1020,8 +1020,8 @@
                   urlString = "file:///Users/parthantala/Desktop/Swift/spot%20it/AR%20spotit%20copy%202/AR%20spotit/Manager/WorldManager/WorldManager.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "610"
-                  endingLineNumber = "610">
+                  startingLineNumber = "614"
+                  endingLineNumber = "614">
                </Location>
             </Locations>
          </BreakpointContent>
@@ -1036,8 +1036,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "613"
-            endingLineNumber = "613"
+            startingLineNumber = "617"
+            endingLineNumber = "617"
             landmarkName = "loadSavedWorldsAsync()"
             landmarkType = "7">
          </BreakpointContent>
@@ -1052,13 +1052,13 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "612"
-            endingLineNumber = "612"
+            startingLineNumber = "616"
+            endingLineNumber = "616"
             landmarkName = "loadSavedWorldsAsync()"
             landmarkType = "7">
             <Locations>
                <Location
-                  uuid = "EB175C1A-3417-4D09-8ADF-6F94C8312794 - 5adf6f82d2a256d1"
+                  uuid = "EB175C1A-3417-4D09-8ADF-6F94C8312794 - 5adf6f82d2a2514d"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -1068,11 +1068,11 @@
                   urlString = "file:///Users/parthantala/Desktop/Swift/spot%20it/AR%20spotit%20copy%202/AR%20spotit/Manager/WorldManager/WorldManager.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "612"
-                  endingLineNumber = "612">
+                  startingLineNumber = "616"
+                  endingLineNumber = "616">
                </Location>
                <Location
-                  uuid = "EB175C1A-3417-4D09-8ADF-6F94C8312794 - 1cffa79db1098338"
+                  uuid = "EB175C1A-3417-4D09-8ADF-6F94C8312794 - 1cffa79db10983a4"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -1082,8 +1082,8 @@
                   urlString = "file:///Users/parthantala/Desktop/Swift/spot%20it/AR%20spotit%20copy%202/AR%20spotit/Manager/WorldManager/WorldManager.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "613"
-                  endingLineNumber = "613">
+                  startingLineNumber = "617"
+                  endingLineNumber = "617">
                </Location>
             </Locations>
          </BreakpointContent>
@@ -1162,8 +1162,8 @@
             filePath = "AR spotit/View/ContentView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "136"
-            endingLineNumber = "136"
+            startingLineNumber = "134"
+            endingLineNumber = "134"
             landmarkName = "body"
             landmarkType = "24">
          </BreakpointContent>
@@ -1172,6 +1172,22 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "3B3585F2-0309-4700-A72E-B9F4E20833D3"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "AR spotit/View/ContentView.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "133"
+            endingLineNumber = "133"
+            landmarkName = "body"
+            landmarkType = "24">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "A795BE72-1828-4313-8BD0-E90ABAB84E09"
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
@@ -1187,32 +1203,32 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "A795BE72-1828-4313-8BD0-E90ABAB84E09"
+            uuid = "C7B22A59-6B6B-4C08-A2D7-A91DE04C9EC2"
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "AR spotit/View/ContentView.swift"
+            filePath = "AR spotit/Manager/WorldManager/SharedLinksManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "137"
-            endingLineNumber = "137"
-            landmarkName = "body"
-            landmarkType = "24">
+            startingLineNumber = "133"
+            endingLineNumber = "133"
+            landmarkName = "processIncomingSharedRecord(_:withShare:)"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "E67C8F95-DFCF-4797-A2EB-1523D3578AA4"
+            uuid = "5048E57A-15F2-4A66-A154-DA78C52F866E"
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "AR spotit/View/ContentView.swift"
+            filePath = "AR spotit/Manager/WorldManager/SharedLinksManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "656"
-            endingLineNumber = "656"
-            landmarkName = "playItshereMP3(sound:withAngle:)"
+            startingLineNumber = "54"
+            endingLineNumber = "54"
+            landmarkName = "addSharedLink(_:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

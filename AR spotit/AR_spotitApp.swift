@@ -410,7 +410,7 @@ private extension AR_spotitApp {
             }
             if let sharedRecord = share.value(forKey: "rootRecord") as? CKRecord {
                 print("Fetched sharedRecord from share: \(sharedRecord.recordID)")
-                self.processSharedRecord(sharedRecord, withShare: share)
+                WorldManager.shared.processIncomingSharedRecord(sharedRecord, withShare: share)
             } else {
                 let rootRecordID = metadata.rootRecordID
                 print("No rootRecord in share; fetching using rootRecordID: \(rootRecordID)")
@@ -419,7 +419,8 @@ private extension AR_spotitApp {
                         print("Error fetching root record: \(fetchError.localizedDescription)")
                     } else if let fetchedRecord = fetchedRecord {
                         print("Fetched root record via fetch: \(fetchedRecord.recordID)")
-                        self.processSharedRecord(fetchedRecord, withShare: share)
+//                        self.processSharedRecord(fetchedRecord, withShare: share)
+                        WorldManager.shared.processIncomingSharedRecord(fetchedRecord, withShare: share)
                     }
                 }
             }
@@ -458,7 +459,7 @@ private extension AR_spotitApp {
                 }
                 if let sharedRecord = share.value(forKey: "rootRecord") as? CKRecord {
                     print("Fetched sharedRecord from share: \(sharedRecord.recordID)")
-                    self.processSharedRecord(sharedRecord, withShare: share)
+                    WorldManager.shared.processIncomingSharedRecord(sharedRecord, withShare: share)
                 } else {
                     let rootRecordID = metadata.rootRecordID
                     print("No rootRecord in share; fetching using rootRecordID: \(rootRecordID)")

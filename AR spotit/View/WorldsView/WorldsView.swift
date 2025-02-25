@@ -1,4 +1,5 @@
 import SwiftUI
+import Drawer
 import CloudKit
 import Drops
 import AppIntents
@@ -7,7 +8,7 @@ import MobileCoreServices
 
 struct WorldsView: View {
     // MARK: - State Variables
-    @StateObject var worldManager = WorldManager()
+    @StateObject var worldManager = WorldManager.shared
     @State private var selectedWorld: WorldModel? // For fullScreen navigation to ContentView
     @State private var anchorsByWorld: [String: [String]] = [:]
     let columns = [
@@ -134,6 +135,9 @@ struct WorldsView: View {
                             }
                             .frame(height: UIScreen.main.bounds.height * 0.7)
                         }
+                        
+                        
+                       
                         
                         ForEach(filteredWorlds) { world in
                             VStack(alignment: .leading) {
@@ -361,7 +365,7 @@ struct WorldsView: View {
                         }
                     }
                 }) { world in
-                    ContentView(
+                    AugmentedView(
                         currentRoomName: world.name,
                         directLoading: true,
                         findAnchor: $findingAnchorName,
@@ -476,6 +480,101 @@ struct WorldsView: View {
                         .padding()
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                
+                VStack {
+                    Spacer()
+                    if !worldManager.sharedLinks.isEmpty {
+                        Drawer {
+                            
+                            ZStack {
+                                VisualEffectBlur(blurStyle: .systemUltraThinMaterial)
+                                    .shadow(color: colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.4), radius: 10)
+
+                                VStack {
+                                    RoundedRectangle(cornerRadius: 3.0)
+                                        .foregroundColor(.gray)
+                                        .frame(width: 30.0, height: 6.0)
+                                        .padding()
+                                    
+                                    HStack {
+                                        Text("Shared With You")
+                                            .font(.system(.title2, design: .rounded))
+                                            .bold()
+                                        
+                                        Image(systemName: "shared.with.you")
+                                            .font(.system(.title3, design: .rounded))
+                                            .foregroundStyle(.blue)
+                                            .bold()
+                                            .symbolEffect(.pulse)
+                                            .shadow(color: .blue.opacity(0.8), radius: 10)
+
+
+                                    }
+                                    
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack {
+                                            ForEach(worldManager.sharedLinks) { sharedLink in
+                                                HStack(alignment: .top) {
+                                                    // Display the snapshot preview image (if available)
+                                                    if let snapshotURL = sharedLink.snapshotURL,
+                                                       let imageData = try? Data(contentsOf: snapshotURL),
+                                                       let image = UIImage(data: imageData) {
+                                                        Image(uiImage: image)
+                                                            .resizable()
+                                                            .frame(width: 50, height: 50)
+                                                            .cornerRadius(8)
+                                                            .conditionalModifier(colorScheme != .dark) { view in
+                                                                view.colorInvert()
+                                                            }
+                                                            .shadow(color: colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.4), radius: 5)
+                                                    } else {
+                                                        Image(systemName: "photo")
+                                                            .resizable()
+                                                            .frame(width: 80, height: 80)
+                                                            .cornerRadius(8)
+                                                    }
+                                                    VStack(alignment: .leading) {
+                                                        Text(sharedLink.roomName)
+                                                            .font(.system(.headline, design: .rounded))
+                                                            .lineLimit(1)
+                                                        Text("By: \(sharedLink.ownerName)")
+                                                            .font(.subheadline)
+                                                            .foregroundColor(.secondary)
+                                                            .lineLimit(1)
+                                                    }
+                                                }
+                                                .padding(7)
+                                                .contentShape(Rectangle())
+                                                .onTapGesture {
+                                                    // Open the shared link session when tapped.
+                                                    worldManager.openSharedLink(sharedLink)
+                                                }
+                                                .contextMenu {
+                                                    Button(role: .destructive) {
+                                                        worldManager.deleteSharedLink(sharedLink)
+                                                    } label: {
+                                                        HStack {
+                                                            Text("Delete")
+                                                                .foregroundColor(.red)
+                                                            Image(systemName: "trash.fill")
+                                                                .foregroundStyle(.red)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        .padding(.horizontal)
+                                    }
+                                    .padding(.top)
+
+                                    Spacer()
+                                }
+                            }
+                        }
+                        .rest(at: .constant([60, 150]))
+                        .impact(.light)
+                    }
                 }
             }
         }

@@ -10,7 +10,7 @@ import SwiftUI
 import AnimateText
 
 struct PhysicsDotsAnimationView: View {
-   
+    
     @State private var text: String = ""
     var body: some View {
         ZStack {
@@ -18,7 +18,8 @@ struct PhysicsDotsAnimationView: View {
             Color.primary.colorInvert()
             
             VStack {
-                AnimateText<ATOffsetEffect>($text)                                               .font(.system(size: 70, design: .rounded))
+                AnimateText<ATOffsetEffect>($text)
+                    .font(.system(size: 70, design: .rounded))
                     .bold()
                 
             }
@@ -29,7 +30,7 @@ struct PhysicsDotsAnimationView: View {
         .ignoresSafeArea()
     }
     
-
+    
 }
 
 struct PhysicsDotsAnimationView_Previews: PreviewProvider {

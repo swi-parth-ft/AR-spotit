@@ -48,6 +48,8 @@ class WorldManager: ObservableObject {
     @Published var isWorldLoaded = false
     @Published var isShowingARGuide = false
     @Published var is3DArrowActive = false
+    @Published var sharedLinks: [SharedLinkModel] = []
+
     private let metadataRecordType = "WorldMetadata"
 
     init() { }
@@ -294,6 +296,8 @@ class WorldManager: ObservableObject {
             }
             
         }
+        
+        loadSharedLinks()
     }
     
     func fetchWorldMetadataFromCloudKit(completion: @escaping () -> Void) {
