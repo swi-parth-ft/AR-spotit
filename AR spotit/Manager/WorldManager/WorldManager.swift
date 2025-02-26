@@ -49,6 +49,7 @@ class WorldManager: ObservableObject {
     @Published var isShowingARGuide = false
     @Published var is3DArrowActive = false
     @Published var sharedLinks: [SharedLinkModel] = []
+    @Published var shouldDeletePublicAnchors: Bool = false
 
     private let metadataRecordType = "WorldMetadata"
 
@@ -77,9 +78,11 @@ class WorldManager: ObservableObject {
             guard let map = worldMap else { return }
             let timestamp = Date()
             var isNew = true
+            var publicName = ""
             if let index = self.savedWorlds.firstIndex(where: { $0.name == roomName }) {
                 isNew = false
                 self.savedWorlds[index].lastModified = timestamp
+                publicName = self.savedWorlds[index].publicRecordName ?? ""
             } else {
                 var newWorld = WorldModel(name: roomName, lastModified: timestamp)
                 newWorld.cloudRecordID = UUID().uuidString
@@ -119,6 +122,14 @@ class WorldManager: ObservableObject {
                 self.saveWorldList()
                 self.iCloudManager.uploadWorldMap(roomName: roomName, data: containerData, lastModified: timestamp) {
                     print("Synced \(roomName) to CloudKit.")
+                    
+                    if self.shouldDeletePublicAnchors {
+                       
+                        self.deleteAllAnchorsForPublicRecord(publicRecordName: publicName) { _ in
+                            self.shouldDeletePublicAnchors = false
+                            }
+                        
+                    }
                 }
             } catch {
                 print("Error saving container for \(roomName): \(error.localizedDescription)")
@@ -813,6 +824,59 @@ class WorldManager: ObservableObject {
             Drops.show(drop)
         }
     }
+    
+    func deleteAllAnchorsForPublicRecord(publicRecordName: String, completion: @escaping (Error?) -> Void) {
+        let publicDB = CKContainer.default().publicCloudDatabase
+        let parentRecordID = CKRecord.ID(recordName: publicRecordName)
+        
+        // The fieldName ("worldReference") should match the reference field in your "Anchor" records
+        let parentReference = CKRecord.Reference(recordID: parentRecordID, action: .none)
+        let predicate = NSPredicate(format: "worldReference == %@", parentReference)
+        let query = CKQuery(recordType: "Anchor", predicate: predicate)
+        
+        var anchorsToDelete: [CKRecord.ID] = []
+        let queryOp = CKQueryOperation(query: query)
+        
+        queryOp.recordFetchedBlock = { record in
+            anchorsToDelete.append(record.recordID)
+        }
+        
+        queryOp.queryCompletionBlock = { cursor, error in
+            if let error = error {
+                // If the query fails, pass the error back and stop.
+                print("❌ Error querying anchors: \(error.localizedDescription)")
+                completion(error)
+                return
+            }
+            
+            // If we have more results (cursor != nil), you'd typically
+            // continue the query with another CKQueryOperation here.
+            // For simplicity, this sample handles only a single batch.
+            
+            guard !anchorsToDelete.isEmpty else {
+                print("ℹ️ No anchors found for public record '\(publicRecordName)'. Nothing to delete.")
+                completion(nil)
+                return
+            }
+            
+            // Now delete all the anchor records that reference this world
+            let deleteOp = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: anchorsToDelete)
+            deleteOp.modifyRecordsCompletionBlock = { _, deletedIDs, deleteError in
+                if let deleteError = deleteError {
+                    print("❌ Error deleting anchors: \(deleteError.localizedDescription)")
+                    completion(deleteError)
+                } else {
+                    print("✅ Successfully deleted \(deletedIDs?.count ?? 0) anchor(s) for public record '\(publicRecordName)'.")
+                    completion(nil)
+                }
+            }
+            
+            publicDB.add(deleteOp)
+        }
+        
+        publicDB.add(queryOp)
+    }
+
 
 }
 

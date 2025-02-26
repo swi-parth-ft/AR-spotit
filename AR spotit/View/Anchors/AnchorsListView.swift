@@ -12,7 +12,7 @@ import Drawer
 
 struct AnchorsListView: View {
     
-    @ObservedObject var worldManager: WorldManager
+    @StateObject var worldManager = WorldManager.shared
 
     @State private var anchorsByWorld: [String: [String]] = [:] // Track anchors for each world
     @Binding var worldName: String
@@ -217,7 +217,7 @@ struct AnchorsListView: View {
                 }
                 .onAppear {
                     // Fetch anchors for this specific world
-                    worldManager.loadSavedWorlds {
+                  //  worldManager.loadSavedWorlds {
                         
                         currentWorld = worldManager.savedWorlds.first { $0.name == worldName }
                         worldManager.getAnchorNames(for: worldName) { fetchedAnchors in
@@ -247,7 +247,7 @@ struct AnchorsListView: View {
                                    }
                                }
                            }
-                    }
+                    //}
                     
                     print(worldName)
 
@@ -515,13 +515,41 @@ struct AnchorsListView: View {
                                         .frame(width: 30.0, height: 6.0)
                                         .padding()
                                     HStack {
-                                        Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90")
-                                            .foregroundStyle(.blue)
-                                        Text("Newly added items, open AR to integrate")
-                                            .font(.system(.headline, design: .rounded))
+                                       
+                                        Text("Newly added items")
+                                            .font(.system(.title2, design: .rounded))
+                                            .bold()
+                                        
+                                        Image(systemName: "circle.badge.plus")
+                                            .font(.system(.title3, design: .rounded))
+                                            .symbolRenderingMode(.palette)
+                                            .foregroundStyle(.green, colorScheme == .dark ? .white : .black)                                            .bold()
+                                            .symbolEffect(.pulse)
+                                            .shadow(color: .green.opacity(0.8), radius: 10)
                                     }
                                     .padding(.bottom)
-                                    //                                    .padding([.leading, .top])
+                                    
+                                    
+                                    Button {
+                                        isOpeningFromAnchorListView = true
+                                        dismiss()
+                                    } label: {
+                                        Text("Open \(worldName) in AR")
+                                            .font(.system(.headline, design: .rounded))
+                                            .foregroundStyle(colorScheme == .dark ? .black : .white)
+                                            .bold()
+                                            .padding()
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 55)
+                                            .background(Color.primary.opacity(1))
+                                            .cornerRadius(10)
+                                    }
+
+                                    .padding([.horizontal, .top])
+                                    Text("Open \(worldName) to verify & integrate and save these items to make them available for public use.")
+                                        .font(.system(.headline, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                        .padding(.horizontal)
                                     LazyVGrid(columns: columns, spacing: 10) {
                                         ForEach(newAnchors, id: \.self) { anchorName in
                                             VStack {
@@ -547,12 +575,18 @@ struct AnchorsListView: View {
                                     }
                                     .padding([.leading, .trailing, .bottom])
                                     
+                                    
+                                   
+                                    
                                     Spacer()
+                                        
+                                   
+                                   
                                 }
                             }
 
                         }
-                        .rest(at: .constant([50, 340, 600]))
+                        .rest(at: .constant([60, 340, 600]))
                         .impact(.light)
                     }
                     

@@ -28,7 +28,7 @@ struct ARViewContainer: UIViewRepresentable {
     @Binding var isCollab: Bool
     @Binding var recordName: String
     @Binding var isCameraPointingDown: Bool
-
+    @Binding var errorEditingAnchor: Bool
     var onCoordinatorMade: ((Coordinator) -> Void)?
 
     func makeUIView(context: Context) -> ARSCNView {
@@ -113,7 +113,8 @@ struct ARViewContainer: UIViewRepresentable {
         var lastAnchorFetchTime: Date = .distantPast
         var publicRecord: CKRecord? = nil
         var relocalizationCount = 0
-
+        private var PublicAnchors: [String] = []
+        
         init(_ parent: ARViewContainer, worldManager: WorldManager) {
             self.parent = parent
             self.worldManager = worldManager
@@ -331,7 +332,7 @@ struct ARViewContainer: UIViewRepresentable {
                  }
                  return
              }
-             if AppState.shared.isiCloudShare {
+             if AppState.shared.isiCloudShare && !AppState.shared.isViewOnly {
                 
                  if self.worldManager.isRelocalizationComplete {
                      if currentTime.timeIntervalSince(lastAnchorFetchTime) > 10.0 {
@@ -347,10 +348,10 @@ struct ARViewContainer: UIViewRepresentable {
                                              let anchorName = record["name"] as? String
                                              let newAnchor = ARAnchor(name: anchorName ?? "noname", transform: transform)
                                              
-                                             // Avoid adding duplicates by checking the transform.
                                              if !self.parent.sceneView.session.currentFrame!.anchors.contains(where: { $0.name == newAnchor.name }) {
                                                  self.parent.sceneView.session.add(anchor: newAnchor)
                                                  print("✅ Added new anchor \(newAnchor.name ?? "") from CloudKit.")
+                                                 self.PublicAnchors.append(newAnchor.name ?? "")
                                              }
                                          }
                                      }
@@ -419,17 +420,7 @@ struct ARViewContainer: UIViewRepresentable {
             let clampedDistance = max(0.1, min(distance, 5.0)) // Clamp distance
             let direction = anchorPosition - cameraPosition
             
-            
-            
-            //  let direction = anchorPosition - cameraPosition
-            
-            // Project onto the horizontal plane
             let horizontalDirection = SIMD3<Float>(direction.x, 0, direction.z)
-            
-            // Normalize Direction
-            
-            // Calculate Angle
-            
             
             let smoothedAngle = calculateAngleBetweenVectors(cameraTransform: cameraTransform, anchorPosition: anchorPosition)
             
@@ -625,12 +616,17 @@ struct ARViewContainer: UIViewRepresentable {
                 // Generate a unique name (e.g. "flag 🏴‍☠️" becomes "flag1 🏴‍☠️" if needed).
                 let uniqueName = getUniqueAnchorName(baseName: baseName, existingNames: currentAnchorNames)
                 
-                
+                if AppState.shared.isiCloudShare {
+                    PublicAnchors.append(uniqueName)
+                }
                 // Place anchor at the raycast result's position
                 let anchor = ARAnchor(name: uniqueName, transform: result.worldTransform)
                 
                 
                 sceneView.session.add(anchor: anchor)
+                
+                
+                
                 if AppState.shared.isiCloudShare || parent.isCollab {
                     if (WorldManager.shared.currentWorldRecord != nil && WorldManager.shared.isCollaborative) {
                         iCloudManager.shared.saveAnchor(anchor, for: WorldManager.shared.currentRoomName, worldRecord: WorldManager.shared.currentWorldRecord!) { error in
@@ -778,6 +774,8 @@ struct ARViewContainer: UIViewRepresentable {
         
         @objc func handleLongPress(_ sender: UILongPressGestureRecognizer) {
             
+           
+            
             if AppState.shared.isViewOnly { return }
 
             guard sender.state == .began else { return } // Only handle on gesture start
@@ -799,6 +797,23 @@ struct ARViewContainer: UIViewRepresentable {
             var currentNode: SCNNode? = hitResult.node
             while let node = currentNode {
                 if let name = node.name {
+                    
+                    
+                    
+                    
+                    if AppState.shared.isiCloudShare {
+                        if !PublicAnchors.contains(where: { $0 == name }) {
+                            
+//                            let drop = Drop.init(title: "Only owner can modify \(name) ")
+//                            Drops.show(drop)
+                            parent.nameOfAnchorToEdit = name
+                            parent.errorEditingAnchor = true
+                            return
+                        }
+                    }
+                    
+                    
+                    
                     print("Found anchor with name: \(name)")
                     parent.nameOfAnchorToEdit = name
                     parent.isEditingAnchor = true

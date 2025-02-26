@@ -52,6 +52,7 @@ extension WorldManager {
     
     
     func indexItems(anchors: [(anchorName: String, worldName: String)]) {
+        
         let searchableItems = anchors.map { createSearchableAnchor(anchorName: $0.anchorName, worldName: $0.worldName) }
         CSSearchableIndex.default().indexSearchableItems(searchableItems) { error in
             if let error = error {

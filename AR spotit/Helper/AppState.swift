@@ -23,4 +23,5 @@ class AppState: ObservableObject {
     @Published var pendingRoomName: String?
     @Published var isShowingCollaborationChoiceSheet = false
     @Published var isViewOnly: Bool = false
+    @Published var ownerName: String = ""
 }

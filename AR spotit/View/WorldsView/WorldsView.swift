@@ -195,7 +195,11 @@ struct WorldsView: View {
                                         worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
                                             DispatchQueue.main.async {
                                                 anchorsByWorld[world.name] = fetchedAnchors
-                                                let tupleAnchors = fetchedAnchors.map { (anchorName: $0, worldName: world.name) }
+                                                
+                                            
+                                                let tupleAnchors = fetchedAnchors
+                                                    .filter { $0 != "guide" }
+                                                    .map { (anchorName: $0, worldName: world.name) }
                                                 worldManager.indexItems(anchors: tupleAnchors)
                                             }
                                         }
@@ -217,6 +221,7 @@ struct WorldsView: View {
                     }
                     .padding(.top)
                 }
+                .padding(.bottom, !worldManager.sharedLinks.isEmpty ? 70 : 0)
                 .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
                 .tint(colorScheme == .dark ? .white : .black)
                 .onReceive(NotificationCenter.default.publisher(for: Notifications.openWorldNotification)) { notification in
@@ -547,6 +552,7 @@ struct WorldsView: View {
                                                 .padding(7)
                                                 .contentShape(Rectangle())
                                                 .onTapGesture {
+                                                    AppState.shared.ownerName = sharedLink.ownerName
                                                     // Open the shared link session when tapped.
                                                     worldManager.openSharedLink(sharedLink)
                                                 }

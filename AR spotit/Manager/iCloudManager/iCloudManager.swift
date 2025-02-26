@@ -210,6 +210,7 @@ class iCloudManager {
              completion(finalError)
          }
      }
+    
      
      func deleteWorldMetadata(roomName: String, completion: @escaping (Error?) -> Void) {
          let privateDB = CKContainer.default().privateCloudDatabase
