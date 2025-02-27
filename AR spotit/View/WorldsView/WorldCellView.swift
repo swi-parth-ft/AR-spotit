@@ -51,7 +51,7 @@ struct WorldCellView: View {
                         .conditionalModifier(colorScheme != .dark) { view in
                             view.colorInvert()
                         }
-                        .shadow(color: colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.4), radius: 5)
+                        .shadow(color: colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.2), radius: 5)
                 } else {
                     Text("No Snapshot")
                         .font(.footnote)

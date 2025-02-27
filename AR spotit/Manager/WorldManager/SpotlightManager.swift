@@ -50,7 +50,6 @@ extension WorldManager {
         return nil
     }
     
-    
     func indexItems(anchors: [(anchorName: String, worldName: String)]) {
         
         let searchableItems = anchors.map { createSearchableAnchor(anchorName: $0.anchorName, worldName: $0.worldName) }

@@ -44,7 +44,7 @@ struct WorldsView: View {
         var id: String { self.rawValue }
     }
     @State private var hasLoadedWorlds = false
-
+    @State private var isOpeningAnchorsSheet = false
     @AppStorage("sortingField") private var sortingFieldRawValue: String = SortingField.name.rawValue
     @AppStorage("sortingAscending") private var sortingAscending: Bool = true
 
@@ -250,7 +250,28 @@ struct WorldsView: View {
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: Notifications.incomingShareMapReady)) { _ in
-                    selectedWorld = WorldModel(name: WorldManager.shared.sharedWorldName ?? "")
+                    if AppState.shared.isViewOnly {
+                        isOpeningAnchorsSheet = true
+
+                    } else {
+                        selectedWorld = WorldModel(name: WorldManager.shared.sharedWorldName ?? "")
+                    }
+                }
+                .sheet(isPresented: $isOpeningAnchorsSheet) {
+                    ExploreSharedView(arWorldMap: WorldManager.shared.sharedARWorldMap) { anchorName in
+                        
+                        if anchorName != "" {
+                            findingAnchorName = anchorName
+                            selectedWorld = WorldModel(name: WorldManager.shared.sharedWorldName ?? "")
+
+                        } else {
+                            selectedWorld = WorldModel(name: WorldManager.shared.sharedWorldName ?? "")
+                        }
+                        isOpeningAnchorsSheet = false
+
+                    }
+                   
+                    
                 }
                 .onReceive(NotificationCenter.default.publisher(for: Notifications.findItemNotification)) { notification in
                     Task {
@@ -472,7 +493,6 @@ struct WorldsView: View {
                         view.presentationDetents([.fraction(0.5)])
                     }
                 }
-                
                 if AppState.shared.isCreatingLink {
                     VisualEffectBlur(blurStyle: .systemUltraThinMaterial)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -532,7 +552,7 @@ struct WorldsView: View {
                                                             .conditionalModifier(colorScheme != .dark) { view in
                                                                 view.colorInvert()
                                                             }
-                                                            .shadow(color: colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.4), radius: 5)
+                                                            .shadow(color: colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.2), radius: 5)
                                                     } else {
                                                         Image(systemName: "photo")
                                                             .resizable()
@@ -552,9 +572,20 @@ struct WorldsView: View {
                                                 .padding(7)
                                                 .contentShape(Rectangle())
                                                 .onTapGesture {
+                                                    if let snapshotURL = sharedLink.snapshotURL {
+                                                        if let imageData = try? Data(contentsOf: snapshotURL) {
+                                                            if let image = UIImage(data: imageData) {
+                                                                AppState.shared.sharedWorldImage = Image(uiImage: image)
+                                                            }
+                                                            
+                                                        }
+
+                                                        
+                                                    }
+                                                    
                                                     AppState.shared.ownerName = sharedLink.ownerName
-                                                    // Open the shared link session when tapped.
                                                     worldManager.openSharedLink(sharedLink)
+                                                   
                                                 }
                                                 .contextMenu {
                                                     Button(role: .destructive) {

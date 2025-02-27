@@ -11,7 +11,6 @@ import CloudKit
 import UIKit
 
 extension WorldManager {
-    // MARK: - Shared Links Persistence
     
     private var sharedLinksFileURL: URL {
         let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -94,18 +93,14 @@ extension WorldManager {
                     return
                 }
                 
-                // Determine the root record. This is similar to your existing flow.
                 if let sharedRecord = share.value(forKey: "rootRecord") as? CKRecord {
                     DispatchQueue.main.async {
-                        // Optionally, store this share in AppState if needed later.
                         AppState.shared.pendingShare = share
                         AppState.shared.pendingSharedRecord = sharedRecord
                         AppState.shared.pendingRoomName = sharedLink.roomName
-                        // Start the collaborative session using the existing function.
                         WorldManager.shared.processIncomingSharedRecord(sharedRecord, withShare: share)
                     }
                 } else {
-                    // Fallback: fetch the root record using the metadata's rootRecordID.
                     let rootRecordID = metadata.rootRecordID
                     CKContainer.default().sharedCloudDatabase.fetch(withRecordID: rootRecordID) { fetchedRecord, fetchError in
                         if let fetchError = fetchError {
@@ -128,97 +123,94 @@ extension WorldManager {
         }
     }
     
-    
-    // MARK: - Process Incoming Shared Record (Update This Function)
     func processIncomingSharedRecord(_ sharedRecord: CKRecord, withShare share: CKShare) {
-        let roomName = sharedRecord["roomName"] as? String ?? "Untitled"
-        
-        // Extract owner name using nameComponents or fallback to emailAddress.
-        let ownerName: String = {
-            if let nameComponents = share.owner.userIdentity.nameComponents {
-                return PersonNameComponentsFormatter().string(from: nameComponents)
-            } else if let email = share.owner.userIdentity.lookupInfo?.emailAddress {
-                return email
-            } else {
-                return "Unknown"
-            }
-        }()
-        
-        // Get the share URL from the CKShare
-        guard let shareURL = share.url else {
-            print("Share URL not available")
-            return
-        }
-        
-        // Use a duplicate check based on roomName and ownerName (instead of shareURL)
-        if !self.sharedLinks.contains(where: { $0.roomName == roomName && $0.ownerName == ownerName }) {
-            // Retrieve a snapshot image from the ARWorldMap container (from the CKAsset)
-            var snapshotFileName: String? = nil
-            if let asset = sharedRecord["mapAsset"] as? CKAsset,
-               let assetFileURL = asset.fileURL,
-               let data = try? Data(contentsOf: assetFileURL),
-               let container = try? NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMapContainer.self, from: data),
-               let snapshotData = container.imageData {
-                // Save snapshot image locally in Application Support.
-                // Using roomName in the file name might cause overwrites if the room is shared multiple times.
-                // You can add additional identifiers if needed.
-                let fileName = "\(roomName)_sharedSnapshot.png"
-                let snapshotURL = WorldModel.appSupportDirectory.appendingPathComponent(fileName)
-                do {
-                    try snapshotData.write(to: snapshotURL, options: .atomic)
-                    snapshotFileName = fileName
-                    print("Saved shared snapshot to \(snapshotURL.path)")
-                } catch {
-                    print("Error saving shared snapshot: \(error.localizedDescription)")
-                }
-            }
-            
-            // Create a new SharedLinkModel instance and persist it.
-            let newSharedLink = SharedLinkModel(
-                id: UUID(),
-                shareURL: shareURL,
-                roomName: roomName,
-                ownerName: ownerName,
-                snapshotFileName: snapshotFileName,
-                dateReceived: Date()
-            )
-            addSharedLink(newSharedLink)
+    let roomName = sharedRecord["roomName"] as? String ?? "Untitled"
+    
+    // Extract owner name using nameComponents or fallback to emailAddress.
+    let ownerName: String = {
+        if let nameComponents = share.owner.userIdentity.nameComponents {
+            return PersonNameComponentsFormatter().string(from: nameComponents)
+        } else if let email = share.owner.userIdentity.lookupInfo?.emailAddress {
+            return email
         } else {
-            print("Shared link for room \(roomName) from \(ownerName) already exists, skipping save.")
+            return "Unknown"
         }
-        
-        // Continue with your existing flow:
-        DispatchQueue.main.async {
-            self.sharedZoneID = share.recordID.zoneID
-            print("Shared zone ID set to: \(self.sharedZoneID!)")
-            AppState.shared.publicRecordName = sharedRecord["publicRecordName"] as? String ?? ""
-            AppState.shared.isiCloudShare = true
-        }
-        
-        // Start the collaborative session as before.
-        self.startCollaborativeSession(with: sharedRecord, roomName: roomName)
-        
-        // Update pending AppState for the open/save or PIN sheets.
-        guard let asset = sharedRecord["mapAsset"] as? CKAsset,
-              let assetFileURL = asset.fileURL else {
-            print("❌ Failed to get CKAsset or assetFileURL")
-            return
-        }
-        DispatchQueue.main.async {
-            AppState.shared.pendingSharedRecord = sharedRecord
-            AppState.shared.pendingAssetFileURL = assetFileURL
-            AppState.shared.pendingRoomName = roomName
-            let pinRequired = sharedRecord["pinRequired"] as? Bool ?? false
-            if pinRequired {
-                print("🔒 PIN is required. Showing PIN sheet...")
-                AppState.shared.isShowingCollaborationChoiceSheet = true
-            } else {
-                print("🔓 No PIN required. Showing open/save sheet...")
-                AppState.shared.isShowingOpenSaveSheet = true
-            }
-        }
+    }()
+    
+    // Get the share URL from the CKShare
+    guard let shareURL = share.url else {
+        print("Share URL not available")
+        return
     }
     
+    // Use a duplicate check based on roomName and ownerName (instead of shareURL)
+    if !self.sharedLinks.contains(where: { $0.roomName == roomName && $0.ownerName == ownerName }) {
+        // Retrieve a snapshot image from the ARWorldMap container (from the CKAsset)
+        var snapshotFileName: String? = nil
+        if let asset = sharedRecord["mapAsset"] as? CKAsset,
+            let assetFileURL = asset.fileURL,
+            let data = try? Data(contentsOf: assetFileURL),
+            let container = try? NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMapContainer.self, from: data),
+            let snapshotData = container.imageData {
+            // Save snapshot image locally in Application Support.
+            // Using roomName in the file name might cause overwrites if the room is shared multiple times.
+            // You can add additional identifiers if needed.
+            let fileName = "\(roomName)_sharedSnapshot.png"
+            let snapshotURL = WorldModel.appSupportDirectory.appendingPathComponent(fileName)
+            do {
+                try snapshotData.write(to: snapshotURL, options: .atomic)
+                snapshotFileName = fileName
+                print("Saved shared snapshot to \(snapshotURL.path)")
+            } catch {
+                print("Error saving shared snapshot: \(error.localizedDescription)")
+            }
+        }
+        
+        // Create a new SharedLinkModel instance and persist it.
+        let newSharedLink = SharedLinkModel(
+            id: UUID(),
+            shareURL: shareURL,
+            roomName: roomName,
+            ownerName: ownerName,
+            snapshotFileName: snapshotFileName,
+            dateReceived: Date()
+        )
+        addSharedLink(newSharedLink)
+    } else {
+        print("Shared link for room \(roomName) from \(ownerName) already exists, skipping save.")
+    }
+    
+    // Continue with your existing flow:
+    DispatchQueue.main.async {
+        self.sharedZoneID = share.recordID.zoneID
+        print("Shared zone ID set to: \(self.sharedZoneID!)")
+        AppState.shared.publicRecordName = sharedRecord["publicRecordName"] as? String ?? ""
+        AppState.shared.isiCloudShare = true
+    }
+    
+    // Start the collaborative session as before.
+    self.startCollaborativeSession(with: sharedRecord, roomName: roomName)
+    
+    // Update pending AppState for the open/save or PIN sheets.
+    guard let asset = sharedRecord["mapAsset"] as? CKAsset,
+            let assetFileURL = asset.fileURL else {
+        print("❌ Failed to get CKAsset or assetFileURL")
+        return
+    }
+    DispatchQueue.main.async {
+        AppState.shared.pendingSharedRecord = sharedRecord
+        AppState.shared.pendingAssetFileURL = assetFileURL
+        AppState.shared.pendingRoomName = roomName
+        let pinRequired = sharedRecord["pinRequired"] as? Bool ?? false
+        if pinRequired {
+            print("🔒 PIN is required. Showing PIN sheet...")
+            AppState.shared.isShowingCollaborationChoiceSheet = true
+        } else {
+            print("🔓 No PIN required. Showing open/save sheet...")
+            AppState.shared.isShowingOpenSaveSheet = true
+        }
+    }
+}
     
     func deleteSharedLink(_ link: SharedLinkModel) {
             // Delete the snapshot file from disk if it exists.
@@ -243,4 +235,5 @@ extension WorldManager {
             // Save the updated sharedLinks persistently.
             self.saveSharedLinks()
         }
+    
 }

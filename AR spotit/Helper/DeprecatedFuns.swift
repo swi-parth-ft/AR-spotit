@@ -279,4 +279,55 @@ func deleteAllRecords(completion: @escaping (Error?) -> Void) {
     }
 }
 
+
+private func handleIncomingShareURL(_ url: URL) {
+    print("Incoming CloudKit share URL: \(url.absoluteString)")
+    var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+    components?.fragment = nil
+    let cleanedURL = components?.url ?? url
+    print("Cleaned share URL: \(cleanedURL.absoluteString)")
+    CKContainer.default().fetchShareMetadata(with: cleanedURL) { shareMetadata, error in
+        if let error = error {
+            print("Error fetching share metadata: \(error.localizedDescription)")
+            return
+        }
+        guard let metadata = shareMetadata else {
+            print("No share metadata found.")
+            return
+        }
+        let acceptOperation = CKAcceptSharesOperation(shareMetadatas: [metadata])
+        acceptOperation.perShareCompletionBlock = { meta, share, error in
+            print("perShareCompletionBlock triggered")
+            if let error = error {
+                print("Error in perShareCompletionBlock: \(error.localizedDescription)")
+                return
+            }
+            guard let share = share else {
+                print("No share returned in perShareCompletionBlock")
+                return
+            }
+            if let sharedRecord = share.value(forKey: "rootRecord") as? CKRecord {
+                print("Fetched sharedRecord from share: \(sharedRecord.recordID)")
+                WorldManager.shared.processIncomingSharedRecord(sharedRecord, withShare: share)
+            } else {
+                let rootRecordID = metadata.rootRecordID
+                print("No rootRecord in share; fetching using rootRecordID: \(rootRecordID)")
+                CKContainer.default().sharedCloudDatabase.fetch(withRecordID: rootRecordID) { fetchedRecord, fetchError in
+                    if let fetchError = fetchError {
+                        print("Error fetching root record: \(fetchError.localizedDescription)")
+                    } else if let fetchedRecord = fetchedRecord {
+                        print("Fetched root record via fetch: \(fetchedRecord.recordID)")
+                        WorldManager.shared.processIncomingSharedRecord(fetchedRecord, withShare: share)
+                    }
+                }
+            }
+        }
+        acceptOperation.acceptSharesResultBlock = { result in
+            print("Share acceptance operation completed with result: \(result)")
+        }
+        CKContainer.default().add(acceptOperation)
+    }
+}
+
+
 #endif

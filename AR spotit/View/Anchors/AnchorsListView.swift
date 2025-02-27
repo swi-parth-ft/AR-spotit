@@ -68,7 +68,38 @@ struct AnchorsListView: View {
                 (colorScheme == .dark ? Color.black : Color.white)
                        .ignoresSafeArea()
                 
-               
+                VStack {
+                    
+                    let snapshotPath = WorldModel.appSupportDirectory
+                        .appendingPathComponent("\(worldName)_snapshot.png")
+                    
+                    if FileManager.default.fileExists(atPath: snapshotPath.path),
+                       let uiImage = UIImage(contentsOfFile: snapshotPath.path) {
+                        
+                            Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(height: 400)
+                            .clipped()
+                            .cornerRadius(15)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 15)
+                                    .fill(LinearGradient(colors: [.black.opacity(1.0), .black.opacity(0.0)], startPoint: .bottom, endPoint: .top))
+                                
+                            )
+                            .conditionalModifier(colorScheme != .dark) { view in
+                                view.colorInvert()
+                            }
+                            .frame(width: UIScreen.main.bounds.width, height: 400)
+                            .ignoresSafeArea()
+                            
+                        
+                        
+                    }
+                    
+                    Spacer()
+                }
+
                 
                 ScrollView(.vertical, showsIndicators: false) {
                  
@@ -76,43 +107,7 @@ struct AnchorsListView: View {
                     
                     
                     
-                    ZStack {
-                        
-                        
-                        // (NEW) Show snapshot preview if it exists
-                        let snapshotPath = WorldModel.appSupportDirectory
-                            .appendingPathComponent("\(worldName)_snapshot.png")
-                        
-                        if FileManager.default.fileExists(atPath: snapshotPath.path),
-                           let uiImage = UIImage(contentsOfFile: snapshotPath.path) {
-                            
-                                Image(uiImage: uiImage)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(height: 400)
-                                    .clipped()
-                                    .cornerRadius(15)
-                                    .overlay(
-                                                RoundedRectangle(cornerRadius: 15)
-                                                    .fill(LinearGradient(colors: [.black.opacity(1.0), .black.opacity(0.0)], startPoint: .bottom, endPoint: .top))
-
-                                            )
-                                    .conditionalModifier(colorScheme != .dark) { view in
-                                          view.colorInvert()
-                                      }
-
-                            
-                        } else {
-                            // fallback if no image
-                            Text("No Snapshot")
-                                .font(.footnote)
-                                .foregroundColor(.secondary)
-                                .padding(.horizontal)
-                        }
-                        
-                        
-                    }
-                    .frame(width: UIScreen.main.bounds.width, height: 400)
+                   
                     if isLoading {
                         ProgressView() {
                             Text("Loading items for \(worldName)")
@@ -194,14 +189,12 @@ struct AnchorsListView: View {
                         }
                     }
                     .padding()
-                    .padding(.top, -60)
                     .searchable(text: $searchText,
                                               placement: .navigationBarDrawer(displayMode: .automatic),
-                                prompt: "Search Anchors").tint(colorScheme == .dark ? .white : .black)
+                                prompt: "Search Items").tint(colorScheme == .dark ? .white : .black)
                     
                     
                 }
-                .ignoresSafeArea()
                 
                 .sheet(isPresented: $isRenaming, onDismiss: {
                     dismiss()

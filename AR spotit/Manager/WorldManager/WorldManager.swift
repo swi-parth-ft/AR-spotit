@@ -209,25 +209,17 @@ class WorldManager: ObservableObject {
         var recordsToSave: [CKRecord] = []
         
         for world in savedWorlds {
-            // Only sync if the world matches the given roomName (same as your existing code).
             if world.name == roomName {
                 
-                // 1) Ensure we have a stable metadataRecordID
                 if world.metadataRecordID == nil {
-                    // Create a unique ID for the metadata record.
-                    // e.g. "metadata-<UUID>"
                     let newMetadataID = "metadata-\(UUID().uuidString)"
-                    
-                    // or just UUID().uuidString – up to you
                     if let index = savedWorlds.firstIndex(where: { $0.name == world.name }) {
                         savedWorlds[index].metadataRecordID = newMetadataID
                         saveWorldList()
                     }
                 }
                 
-                // 2) Build the record ID from the stable metadataRecordID
                 guard let metaIDString = world.metadataRecordID else {
-                    // If it's STILL nil, skip or handle the error gracefully
                     print("❌ metadataRecordID is still nil for world: \(world.name)")
                     continue
                 }

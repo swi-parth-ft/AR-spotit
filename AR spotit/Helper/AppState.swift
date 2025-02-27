@@ -7,6 +7,7 @@
 
 import Foundation
 import CloudKit
+import SwiftUI
 
 
 class AppState: ObservableObject {
@@ -24,4 +25,5 @@ class AppState: ObservableObject {
     @Published var isShowingCollaborationChoiceSheet = false
     @Published var isViewOnly: Bool = false
     @Published var ownerName: String = ""
+    @Published var sharedWorldImage: Image?
 }

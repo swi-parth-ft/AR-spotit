@@ -122,9 +122,7 @@ struct AugmentedView: View {
                     hasPlayedItshere = false
                 }
             }
-            .onChange(of: worldManager.scannedZones) { _ in
-                updateScanningProgress()
-            }
+       
             .onChange(of: worldManager.isShowingAll) {
                 DispatchQueue.main.async {
                     if let coref = coordinatorRef {
@@ -252,7 +250,6 @@ struct AugmentedView: View {
 
 extension AugmentedView {
     
-    /// Overlay for when the camera is pointing down and relocalization is complete.
     var cameraDownOverlay: some View {
     Group {
         if isCameraPointingDown && worldManager.isRelocalizationComplete {
