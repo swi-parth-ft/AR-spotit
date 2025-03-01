@@ -115,20 +115,7 @@ struct AnchorsListView: View {
 
                         }
                     }
-                    if let anchors = anchorsByWorld[worldName], anchors.filter({ $0 != "guide" }).isEmpty {
-                        VStack {
-                            ContentUnavailableView {
-                                Label("No Items found", systemImage: "exclamationmark.warninglight.fill")
-                                    .font(.system(.title2, design: .rounded))
-                                
-                            } description: {
-                                Text("Open Area to add new items.")
-                                //   .font(.system(design: .rounded))
-                                
-                            }
-                        }
-
-                    }
+                
                     
                     LazyVGrid(columns: columns, spacing: 10) {
                         if let anchors = anchorsByWorld[worldName], !anchors.isEmpty {
@@ -209,8 +196,7 @@ struct AnchorsListView: View {
                     
                 }
                 .onAppear {
-                    // Fetch anchors for this specific world
-                  //  worldManager.loadSavedWorlds {
+                  
                         
                         currentWorld = worldManager.savedWorlds.first { $0.name == worldName }
                         worldManager.getAnchorNames(for: worldName) { fetchedAnchors in
@@ -240,7 +226,7 @@ struct AnchorsListView: View {
                                    }
                                }
                            }
-                    //}
+                    
                     
                     print(worldName)
 
@@ -584,6 +570,25 @@ struct AnchorsListView: View {
                     }
                     
                 }
+                
+                if let anchors = anchorsByWorld[worldName], anchors.filter({ $0 != "guide" }).isEmpty {
+                    VStack {
+                        Spacer()
+                        ContentUnavailableView {
+                            Label("No Items found", systemImage: "exclamationmark.warninglight.fill")
+                                .font(.system(.title2, design: .rounded))
+                            
+                        } description: {
+                            Text("Open Area to add new items.")
+                                .font(.system(.headline, design: .rounded))
+
+                        }
+                        Spacer()
+                    }
+
+                }
+                
+                
                 if AppState.shared.isCreatingLink {
                     VisualEffectBlur(blurStyle: .systemUltraThinMaterial)
                               .frame(maxWidth: .infinity, maxHeight: .infinity)

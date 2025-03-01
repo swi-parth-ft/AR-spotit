@@ -120,9 +120,14 @@ class WorldManager: ObservableObject {
                 try containerData.write(to: filePath, options: .atomic)
                
                 self.saveWorldList()
+                AppState.shared.isiCloudSyncActive = true
                 self.iCloudManager.uploadWorldMap(roomName: roomName, data: containerData, lastModified: timestamp) {
                     print("Synced \(roomName) to CloudKit.")
-                    
+                    DispatchQueue.main.async {
+                        AppState.shared.isiCloudSyncActive = false
+
+                    }
+
                     if self.shouldDeletePublicAnchors {
                        
                         self.deleteAllAnchorsForPublicRecord(publicRecordName: publicName) { _ in

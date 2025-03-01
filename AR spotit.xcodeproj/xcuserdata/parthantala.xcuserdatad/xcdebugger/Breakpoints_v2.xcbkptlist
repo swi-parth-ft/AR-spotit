@@ -382,8 +382,8 @@
             filePath = "AR spotit/AR_spotitApp.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "193"
-            endingLineNumber = "193"
+            startingLineNumber = "191"
+            endingLineNumber = "191"
             landmarkName = "body"
             landmarkType = "24">
          </BreakpointContent>
@@ -478,8 +478,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "123"
-            endingLineNumber = "123"
+            startingLineNumber = "124"
+            endingLineNumber = "124"
             landmarkName = "saveWorldMap(for:sceneView:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -558,8 +558,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "317"
-            endingLineNumber = "317"
+            startingLineNumber = "322"
+            endingLineNumber = "322"
             landmarkName = "fetchWorldMetadataFromCloudKit(completion:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -574,8 +574,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "332"
-            endingLineNumber = "332"
+            startingLineNumber = "337"
+            endingLineNumber = "337"
             landmarkName = "fetchWorldMetadataFromCloudKit(completion:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -590,8 +590,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "373"
-            endingLineNumber = "373"
+            startingLineNumber = "378"
+            endingLineNumber = "378"
             landmarkName = "mergeCloudKitWorlds(_:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -606,8 +606,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "365"
-            endingLineNumber = "365"
+            startingLineNumber = "370"
+            endingLineNumber = "370"
             landmarkName = "mergeCloudKitWorlds(_:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -807,22 +807,6 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "8769D474-1214-4506-B0BA-BDB6F5AD0D5E"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "AR spotit/View/Anchors/AnchorsListView.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "213"
-            endingLineNumber = "213"
-            landmarkName = "body"
-            landmarkType = "24">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
             uuid = "E14FCC05-4FAA-4EA5-AC4E-434C47F5D69A"
             shouldBeEnabled = "No"
             ignoreCount = "0"
@@ -830,8 +814,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "271"
-            endingLineNumber = "271"
+            startingLineNumber = "276"
+            endingLineNumber = "276"
             landmarkName = "loadSavedWorlds(completion:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -846,8 +830,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "291"
-            endingLineNumber = "291"
+            startingLineNumber = "296"
+            endingLineNumber = "296"
             landmarkName = "loadSavedWorlds(completion:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -862,8 +846,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "274"
-            endingLineNumber = "274"
+            startingLineNumber = "279"
+            endingLineNumber = "279"
             landmarkName = "loadSavedWorlds(completion:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -878,8 +862,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "263"
-            endingLineNumber = "263"
+            startingLineNumber = "268"
+            endingLineNumber = "268"
             landmarkName = "loadSavedWorlds(completion:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -974,8 +958,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "255"
-            endingLineNumber = "255"
+            startingLineNumber = "260"
+            endingLineNumber = "260"
             landmarkName = "loadSavedWorlds(completion:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -990,8 +974,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "617"
-            endingLineNumber = "617"
+            startingLineNumber = "622"
+            endingLineNumber = "622"
             landmarkName = "loadSavedWorldsAsync()"
             landmarkType = "7">
          </BreakpointContent>
@@ -1006,8 +990,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "620"
-            endingLineNumber = "620"
+            startingLineNumber = "625"
+            endingLineNumber = "625"
             landmarkName = "loadSavedWorldsAsync()"
             landmarkType = "7">
          </BreakpointContent>
@@ -1022,8 +1006,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "619"
-            endingLineNumber = "619"
+            startingLineNumber = "624"
+            endingLineNumber = "624"
             landmarkName = "loadSavedWorldsAsync()"
             landmarkType = "7">
          </BreakpointContent>
@@ -1262,8 +1246,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "124"
-            endingLineNumber = "124"
+            startingLineNumber = "125"
+            endingLineNumber = "125"
             landmarkName = "saveWorldMap(for:sceneView:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -1278,8 +1262,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "128"
-            endingLineNumber = "128"
+            startingLineNumber = "133"
+            endingLineNumber = "133"
             landmarkName = "saveWorldMap(for:sceneView:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -1294,8 +1278,8 @@
             filePath = "AR spotit/Manager/WorldManager/WorldManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "820"
-            endingLineNumber = "820"
+            startingLineNumber = "825"
+            endingLineNumber = "825"
             landmarkName = "deleteAllAnchorsForPublicRecord(publicRecordName:completion:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -1310,8 +1294,8 @@
             filePath = "AR spotit/AR_spotitApp.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "378"
-            endingLineNumber = "378"
+            startingLineNumber = "376"
+            endingLineNumber = "376"
             landmarkName = "handleIncomingShareMetadata(_:)"
             landmarkType = "7">
          </BreakpointContent>

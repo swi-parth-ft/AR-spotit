@@ -26,4 +26,6 @@ class AppState: ObservableObject {
     @Published var isViewOnly: Bool = false
     @Published var ownerName: String = ""
     @Published var sharedWorldImage: Image?
+    @Published var isOpeningSharedLink: Bool = false
+    @Published var isiCloudSyncActive: Bool = false
 }

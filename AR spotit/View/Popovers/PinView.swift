@@ -55,7 +55,7 @@ struct PinView: View {
                         dismiss()
                     } else {
                         AppState.shared.isCreatingLink = true
-                        WorldManager.shared.loadSavedWorlds {
+                      //  WorldManager.shared.loadSavedWorlds {
                             if let index = WorldManager.shared.savedWorlds.firstIndex(where: { $0.name == roomName }) {
                                 // Update existing world
                                 WorldManager.shared.savedWorlds[index].pin = pin
@@ -65,7 +65,7 @@ struct PinView: View {
                             dismiss()
                             onCompletion?() 
 
-                        }
+                      //  }
                     }
                 } label: {
                     Text(isChecking ? "Done" : "Next")

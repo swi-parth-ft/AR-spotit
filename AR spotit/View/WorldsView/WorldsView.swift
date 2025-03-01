@@ -45,6 +45,8 @@ struct WorldsView: View {
     }
     @State private var hasLoadedWorlds = false
     @State private var isOpeningAnchorsSheet = false
+    @State private var showCheckmark = false
+
     @AppStorage("sortingField") private var sortingFieldRawValue: String = SortingField.name.rawValue
     @AppStorage("sortingAscending") private var sortingAscending: Bool = true
 
@@ -116,6 +118,8 @@ struct WorldsView: View {
                                         .font(.system(.title2, design: .rounded))
                                 } description: {
                                     Text("Start adding an area by tapping the plus \(Image(systemName: "plus.circle")) button.")
+                                        .font(.system(.headline, design: .rounded))
+
                                 }
                                 Spacer()
                             }
@@ -130,6 +134,8 @@ struct WorldsView: View {
                                         .font(.system(.title2, design: .rounded))
                                 } description: {
                                     Text("Check spelling or try new search.")
+                                        .font(.system(.headline, design: .rounded))
+
                                 }
                                 Spacer()
                             }
@@ -257,6 +263,19 @@ struct WorldsView: View {
                         selectedWorld = WorldModel(name: WorldManager.shared.sharedWorldName ?? "")
                     }
                 }
+                .onChange(of: AppState.shared.isiCloudSyncActive) { newValue in
+                    if !newValue {
+                        withAnimation(.easeIn(duration: 0.3)) {
+                            showCheckmark = true
+                        }
+                        // After 1 second, fade it out:
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            withAnimation(.easeOut(duration: 0.3)) {
+                                showCheckmark = false
+                            }
+                        }
+                    }
+                }
                 .sheet(isPresented: $isOpeningAnchorsSheet) {
                     ExploreSharedView(arWorldMap: WorldManager.shared.sharedARWorldMap) { anchorName in
                         
@@ -327,59 +346,76 @@ struct WorldsView: View {
                 }
                 .navigationTitle("it's here.")
                 .toolbar {
-                    Menu {
-                        Button {
-                           showCollaboratedOnly.toggle()
-                           HapticManager.shared.impact(style: .medium)
-                        } label: {
-                           HStack {
-                               Text(showCollaboratedOnly ? "Show All" : "Show Collaborated Only")
-                               Spacer()
-                               Image(systemName: showCollaboratedOnly ? "square.split.1x2.fill" : "person.2")
-                           }
-                        }
-                        Picker("Sort By", selection: Binding<SortingField>(
-                            get: {
-                                SortingField(rawValue: sortingFieldRawValue) ?? .name
-                            },
-                            set: { newValue in
-                                if SortingField(rawValue: sortingFieldRawValue) == newValue {
-                                    sortingAscending.toggle()
-                                } else {
-                                    sortingFieldRawValue = newValue.rawValue
-                                    sortingAscending = true
-                                }
-                                HapticManager.shared.impact(style: .medium)
-                            }
-                        )) {
-                            ForEach(SortingField.allCases) { field in
-                                HStack {
-                                    Text(field.rawValue.capitalized)
-                                    Spacer()
-                                    if field == .name {
-                                        Image(systemName: "textformat")
-                                    } else if field == .date {
-                                        Image(systemName: "calendar")
-                                    }
-                                }
-                                .tag(field)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                    } label: {
-                        Image(systemName: "arrow.up.arrow.down")
-                            .foregroundStyle(colorScheme == .dark ? .white : .black)
-                    }
-                    .tint(colorScheme == .dark ? .white : .black)
                     
-                    Button {
-                        isAddingNewRoom.toggle()
-                        HapticManager.shared.impact(style: .medium)
-                    } label: {
-                        Image(systemName: "plus.circle")
-                            .font(.title2)
-                            .foregroundStyle(colorScheme == .dark ? .white : .black)
+                    ToolbarItemGroup(placement: .topBarLeading) {
+                        if AppState.shared.isiCloudSyncActive {
+                            Image(systemName: "arrow.triangle.2.circlepath.icloud")
+                                .foregroundStyle(.blue)
+                                .symbolEffect(.rotate)
+                        } else if showCheckmark {
+                            Image(systemName: "checkmark.icloud")
+                                .transition(.opacity)
+                                .symbolEffect(.bounce)
+
+                        }
                     }
+                    
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        Menu {
+                            Button {
+                               showCollaboratedOnly.toggle()
+                               HapticManager.shared.impact(style: .medium)
+                            } label: {
+                               HStack {
+                                   Text(showCollaboratedOnly ? "Show All" : "Show Collaborated Only")
+                                   Spacer()
+                                   Image(systemName: showCollaboratedOnly ? "square.split.1x2.fill" : "person.2")
+                               }
+                            }
+                            Picker("Sort By", selection: Binding<SortingField>(
+                                get: {
+                                    SortingField(rawValue: sortingFieldRawValue) ?? .name
+                                },
+                                set: { newValue in
+                                    if SortingField(rawValue: sortingFieldRawValue) == newValue {
+                                        sortingAscending.toggle()
+                                    } else {
+                                        sortingFieldRawValue = newValue.rawValue
+                                        sortingAscending = true
+                                    }
+                                    HapticManager.shared.impact(style: .medium)
+                                }
+                            )) {
+                                ForEach(SortingField.allCases) { field in
+                                    HStack {
+                                        Text(field.rawValue.capitalized)
+                                        Spacer()
+                                        if field == .name {
+                                            Image(systemName: "textformat")
+                                        } else if field == .date {
+                                            Image(systemName: "calendar")
+                                        }
+                                    }
+                                    .tag(field)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                        } label: {
+                            Image(systemName: "arrow.up.arrow.down")
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
+                        }
+                        .tint(colorScheme == .dark ? .white : .black)
+                        
+                        Button {
+                            isAddingNewRoom.toggle()
+                            HapticManager.shared.impact(style: .medium)
+                        } label: {
+                            Image(systemName: "plus.circle")
+                                .font(.title2)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
+                        }
+                    }
+                  
                 }
                 .fullScreenCover(item: $selectedWorld, onDismiss: {
                     worldManager.loadSavedWorlds {}
@@ -446,7 +482,6 @@ struct WorldsView: View {
                     }
                 }
                 
-                // Sheets for various actions
                 .sheet(item: $worldForQR) { qrWorld in
                     QRview(roomName: qrWorld.name)
                         .id(qrWorld.id)
@@ -493,6 +528,9 @@ struct WorldsView: View {
                         view.presentationDetents([.fraction(0.5)])
                     }
                 }
+                
+                
+                
                 if AppState.shared.isCreatingLink {
                     VisualEffectBlur(blurStyle: .systemUltraThinMaterial)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -506,6 +544,8 @@ struct WorldsView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                
+               
                 
                 VStack {
                     Spacer()
@@ -540,6 +580,7 @@ struct WorldsView: View {
                                     ScrollView(.horizontal, showsIndicators: false) {
                                         HStack {
                                             ForEach(worldManager.sharedLinks) { sharedLink in
+                                                
                                                 HStack(alignment: .top) {
                                                     // Display the snapshot preview image (if available)
                                                     if let snapshotURL = sharedLink.snapshotURL,
@@ -584,6 +625,7 @@ struct WorldsView: View {
                                                     }
                                                     
                                                     AppState.shared.ownerName = sharedLink.ownerName
+                                                    AppState.shared.isOpeningSharedLink = true
                                                     worldManager.openSharedLink(sharedLink)
                                                    
                                                 }
@@ -612,6 +654,21 @@ struct WorldsView: View {
                         .rest(at: .constant([60, 150]))
                         .impact(.light)
                     }
+                }
+                
+                
+                if AppState.shared.isOpeningSharedLink {
+                    VisualEffectBlur(blurStyle: .systemUltraThinMaterial)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .ignoresSafeArea()
+                    VStack {
+                        ProgressView {
+                            Text("Preparing the map.")
+                                .font(.system(.headline, design: .rounded))
+                        }
+                        .padding()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
         }

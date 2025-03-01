@@ -205,6 +205,7 @@ extension WorldManager {
         if pinRequired {
             print("🔒 PIN is required. Showing PIN sheet...")
             AppState.shared.isShowingCollaborationChoiceSheet = true
+            AppState.shared.isOpeningSharedLink = false
         } else {
             print("🔓 No PIN required. Showing open/save sheet...")
             AppState.shared.isShowingOpenSaveSheet = true
