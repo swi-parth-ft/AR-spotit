@@ -14,6 +14,8 @@ struct AddNewRoom: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
     @FocusState private var isTextFieldFocused: Bool
+    var onTapAddRoom: (() -> Void)
+    
     var body: some View {
         NavigationStack {
             ZStack {
@@ -54,7 +56,7 @@ struct AddNewRoom: View {
                         }
                     
                     Button {
-                        
+                            onTapAddRoom()
                         dismiss()
                         //selectedWorld = WorldModel(name: roomName)
                     } label: {
@@ -108,5 +110,7 @@ struct AddNewRoom: View {
 }
 
 #Preview {
-    AddNewRoom(roomName: .constant(" "))
+    AddNewRoom(roomName: .constant(" "), onTapAddRoom: {
+        
+    })
 }

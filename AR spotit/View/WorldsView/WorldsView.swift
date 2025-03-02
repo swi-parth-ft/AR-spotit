@@ -5,7 +5,7 @@ import Drops
 import AppIntents
 import CoreSpotlight
 import MobileCoreServices
-
+import TipKit
 struct WorldsView: View {
     // MARK: - State Variables
     @StateObject var worldManager = WorldManager.shared
@@ -46,10 +46,13 @@ struct WorldsView: View {
     @State private var hasLoadedWorlds = false
     @State private var isOpeningAnchorsSheet = false
     @State private var showCheckmark = false
-
+    let newRoomTip = NewRoomTip()
+    let worldsViewTip = WorldViewTip()
+let shareWorldsTip = ShareWorldsTip()
     @AppStorage("sortingField") private var sortingFieldRawValue: String = SortingField.name.rawValue
     @AppStorage("sortingAscending") private var sortingAscending: Bool = true
-
+    @AppStorage("isShowedScanningGuide") private var isShowedScanningGuide: Bool = false
+@State private var isShowingScanningGuide: Bool = false
     private var sortingField: SortingField {
         get { SortingField(rawValue: sortingFieldRawValue) ?? .name }
         set { sortingFieldRawValue = newValue.rawValue }
@@ -143,7 +146,11 @@ struct WorldsView: View {
                         }
                         
                         
-                       
+                        if !filteredWorlds.isEmpty {
+                            TipView(worldsViewTip)
+                                .padding(.horizontal)
+                                .tint(colorScheme == .dark ? .white : .black)
+                        }
                         
                         ForEach(filteredWorlds) { world in
                             VStack(alignment: .leading) {
@@ -292,6 +299,14 @@ struct WorldsView: View {
                    
                     
                 }
+                .sheet(isPresented: $isShowingScanningGuide) {
+                    ARViewGuideView() {
+                        isAddingNewRoom.toggle()
+                        HapticManager.shared.impact(style: .medium)
+                        newRoomTip.invalidate(reason: .actionPerformed)
+                        isShowedScanningGuide = true
+                    }
+                }
                 .onReceive(NotificationCenter.default.publisher(for: Notifications.findItemNotification)) { notification in
                     Task {
                         guard let userInfo = notification.userInfo,
@@ -407,13 +422,20 @@ struct WorldsView: View {
                         .tint(colorScheme == .dark ? .white : .black)
                         
                         Button {
-                            isAddingNewRoom.toggle()
-                            HapticManager.shared.impact(style: .medium)
+                            
+                            if !isShowedScanningGuide {
+                                isShowingScanningGuide = true
+                            } else {
+                                isAddingNewRoom.toggle()
+                                HapticManager.shared.impact(style: .medium)
+                                newRoomTip.invalidate(reason: .actionPerformed)
+                            }
                         } label: {
                             Image(systemName: "plus.circle")
                                 .font(.title2)
                                 .foregroundStyle(colorScheme == .dark ? .white : .black)
                         }
+                        .popoverTip(newRoomTip)
                     }
                   
                 }
@@ -436,21 +458,31 @@ struct WorldsView: View {
                     .interactiveDismissDisabled()
                 }
                 .sheet(isPresented: $isAddingNewRoom, onDismiss: {
-                    if roomName != "" {
-                        var newRoomName = roomName
-                        var counter = 1
-                        while worldManager.savedWorlds.contains(where: { $0.name.lowercased() == newRoomName.lowercased() }) {
-                            newRoomName = "\(roomName)\(counter)"
-                            counter += 1
-                        }
-                        selectedWorld = WorldModel(name: newRoomName)
-                    }
+//                    if roomName != "" {
+//                        var newRoomName = roomName
+//                        var counter = 1
+//                        while worldManager.savedWorlds.contains(where: { $0.name.lowercased() == newRoomName.lowercased() }) {
+//                            newRoomName = "\(roomName)\(counter)"
+//                            counter += 1
+//                        }
+//                        selectedWorld = WorldModel(name: newRoomName)
+//                    }
                 }) {
-                    AddNewRoom(roomName: $roomName)
+                    AddNewRoom(roomName: $roomName) {
+                        if roomName != "" {
+                            var newRoomName = roomName
+                            var counter = 1
+                            while worldManager.savedWorlds.contains(where: { $0.name.lowercased() == newRoomName.lowercased() }) {
+                                newRoomName = "\(roomName)\(counter)"
+                                counter += 1
+                            }
+                            selectedWorld = WorldModel(name: newRoomName)
+                        }
+                    }
                         .conditionalModifier(!UIDevice.isIpad) { view in
                             view.presentationDetents([.fraction(0.4)])
                         }
-                        .interactiveDismissDisabled()
+                     //   .interactiveDismissDisabled()
                 }
                 .sheet(isPresented: $isTestingAudio, content: {
                     SensoryFeedbackView()
@@ -561,6 +593,9 @@ struct WorldsView: View {
                                         .foregroundColor(.gray)
                                         .frame(width: 30.0, height: 6.0)
                                         .padding()
+                                        .popoverTip(shareWorldsTip)
+                                        .tint(.black)
+
                                     
                                     HStack {
                                         Text("Shared With You")

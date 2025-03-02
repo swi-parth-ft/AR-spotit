@@ -9,6 +9,7 @@ import SwiftUI
 import Drops
 import CloudKit
 import Drawer
+import TipKit
 
 struct AnchorsListView: View {
     
@@ -41,6 +42,9 @@ struct AnchorsListView: View {
     @State private var isDeleting = false
     @State private var isRemovingCollab = false
     @State private var currentWorld: WorldModel?
+    @State private var isShowingCollabGuide = false
+    
+    
     func extractEmoji(from string: String) -> String? {
         for char in string {
                 if char.isEmoji {
@@ -59,7 +63,11 @@ struct AnchorsListView: View {
              return searchText.isEmpty || cleanAnchor.localizedCaseInsensitiveContains(searchText)
          }
      }
+    let collabTip = StartCollaborationTip()
+    let findItemTip = FindItemTip()
     
+    @AppStorage("hasSeenCollabGuide") private var hasSeenCollabGuide = false
+
     var body: some View {
         // Anchors Section
         NavigationStack {
@@ -104,7 +112,11 @@ struct AnchorsListView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                  
                     
-                    
+                    if let anchors = anchorsByWorld[worldName], !anchors.isEmpty {
+                         TipView(findItemTip)
+                            .padding(.horizontal)
+                            .tint(colorScheme == .dark ? .white : .black)
+                    }
                     
                     
                    
@@ -255,6 +267,21 @@ struct AnchorsListView: View {
                          }
                     
                 }
+                .sheet(isPresented: $isShowingCollabGuide) {
+                    CollaborationGuideView() {
+                        if let world = worldManager.savedWorlds.first(where: { $0.name == worldName }),
+                           world.isCollaborative {
+                            
+                            AppState.shared.isCreatingLink = true
+                            worldManager.shareWorldViaCloudKit(roomName: worldName, pin: "")
+                        } else {
+                            isChecking = false
+                            showPinPopover = true
+                        }
+                        
+                        hasSeenCollabGuide = true
+                    }
+                }
                 .sheet(isPresented: $showCollaborators) {
                     // Simple SwiftUI list of collaborator names
                     NavigationStack {
@@ -375,16 +402,21 @@ struct AnchorsListView: View {
                         }
                         
                         Button {
-                        
-                            if let world = worldManager.savedWorlds.first(where: { $0.name == worldName }),
-                               world.isCollaborative {
-                                
-                                AppState.shared.isCreatingLink = true
-                                worldManager.shareWorldViaCloudKit(roomName: worldName, pin: "")
+                            if !hasSeenCollabGuide {
+                                isShowingCollabGuide = true
                             } else {
-                                isChecking = false
-                                showPinPopover = true
+                                if let world = worldManager.savedWorlds.first(where: { $0.name == worldName }),
+                                   world.isCollaborative {
+                                    
+                                    AppState.shared.isCreatingLink = true
+                                    worldManager.shareWorldViaCloudKit(roomName: worldName, pin: "")
+                                } else {
+                                    isChecking = false
+                                    showPinPopover = true
+                                }
                             }
+                            
+                         
                           
                         } label: {
                             HStack {
@@ -477,6 +509,7 @@ struct AnchorsListView: View {
                             .font(.title2)
                             .foregroundStyle(colorScheme == .dark ? .white : .black)
                     }
+                    .popoverTip(collabTip)
                 }
                 
                 VStack {

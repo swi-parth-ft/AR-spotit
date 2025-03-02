@@ -11,6 +11,7 @@ import AppIntents
 import CoreSpotlight
 import CloudKit
 import Drops
+import TipKit
 
 @main
 struct AR_spotitApp: App {
@@ -197,6 +198,11 @@ struct AR_spotitApp: App {
                 }
             }
         }
+    }
+    
+    
+    init() {
+        try? Tips.configure()
     }
     
 }
