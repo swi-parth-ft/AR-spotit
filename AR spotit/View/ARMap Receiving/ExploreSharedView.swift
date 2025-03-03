@@ -38,7 +38,8 @@ struct ExploreSharedView: View {
             }
             return nil
     }
-    
+    @AppStorage("isShowedExploreGuide") private var isShowedExploreGuide: Bool = false
+    @State private var isShowingExploreGuide: Bool = false
     
     var body: some View {
         NavigationStack {
@@ -164,6 +165,11 @@ struct ExploreSharedView: View {
                     .padding()
                     
                 }
+                .sheet(isPresented: $isShowingExploreGuide) {
+                    FindItemGuide()
+                }
+                    
+                
                 .onAppear {
                     if let arWorldMap = arWorldMap {
                         arWorldMap.anchors.forEach { anchor in
@@ -175,9 +181,27 @@ struct ExploreSharedView: View {
                     }
                     UISearchBar.appearance().tintColor = colorScheme == .dark ? .white : .black
                     
+                    
+                    if !isShowedExploreGuide {
+                        isShowingExploreGuide = true
+                        isShowedExploreGuide = true
+                        
+                    }
+                    
                 }
                 .navigationTitle("Explore \(WorldManager.shared.sharedWorldName ?? "")")
+                .toolbar {
+                    Button {
+                        isShowingExploreGuide = true
+                    } label: {
+                        Image(systemName: "lightbulb.circle")
+                            .font(.title2)
+                            .tint(colorScheme == .dark ? .white : .black)
+                            
+                    }
+                }
             }
+      
         }
     }
 }

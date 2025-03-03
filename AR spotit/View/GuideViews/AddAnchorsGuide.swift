@@ -7,46 +7,47 @@
 
 import SwiftUI
 
-struct CollaborationGuideView: View {
-    var name: String = "Bedroom"
+struct AddAnchorsGuide: View {
+   
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
-
-    var onTap: () -> Void = { }
+var onTap: () -> Void = { }
     var body: some View {
         VStack {
             VStack {
-                Image(systemName: "person.2.fill")
+                Image(systemName: "circle.badge.plus.fill")
                     .font(.system(size: 80))
-                    .foregroundStyle(.blue)
-                    .symbolEffect(.breathe)
+                    .foregroundStyle(.secondary)
+                    .symbolEffect(.pulse)
                     .padding()
-                Text("Share Collaboration Link")
+                Text("Add an Item")
                     .font(.system(.title, design: .rounded))
                     .bold()
             }
-            .padding(.bottom)
+            .padding(.top)
+
             
             VStack(alignment: .leading) {
             HStack(alignment: .top) {
-                Image(systemName: "square.and.arrow.up.fill")
+                Image(systemName: "hand.tap.fill")
                     .font(.system(size: 30))
                     .padding(.horizontal)
                     .frame(width: 30)
-                Text("iCloud link can be shared with anyone you want to collaborate with; or for public to find items.")
+                Text("Tap on the real world object you want to mark and save its position.")
                     .font(.system(.headline, design: .rounded))
                     .frame(alignment: .leading)
                     .padding(.horizontal)
                 
             }
             .padding()
-            
+                
                 HStack(alignment: .top) {
-                    Image(systemName: "key.icloud.fill")
+                    Image(systemName: "hand.rays.fill")
                         .font(.system(size: 30))
+                        .bold()
                         .padding(.horizontal)
                         .frame(width: 30)
-                    Text("You will set a key to do collaboration; anyone with the key can collaborate with your area map.")
+                    Text("Tap and hold the items you placed to rename, delete or change their position.")
                         .font(.system(.headline, design: .rounded))
                         .frame(alignment: .leading)
                         .padding(.horizontal)
@@ -54,27 +55,18 @@ struct CollaborationGuideView: View {
                 }
                 .padding()
             
-                HStack(alignment: .top) {
-                    Image(systemName: "inset.filled.circle")
-                        .font(.system(size: 30))
-                        .padding(.horizontal)
-                        .frame(width: 30)
-                    Text("When collaborators adds new items to the map, you can open the AR map and integrate into it and make them available for public to see.")
-                        .font(.system(.headline, design: .rounded))
-                        .frame(alignment: .leading)
-                        .padding(.horizontal)
-                    
-                }
-                .padding()
+             
+            
+               
                 
         }
             .padding()
-            
+            Spacer()
             Button {
                 onTap()
                 dismiss()
             } label: {
-                Text("Next")
+                Text("Add Item")
                     .font(.system(.headline, design: .rounded))
                     .foregroundStyle(colorScheme == .dark ? .black : .white)
                     .bold()
@@ -90,5 +82,5 @@ struct CollaborationGuideView: View {
 }
 
 #Preview {
-    CollaborationGuideView()
+    AddAnchorsGuide()
 }

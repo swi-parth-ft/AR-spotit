@@ -19,19 +19,7 @@ struct AddNewRoom: View {
     var body: some View {
         NavigationStack {
             ZStack {
-//                VStack {
-//                    HStack {
-//                        Spacer()
-//                        
-//                        Image(systemName: "plus.circle")
-//                            .font(.system(size: 300))
-//                            .foregroundStyle(.secondary.opacity(0.5))
-//                            .ignoresSafeArea()
-//                    }
-//                    .padding(.top, -180)
-//                    .padding(.trailing, -120)
-//                    Spacer()
-//                }
+
                 
                 VStack(alignment: .leading) {
                     
@@ -78,7 +66,7 @@ struct AddNewRoom: View {
                 }
                 .navigationTitle("New Area")
                 .sheet(isPresented: $isShowingGuide) {
-                    RoomScanGuideView()
+                    ARViewGuideView()
                 }
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {

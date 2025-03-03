@@ -14,6 +14,8 @@ struct CollaborationOptionSheet: View {
     var onViewOnly: () -> Void
     var onCancel: () -> Void
     @Environment(\.colorScheme) var colorScheme
+    @State private var isShowigReceivingLinkGuide = false
+    @AppStorage("isShowedReceivingLinkGuide") private var isShowedReceivingLinkGuide: Bool = false
 
     var body: some View {
         NavigationView {
@@ -51,13 +53,21 @@ struct CollaborationOptionSheet: View {
                 
                 
             }
+            .onAppear {
+                if !isShowedReceivingLinkGuide {
+                    isShowigReceivingLinkGuide = true
+                    isShowedReceivingLinkGuide = true
+                }
+            }
             .padding()
-
+            .sheet(isPresented: $isShowigReceivingLinkGuide) {
+                ReceivingLinkGuide()
+            }
             .navigationTitle("Open \(roomName) Map")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                      //  isShowingGuide.toggle()
+                        isShowigReceivingLinkGuide = true
                     } label: {
                         Image(systemName: "lightbulb.circle")
                             .font(.title2)

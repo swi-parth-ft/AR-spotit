@@ -24,7 +24,7 @@ struct ARViewGuideView: View {
                     .font(.system(.title, design: .rounded))
                     .bold()
             }
-            .padding(.bottom)
+            .padding(.top)
             ScrollView {
                 VStack(alignment: .leading) {
                     HStack(alignment: .top) {
@@ -82,6 +82,8 @@ struct ARViewGuideView: View {
                 }
                 .padding()
             }
+            
+            Spacer()
             Button {
                 onTap()
                 dismiss()

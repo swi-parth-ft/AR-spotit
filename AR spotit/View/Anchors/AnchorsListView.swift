@@ -173,7 +173,8 @@ struct AnchorsListView: View {
                                 .cornerRadius(22)
                                 .shadow(color: Color(getDominantColor(for: extractEmoji(from: anchorName) ?? "📍")).opacity(0.7), radius: 7)
                                 .onTapGesture {
-                                    
+                                    findItemTip.invalidate(reason: .actionPerformed)
+
                                     findingAnchorName = anchorName
                                     //
                                     dismiss()
@@ -263,7 +264,7 @@ struct AnchorsListView: View {
                             }
                         }
                         .conditionalModifier(!UIDevice.isIpad) { view in
-                             view.presentationDetents([.fraction(0.4)])
+                             view.presentationDetents([.fraction(0.5)])
                          }
                     
                 }
@@ -402,6 +403,8 @@ struct AnchorsListView: View {
                         }
                         
                         Button {
+                            collabTip.invalidate(reason: .actionPerformed)
+
                             if !hasSeenCollabGuide {
                                 isShowingCollabGuide = true
                             } else {
@@ -427,8 +430,10 @@ struct AnchorsListView: View {
                                 
                             }
                             .font(.title2)
+                  
                             
                         }
+                       
                         
                        
                         
@@ -510,6 +515,7 @@ struct AnchorsListView: View {
                             .foregroundStyle(colorScheme == .dark ? .white : .black)
                     }
                     .popoverTip(collabTip)
+                  
                 }
                 
                 VStack {

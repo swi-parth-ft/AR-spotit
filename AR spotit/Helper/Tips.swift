@@ -62,11 +62,11 @@ struct StartCollaborationTip: Tip {
     }
     
     var message: Text? {
-        Text("You can make this area available for others to join collaboration from this menu.")
+        Text("You can make this area available for others to join collaboration or share with public from this menu.")
     }
     
     var image: Image? {
-        Image(systemName: "person.2")
+        Image(systemName: "person.2.fill")
     }
   
 }

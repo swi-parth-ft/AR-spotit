@@ -15,7 +15,7 @@ struct PinView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
     @FocusState private var isTextFieldFocused: Bool
-
+    
     var isChecking: Bool
     var onCompletion: (() -> Void)? // Completion handler
 
@@ -23,10 +23,21 @@ struct PinView: View {
         NavigationStack {
             VStack(alignment: .leading) {
                 Spacer()
-                Text(isChecking ? "Your collaboration Key for \(roomName)" : "Set your Key for \(roomName) collaboration")
-                    .font(.subheadline)
-                    .foregroundStyle(.gray)
-                    .padding(.horizontal)
+              
+                VStack(alignment: .leading) {
+                    HStack(alignment: .top) {
+                        Image(systemName: "person.badge.key.fill")
+                            .font(.system(.title2, design: .rounded))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.green, .primary)
+                        Text(isChecking ? "Your collaboration Key for \(roomName)" : "Set your Key for \(roomName) collaboration, Please note that this key can not be changed later, you will need to recollaborate to set new key. \n \nYou can view your Key anytime in the App.")
+                            .font(.system(.headline, design: .rounded))
+
+                    }
+        
+                 
+                }
+                .padding()
                 if isChecking {
                     Text(pin)
                         .font(.system(.largeTitle, design: .rounded))
@@ -83,7 +94,7 @@ struct PinView: View {
             .padding(.bottom)
             .navigationTitle(isChecking ? "Key for \(roomName)" : "Set Key")
             .sheet(isPresented: $isShowingGuide) {
-                RoomScanGuideView()
+                CollaborationGuideView()
             }
             .toolbar {
           
@@ -100,9 +111,22 @@ struct PinView: View {
                     }
                 }
                 
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isShowingGuide = true
+                    } label: {
+                        Image(systemName: "lightbulb.circle")
+                            .font(.title2)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
+                    }
+                }
+                
             }
            
         }
     }
 }
 
+#Preview {
+    PinView(roomName: "Bedroom", pin: .constant("1234"), isChecking: false)
+}

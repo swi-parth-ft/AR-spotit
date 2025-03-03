@@ -56,6 +56,11 @@ struct AugmentedView: View {
     @State private var hasPlayedItshere = false
     @State private var errorEditingAnchor: Bool = false
     @State private var timer = Timer.publish(every: 2.0, on: .main, in: .common).autoconnect()
+    @AppStorage("isShowedAddAnchorGuide") private var isShowedAddAnchorGuide: Bool = false
+    @AppStorage("isShowedFindItemGuide") private var isShowedFindItemGuide: Bool = false
+
+@State private var isShowingAddAnchorGuide: Bool = false
+    @State private var isShowingFindItemGuide: Bool = false
     var body: some View {
         NavigationStack {
             VStack {
@@ -154,6 +159,13 @@ struct AugmentedView: View {
                     view.presentationDetents([.medium, .large])
                 }
             }
+            .sheet(isPresented: $isShowingAddAnchorGuide) {
+                AddAnchorsGuide() {
+                    isAddingNewAnchor.toggle()
+                    HapticManager.shared.impact(style: .medium)
+                    isShowedAddAnchorGuide = true
+                }
+            }
             .sheet(isPresented: $isAddingNewAnchor) {
                 AddAnchorView(anchorName: $currentAnchorName, worldManager: worldManager)
                     .conditionalModifier(!UIDevice.isIpad) { view in
@@ -203,6 +215,9 @@ struct AugmentedView: View {
                         view.presentationDetents([.fraction(0.6)])
                     }
             }
+            .sheet(isPresented: $isShowingFindItemGuide) {
+                FindItemGuide()
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -239,6 +254,16 @@ struct AugmentedView: View {
                                 .foregroundColor(.blue)
                                 .symbolEffect(.breathe)
                         }
+                    }
+                }
+                
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isShowingFindItemGuide = true
+                    } label: {
+                        Image(systemName: "lightbulb.circle")
+                            .font(.title2)
+                            .foregroundStyle(.white)
                     }
                 }
             }
@@ -449,8 +474,13 @@ extension AugmentedView {
             HStack(spacing: 10) {
                 if !AppState.shared.isViewOnly {
                     Button {
-                        isAddingNewAnchor.toggle()
-                        HapticManager.shared.impact(style: .medium)
+                        if !isShowedAddAnchorGuide {
+                            isShowingAddAnchorGuide = true
+                            
+                        } else {
+                            isAddingNewAnchor.toggle()
+                            HapticManager.shared.impact(style: .medium)
+                        }
                     } label: {
                         ZStack {
                             Circle()
@@ -669,6 +699,11 @@ extension AugmentedView {
         }
     }
     func onViewAppear() {
+        
+      
+        
+        
+        
     if let arWorldMap = WorldManager.shared.sharedARWorldMap {
         recordName = AppState.shared.publicRecordName
         isOpeningSharedWorld = true
@@ -705,6 +740,13 @@ extension AugmentedView {
         print("✅ AR session started with the iCloud-shared map!")
         WorldManager.shared.sharedARWorldMap = nil
     } else {
+        if !isShowedFindItemGuide && findAnchor != "" {
+            isShowingFindItemGuide = true
+            isShowedFindItemGuide = true
+            
+        }
+        
+        
         isOpeningSharedWorld = false
         worldManager.loadSavedWorlds {
             if let world = worldManager.savedWorlds.first(where: { $0.name == currentRoomName }),

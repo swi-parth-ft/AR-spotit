@@ -161,6 +161,9 @@ let shareWorldsTip = ShareWorldsTip()
                                     colorScheme: colorScheme,
                                     animationNamespace: animationNamespace,
                                     onTap: {
+                                        
+                                        worldsViewTip.invalidate(reason: .actionPerformed)
+
                                         HapticManager.shared.impact(style: .medium)
                                         worldForAnchors = world
                                         isShowingAnchors = true
@@ -542,7 +545,7 @@ let shareWorldsTip = ShareWorldsTip()
                     )
                     .id(pinWorld.id)
                     .conditionalModifier(!UIDevice.isIpad) { view in
-                        view.presentationDetents([.fraction(0.4)])
+                        view.presentationDetents([.fraction(0.5)])
                     }
                 }
                 .sheet(item: $worldForDelete) { deleteWorld in
@@ -648,6 +651,8 @@ let shareWorldsTip = ShareWorldsTip()
                                                 .padding(7)
                                                 .contentShape(Rectangle())
                                                 .onTapGesture {
+                                                    shareWorldsTip.invalidate(reason: .actionPerformed)
+
                                                     if let snapshotURL = sharedLink.snapshotURL {
                                                         if let imageData = try? Data(contentsOf: snapshotURL) {
                                                             if let image = UIImage(data: imageData) {

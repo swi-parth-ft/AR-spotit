@@ -21,6 +21,8 @@ struct AddAnchorView: View {
           let emojis = loadEmojis()
           return emojis.first { $0.id == "🏴‍☠️" }
       }()
+    @State private var isShowingAddAnchorGuide = false
+    
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading) {
@@ -86,11 +88,15 @@ struct AddAnchorView: View {
 
                 .padding(.horizontal)
             }
+            .sheet(isPresented: $isShowingAddAnchorGuide) {
+                AddAnchorsGuide()
+            }
             .navigationTitle("New Item")
             .navigationBarTitleDisplayMode(.large)
 
             .toolbar {
                 Button {
+                    isShowingAddAnchorGuide = true
                 } label: {
                     Image(systemName: "lightbulb.circle")
                         .font(.title2)

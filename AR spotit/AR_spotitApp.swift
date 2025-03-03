@@ -186,6 +186,8 @@ struct AR_spotitApp: App {
                     try await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
                     withAnimation {
                         self.isActive = true
+                        try? Tips.configure()
+
                     }
                 }
             }
@@ -201,9 +203,7 @@ struct AR_spotitApp: App {
     }
     
     
-    init() {
-        try? Tips.configure()
-    }
+   
     
 }
 
@@ -249,51 +249,6 @@ private extension AR_spotitApp {
         }
     }
     
-    private func processSharedRecord(_ sharedRecord: CKRecord, withShare share: CKShare) {
-        let roomName = sharedRecord["roomName"] as? String ?? "Untitled"
-        let publicRecordName = sharedRecord["publicRecordName"] as? String ?? ""
-        
-        DispatchQueue.main.async {
-            WorldManager.shared.sharedZoneID = share.recordID.zoneID
-            print("Shared zone ID set to: \(WorldManager.shared.sharedZoneID!)")
-            AppState.shared.publicRecordName = publicRecordName
-            AppState.shared.isiCloudShare = true
-        }
-        
-        // Start the collaborative session.
-        WorldManager.shared.startCollaborativeSession(with: sharedRecord, roomName: roomName)
-        
-        guard
-            let asset = sharedRecord["mapAsset"] as? CKAsset,
-            let assetFileURL = asset.fileURL
-        else {
-            print("❌ Failed to get CKAsset or assetFileURL")
-            return
-        }
-        DispatchQueue.main.async {
-            AppState.shared.pendingSharedRecord = sharedRecord
-            AppState.shared.pendingAssetFileURL = assetFileURL
-            AppState.shared.pendingRoomName = roomName
-        }
-        // Store record details in AppState so sheets can use them.
-        
-        
-        // If a PIN is required, show the PIN sheet; otherwise, show the open/save sheet.
-        let pinRequired = sharedRecord["pinRequired"] as? Bool ?? false
-        if pinRequired {
-            print("🔒 PIN is required. Showing PIN sheet...")
-            DispatchQueue.main.async {
-                //  AppState.shared.isShowingPinSheet = true
-                AppState.shared.isShowingCollaborationChoiceSheet = true
-                
-            }
-        } else {
-            print("🔓 No PIN required. Showing open/save sheet...")
-            DispatchQueue.main.async {
-                AppState.shared.isShowingOpenSaveSheet = true
-            }
-        }
-    }
     
     private func showOpenOrSaveAlert(sharedRecord: CKRecord,
                                      assetFileURL: URL,
@@ -380,6 +335,9 @@ private extension AR_spotitApp {
     }
     
     private func handleIncomingShareMetadata(_ metadata: CKShare.Metadata) {
+        DispatchQueue.main.async {
+            AppState.shared.isOpeningSharedLink = true
+        }
         print("Handling incoming share metadata directly: \(metadata)")
         let acceptOperation = CKAcceptSharesOperation(shareMetadatas: [metadata])
         acceptOperation.perShareCompletionBlock = { meta, share, error in
@@ -404,6 +362,7 @@ private extension AR_spotitApp {
                     } else if let fetchedRecord = fetchedRecord {
                         print("Fetched root record via fetch: \(fetchedRecord.recordID)")
                         WorldManager.shared.processIncomingSharedRecord(fetchedRecord, withShare: share)
+                       
                     }
                 }
             }
