@@ -1,5 +1,5 @@
 {
-  "originHash" : "5680d9757e2cf439253746562161048b9527518d848e6cc2f128a9400ba2ab25",
+  "originHash" : "b562497e09a10fc0a56ff04638bd8ad1aebcc312d72e5a6e386f59d30dade4f0",
   "pins" : [
     {
       "identity" : "animatetext",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "c55847e03bb3f36cf83cc217fe60ec5feda9ddd6",
         "version" : "0.5.0"
+      }
+    },
+    {
+      "identity" : "cardstack",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/notsobigcompany/CardStack",
+      "state" : {
+        "revision" : "33417ef29fdc4169712cb3b8bf0ddbd7b6ef52c5",
+        "version" : "1.0.0"
       }
     },
     {

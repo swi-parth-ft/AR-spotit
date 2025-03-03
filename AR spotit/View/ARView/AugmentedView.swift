@@ -261,7 +261,7 @@ struct AugmentedView: View {
                     Button {
                         isShowingFindItemGuide = true
                     } label: {
-                        Image(systemName: "lightbulb.circle")
+                        Image(systemName: "questionmark.circle.fill")
                             .font(.title2)
                             .foregroundStyle(.white)
                     }

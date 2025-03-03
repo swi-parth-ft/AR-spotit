@@ -194,7 +194,7 @@ struct ExploreSharedView: View {
                     Button {
                         isShowingExploreGuide = true
                     } label: {
-                        Image(systemName: "lightbulb.circle")
+                        Image(systemName: "questionmark.circle.fill")
                             .font(.title2)
                             .tint(colorScheme == .dark ? .white : .black)
                             

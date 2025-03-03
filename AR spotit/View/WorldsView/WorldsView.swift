@@ -52,6 +52,8 @@ let shareWorldsTip = ShareWorldsTip()
     @AppStorage("sortingField") private var sortingFieldRawValue: String = SortingField.name.rawValue
     @AppStorage("sortingAscending") private var sortingAscending: Bool = true
     @AppStorage("isShowedScanningGuide") private var isShowedScanningGuide: Bool = false
+    @AppStorage("isShowedWelcomeGuide") private var isShowedWelcomeGuide: Bool = false
+@State private var isShowingWelcomeGuide: Bool = false
 @State private var isShowingScanningGuide: Bool = false
     private var sortingField: SortingField {
         get { SortingField(rawValue: sortingFieldRawValue) ?? .name }
@@ -225,6 +227,8 @@ let shareWorldsTip = ShareWorldsTip()
                         }
                     }
                     .onAppear {
+                        
+                        
                         if !hasLoadedWorlds {
                             hasLoadedWorlds = true
                             worldManager.loadSavedWorlds {
@@ -310,6 +314,13 @@ let shareWorldsTip = ShareWorldsTip()
                         isShowedScanningGuide = true
                     }
                 }
+                .fullScreenCover(isPresented: $isShowingWelcomeGuide) {
+                    GeometryReader { geometry in
+                        WelcomeView()
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                    }
+                }
+              
                 .onReceive(NotificationCenter.default.publisher(for: Notifications.findItemNotification)) { notification in
                     Task {
                         guard let userInfo = notification.userInfo,
@@ -374,6 +385,16 @@ let shareWorldsTip = ShareWorldsTip()
                             Image(systemName: "checkmark.icloud")
                                 .transition(.opacity)
                                 .symbolEffect(.bounce)
+
+                        }
+                        
+                        
+                        Button {
+                            isShowingWelcomeGuide = true
+                        } label: {
+                            Image(systemName: "questionmark.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(colorScheme == .dark ? .white : .black)
 
                         }
                     }

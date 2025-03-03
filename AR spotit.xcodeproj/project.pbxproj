@@ -11,6 +11,7 @@
 		08A76EED2D35F5CF001AB55F /* Drops in Frameworks */ = {isa = PBXBuildFile; productRef = 08A76EEC2D35F5CF001AB55F /* Drops */; };
 		08D911A12D44A053002B96E0 /* AnimateText in Frameworks */ = {isa = PBXBuildFile; productRef = 08D911A02D44A053002B96E0 /* AnimateText */; };
 		08E77F772D65719700F94599 /* Drawer in Frameworks */ = {isa = PBXBuildFile; productRef = 08E77F762D65719700F94599 /* Drawer */; };
+		08E77FDD2D76204400F94599 /* CardStack in Frameworks */ = {isa = PBXBuildFile; productRef = 08E77FDC2D76204400F94599 /* CardStack */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -52,6 +53,7 @@
 				08A76E7A2D333C7B001AB55F /* Vortex in Frameworks */,
 				08A76EED2D35F5CF001AB55F /* Drops in Frameworks */,
 				08D911A12D44A053002B96E0 /* AnimateText in Frameworks */,
+				08E77FDD2D76204400F94599 /* CardStack in Frameworks */,
 				08E77F772D65719700F94599 /* Drawer in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -110,6 +112,7 @@
 				08A76EEC2D35F5CF001AB55F /* Drops */,
 				08D911A02D44A053002B96E0 /* AnimateText */,
 				08E77F762D65719700F94599 /* Drawer */,
+				08E77FDC2D76204400F94599 /* CardStack */,
 			);
 			productName = "AR spotit";
 			productReference = 0815EBFE2D287B4F00F23F12 /* it's here..app */;
@@ -144,6 +147,7 @@
 				08A76EEB2D35F5CF001AB55F /* XCRemoteSwiftPackageReference "Drops" */,
 				08D9119F2D44A053002B96E0 /* XCRemoteSwiftPackageReference "AnimateText" */,
 				08E77F752D65719700F94599 /* XCRemoteSwiftPackageReference "swiftui-drawer" */,
+				08E77FDB2D76204400F94599 /* XCRemoteSwiftPackageReference "CardStack" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0815EBFF2D287B4F00F23F12 /* Products */;
@@ -436,6 +440,14 @@
 				kind = branch;
 			};
 		};
+		08E77FDB2D76204400F94599 /* XCRemoteSwiftPackageReference "CardStack" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/notsobigcompany/CardStack";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -458,6 +470,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 08E77F752D65719700F94599 /* XCRemoteSwiftPackageReference "swiftui-drawer" */;
 			productName = Drawer;
+		};
+		08E77FDC2D76204400F94599 /* CardStack */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 08E77FDB2D76204400F94599 /* XCRemoteSwiftPackageReference "CardStack" */;
+			productName = CardStack;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

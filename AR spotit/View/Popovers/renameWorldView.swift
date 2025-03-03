@@ -97,16 +97,7 @@ struct renameWorldView: View {
             }
             .padding(.bottom)
             .navigationTitle("Rename \(worldName)")
-          
-            .toolbar {
-                Button {
-                  //  isShowingGuide.toggle()
-                } label: {
-                    Image(systemName: "lightbulb.circle")
-                        .font(.title2)
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                }
-            }
+     
 //            .onChange(of: worldManager.reload) {
 //                dismiss()
 //            }

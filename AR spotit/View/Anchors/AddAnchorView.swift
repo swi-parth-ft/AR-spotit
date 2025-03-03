@@ -98,7 +98,7 @@ struct AddAnchorView: View {
                 Button {
                     isShowingAddAnchorGuide = true
                 } label: {
-                    Image(systemName: "lightbulb.circle")
+                    Image(systemName: "questionmark.circle.fill")
                         .font(.title2)
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }

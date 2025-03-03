@@ -70,7 +70,7 @@ struct CollaborationGuideView: View {
                 .padding()
             
                 HStack(alignment: .top) {
-                    Image(systemName: "inset.filled.circle")
+                    Image(systemName: "sparkles")
                         .font(.system(size: 30))
                         .padding(.horizontal)
                         .frame(width: 30)

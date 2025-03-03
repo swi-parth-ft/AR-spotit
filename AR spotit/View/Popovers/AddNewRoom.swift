@@ -73,7 +73,7 @@ struct AddNewRoom: View {
                         Button {
                             isShowingGuide.toggle()
                         } label: {
-                            Image(systemName: "lightbulb.circle")
+                            Image(systemName: "questionmark.circle.fill")
                                 .font(.title2)
                                 .foregroundStyle(colorScheme == .dark ? .white : .black)
                         }

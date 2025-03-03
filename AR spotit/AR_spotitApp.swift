@@ -20,8 +20,19 @@ struct AR_spotitApp: App {
     @State private var isActive = false
     let sceneDelegate = MySceneDelegate()
     @StateObject var appState = AppState.shared
+    @AppStorage("isShowedWelcome") private var isShowedWelcomeGuide: Bool = false
+
     var body: some Scene {
         WindowGroup {
+            
+            
+            if !isShowedWelcomeGuide {
+                GeometryReader { geometry in
+                    WelcomeView()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .zIndex(2)
+                }
+            } else {
             ZStack {
                 WorldsView()
                     .accentColor(.primary)
@@ -73,11 +84,13 @@ struct AR_spotitApp: App {
                             }
                     }
                 
-                if !isActive {
+                if !isActive && isShowedWelcomeGuide {
                     PhysicsDotsAnimationView()
                         .transition(.opacity)
                         .zIndex(1)
                 }
+                
+                
             }
             .sheet(isPresented: $appState.isShowingPinSheet) {
                 if let roomName = appState.pendingRoomName,
@@ -187,7 +200,7 @@ struct AR_spotitApp: App {
                     withAnimation {
                         self.isActive = true
                         try? Tips.configure()
-
+                        
                     }
                 }
             }
@@ -199,6 +212,9 @@ struct AR_spotitApp: App {
                     }
                 }
             }
+            
+            
+        }
         }
     }
     
