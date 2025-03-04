@@ -65,17 +65,10 @@ struct WelcomeView: View {
                         .opacity(arrowOpacity)
                     
                     if isShowingIcon {
-                        
                         iconView()
                             .frame(width: 100, height: 100)
                             .zIndex(2)
 
-//                        Image(colorScheme == .dark ? "iconDark" : "icon")
-//                            .resizable()
-//                            .scaledToFit()
-//                            .frame(width: 100, height: 100)
-//                            .cornerRadius(22)
-//                            .offset(y: circleOffset)
                     }
                         
                         // Animated circles
@@ -99,7 +92,6 @@ struct WelcomeView: View {
                         .offset(y: circleOffset)
                     
                 }
-                .padding(.top)
                 .rotationEffect(Angle(degrees: Double(angle)))
                 .frame(height: containerHeight, alignment: .center)
                 .onAppear {
@@ -133,7 +125,7 @@ struct WelcomeView: View {
                         
                         circleOffset = 10
                         isShowedAnimation = true
-                        circleOffset = 40
+                        circleOffset = 50
                         
                         
                     }
@@ -141,6 +133,7 @@ struct WelcomeView: View {
                     // 6. Replace the circles with your final icon image.
                     withAnimation(.spring(duration: 1).delay(3.5)) {
                         isShowingIcon = true
+                        circleScale = 0
                     }
                     
                     DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
@@ -158,6 +151,15 @@ struct WelcomeView: View {
                             AnimateText<ATOffsetEffect>($welcomeText)
                                 .font(.system(.largeTitle, design: .rounded))
                                 .bold()
+                            if isShowingTips {
+                                Text("Finding items & help finding items never been this easy!")
+                                    .font(.system(.title3, design: .rounded))
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
+                                    .padding(.horizontal)
+                                    .bold()
+                                    .foregroundStyle(.secondary)
+                            }
                             
                         }
                         .padding(.top)
@@ -175,27 +177,9 @@ struct WelcomeView: View {
                         
                         
                         if isShowingTips {
-                            ScrollView {
-                                
-                                
-                                
-                                
-                                
-                                // Subtitle / short description
-                                Text("Finding items & help finding items never been this easy!")
-                                    .font(.system(.title3, design: .rounded))
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal)
-                                    .bold()
-                                    .foregroundStyle(.secondary)
-                                
-                                
                                 TipsView()
-                                    .padding()
-                            }
-                            
+                                
                             Spacer()
-                            
                             // Dismiss or navigate button
                             Button(action: {
                                 isShowedWelcomeGuide = true
@@ -213,7 +197,6 @@ struct WelcomeView: View {
                                     .cornerRadius(10)
                             }
                             .padding()
-                            Spacer()
                             
                         }
                         
@@ -221,6 +204,11 @@ struct WelcomeView: View {
                     
                 }
             }
+            .frame(width: UIScreen.main.bounds.width)
+
+            .conditionalModifier(UIDevice.isIpad, modifier: { view in
+                view.padding(.top, 100)
+            })
         }
         }
     }

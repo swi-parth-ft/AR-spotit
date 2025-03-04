@@ -32,39 +32,48 @@ struct TipsView: View {
         CardStack(tips, currentIndex: $currentIndex) { tip in
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(.white.opacity(0.5))
-                .frame(width: 280, height: 400)
+                .frame(width: UIDevice.isIpad ? UIScreen.main.bounds.width * 0.6 : UIScreen.main.bounds.width * 0.8, height: UIScreen.main.bounds.height * 0.45)
                 .shadow(color: colorScheme == .dark ? .black : .gray, radius: 5)
+                .cornerRadius(UIDevice.isIpad ? 33 : 12)
 
                 .overlay(
                     ZStack {
                         Image(systemName: tip.symbolName)
-                            .font(.system(size: 165))
+                            .font(.system(size: UIDevice.isIpad ? 400 : 300))
                             .foregroundStyle(tip.color)
+                            .frame(width: UIDevice.isIpad ? 400 : 280, height: UIDevice.isIpad ? 400 : 220)
+                            .clipped()
                             .padding()
                             .bold()
                             .padding(.bottom, 50)
                         VisualEffectBlur(blurStyle: .systemThinMaterial)
-                            .cornerRadius(12)
+                            .cornerRadius(UIDevice.isIpad ? 33 : 12)
+                            .shadow(color: colorScheme == .dark ? .black.opacity(0.7) : .gray, radius: 5)
+
                         VStack(alignment: .center) {
                             Image(systemName: tip.symbolName)
                                 .font(.system(size: 120))
                                 .frame(width: 120)
                                 .padding()
+                            
                             Text(tip.description)
-                                .font(.system(.title3, design: .rounded))
+                                .font(.system(UIDevice.isIpad ? .title2 : .title3, design: .rounded))
                                 .multilineTextAlignment(.center)
-                                .padding(.horizontal)
+                                .padding()
                                 .bold()
+                                .frame(width: 250)
 
                         }
                         .padding()
 
                     }
+
                 )
                 .onTapGesture {
                     // Handle selection (e.g., navigate or display more info)
                     print("Tapped")
                 }
+
 
         }
 

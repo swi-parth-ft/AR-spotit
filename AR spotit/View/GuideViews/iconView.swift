@@ -10,7 +10,8 @@ import SwiftUI
 struct iconView: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var angle: Double = 130
-
+    @State private var pad: CGFloat = 60
+    var time = 4.0
     var body: some View {
         ZStack {
             ZStack {
@@ -29,24 +30,38 @@ struct iconView: View {
                 .padding(.leading, 10)
                
                 ZStack {
-                    Circle()
-                        .fill(.orange.opacity(0.6))
+                    Image(systemName: "circle.fill")
+                        .font(.system(size: 20))
+
+                        .foregroundStyle(.orange.opacity(0.6))
                         .frame(width: 20)
+                        .symbolEffect(.breathe)
                     
-                    Circle()
-                        .fill(.orange)
+                    Image(systemName: "circle.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.orange)
                         .frame(width: 15)
                 }
                 .frame(width: 100, height: 100)
-                .padding(.leading, 60)
-                .padding(.bottom, 60)
+                .padding(.leading, pad)
+                .padding(.bottom, pad)
                 .rotationEffect(Angle(degrees: angle))
                 .zIndex(-1)
 
             }
             .onAppear {
-                withAnimation(.interpolatingSpring(stiffness: 100, damping: 5).delay(4)) {
+                withAnimation(.interpolatingSpring(stiffness: 100, damping: 5).delay(TimeInterval(time))) {
                     angle = 0
+                }
+                
+                withAnimation(.interpolatingSpring(stiffness: 100, damping: 5).delay(TimeInterval(time + 1))) {
+                    pad = 50
+                   
+                }
+                
+                withAnimation(.interpolatingSpring(stiffness: 100, damping: 5).delay(TimeInterval(time + 1.2))) {
+                    pad = 60
+                   
                 }
             }
 

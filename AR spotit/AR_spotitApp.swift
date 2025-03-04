@@ -196,7 +196,7 @@ struct AR_spotitApp: App {
             .onAppear {
                 iCloudManager.shared.worldManager = WorldManager.shared
                 Task {
-                    try await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+                    try await Task.sleep(nanoseconds: 2_000_000_000) // 1.5 seconds
                     withAnimation {
                         self.isActive = true
                         try? Tips.configure()

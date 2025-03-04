@@ -18,6 +18,7 @@ struct PhysicsDotsAnimationView: View {
             Color.primary.colorInvert()
             
             VStack {
+                iconView(time: 0)
                 AnimateText<ATOffsetEffect>($text)
                     .font(.system(size: 70, design: .rounded))
                     .bold()
