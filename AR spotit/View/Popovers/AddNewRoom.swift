@@ -44,6 +44,7 @@ struct AddNewRoom: View {
                         }
                     
                     Button {
+                        roomName = roomName.trimmingTrailingWhitespace
                             onTapAddRoom()
                         dismiss()
                         //selectedWorld = WorldModel(name: roomName)

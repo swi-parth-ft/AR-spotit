@@ -65,6 +65,7 @@ struct PinView: View {
                     if isChecking {
                         dismiss()
                     } else {
+                        pin = pin.trimmingTrailingWhitespace
                         AppState.shared.isCreatingLink = true
                       //  WorldManager.shared.loadSavedWorlds {
                             if let index = WorldManager.shared.savedWorlds.firstIndex(where: { $0.name == roomName }) {

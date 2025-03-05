@@ -75,7 +75,7 @@ struct renameWorldView: View {
                                 isTextFieldFocused = true
                             }
                 Button {
-                    worldManager.renameWorld(currentName: worldName, newName: newName, publicName: publicName) {
+                    worldManager.renameWorld(currentName: worldName, newName: newName.trimmingTrailingWhitespace, publicName: publicName) {
                         
                     
                         dismiss()

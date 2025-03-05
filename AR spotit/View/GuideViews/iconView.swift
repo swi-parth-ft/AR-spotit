@@ -11,7 +11,7 @@ struct iconView: View {
     @Environment(\.colorScheme) var colorScheme
     @State private var angle: Double = 130
     @State private var pad: CGFloat = 60
-    var time = 4.0
+    var time = 3.0
     var body: some View {
         ZStack {
             ZStack {

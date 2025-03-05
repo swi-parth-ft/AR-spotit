@@ -69,7 +69,8 @@ struct AddAnchorView: View {
                
                 
                 Button {
-                    anchorName = "\(anchorName) \(selectedEmoji?.id ?? "🏴‍☠️")"
+                    
+                    anchorName = "\(anchorName.trimmingTrailingWhitespace) \(selectedEmoji?.id ?? "🏴‍☠️")"
                     worldManager.isAddingAnchor = true
                     let drop = Drop.init(title: "Tap on \(anchorName) to save!")
                     Drops.show(drop)

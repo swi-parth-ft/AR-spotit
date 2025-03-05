@@ -83,7 +83,7 @@ struct EditAnchorView: View {
                         
                         
                         Button {
-                            newName = "\(newName) \(selectedEmoji?.id ?? "🏴‍☠️")"
+                            newName = "\(newName.trimmingTrailingWhitespace) \(selectedEmoji?.id ?? "🏴‍☠️")"
                             
                             onRename(anchorName, newName)
                         } label: {

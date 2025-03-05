@@ -531,9 +531,11 @@ struct AnchorsListView: View {
                     if !newAnchors.isEmpty {
                         Drawer {
                             ZStack {
+                                
                                 VisualEffectBlur(blurStyle: .systemUltraThinMaterial)
-                                    .shadow(color: colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.4), radius: 10)
-
+                                    .cornerRadius(12)
+                                    .shadow(color: colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.2), radius: 2)
+                                
                                 VStack {
                                     RoundedRectangle(cornerRadius: 3.0)
                                         .foregroundColor(.gray)

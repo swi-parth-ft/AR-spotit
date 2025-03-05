@@ -130,3 +130,10 @@ extension View {
         }
     }
 }
+
+
+extension String {
+    var trimmingTrailingWhitespace: String {
+        return String(self.reversed().drop(while: { $0.isWhitespace }).reversed())
+    }
+}

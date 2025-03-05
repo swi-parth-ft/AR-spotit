@@ -296,79 +296,12 @@ let shareWorldsTip = ShareWorldsTip()
                                                                 }
                                                             }
                                                         }
+                                                        
+                                                        Spacer()
+                                                            .frame(height: 70)
                                                     }
                                                 }
-//                        ForEach(filteredWorlds) { world in
-//                            VStack(alignment: .leading) {
-//                                WorldCellView(
-//                                    world: world,
-//                                    anchors: anchorsByWorld[world.name] ?? [],
-//                                    searchText: searchText,
-//                                    colorScheme: colorScheme,
-//                                    animationNamespace: animationNamespace,
-//                                    onTap: {
-//                                        
-//                                        worldsViewTip.invalidate(reason: .actionPerformed)
-//
-//                                        HapticManager.shared.impact(style: .medium)
-//                                        worldForAnchors = world
-//                                        isShowingAnchors = true
-//                                    },
-//                                    onARKitTap: {
-//                                        updateRoomName = world.name
-//                                        worldManager.isShowingAll = true
-//                                        selectedWorld = world
-//                                    },
-//                                    onRename: {
-//                                        HapticManager.shared.impact(style: .medium)
-//                                        DispatchQueue.main.async { worldForRename = world }
-//                                        withAnimation { isRenaming = true }
-//                                    },
-//                                    onShare: {
-//                                        worldManager.shareWorld(currentRoomName: world.name)
-//                                        HapticManager.shared.impact(style: .medium)
-//                                    },
-//                                    onShareQR: {
-//                                        DispatchQueue.main.async { worldForQR = world }
-//                                        isShowingQR = true
-//                                    },
-//                                    onShowPIN: {
-//                                        DispatchQueue.main.async { worldForPin = world }
-//                                        selectedPin = world.pin ?? ""
-//                                        showPinPopover = true
-//                                    },
-//                                    onDelete: {
-//                                        DispatchQueue.main.async { worldForDelete = world }
-//                                        isDeleting = true
-//                                    },
-//                                    onAnchorTap: { anchorName in
-//                                        worldManager.isShowingAll = false
-//                                        isFindingAnchor = true
-//                                        findingAnchorName = anchorName
-//                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-//                                            selectedWorld = world
-//                                        }
-//                                    },
-//                                    filteredAnchors: filteredAnchors(for: world.name)
-//                                )
-//                                .onAppear {
-//                                    if anchorsByWorld[world.name] == nil ||
-//                                        anchorsByWorld[world.name]?.isEmpty == true {
-//                                        worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
-//                                            DispatchQueue.main.async {
-//                                                anchorsByWorld[world.name] = fetchedAnchors
-//                                                
-//                                            
-//                                                let tupleAnchors = fetchedAnchors
-//                                                    .filter { $0 != "guide" }
-//                                                    .map { (anchorName: $0, worldName: world.name) }
-//                                                worldManager.indexItems(anchors: tupleAnchors)
-//                                            }
-//                                        }
-//                                    }
-//                                }
-//                            }
-//                        }
+
                     }
                     .onAppear {
                         
@@ -385,7 +318,7 @@ let shareWorldsTip = ShareWorldsTip()
                     }
                     .padding(.top)
                 }
-                .padding(.bottom, !worldManager.sharedLinks.isEmpty ? 70 : 0)
+               // .padding(.bottom, !worldManager.sharedLinks.isEmpty ? 50 : 0)
                 .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic))
                 .tint(colorScheme == .dark ? .white : .black)
                 .onReceive(NotificationCenter.default.publisher(for: Notifications.openWorldNotification)) { notification in
@@ -540,6 +473,14 @@ let shareWorldsTip = ShareWorldsTip()
                                 .font(.title2)
                                 .foregroundStyle(colorScheme == .dark ? .white : .black)
 
+                        }
+                        
+                      
+                            NavigationLink {
+                           //     FindAnchorVisualsView()
+                            
+                        } label: {
+                            Image(systemName: "gearshape.fill")
                         }
                     }
                     
@@ -753,8 +694,29 @@ let shareWorldsTip = ShareWorldsTip()
                         Drawer {
                             
                             ZStack {
+                                
+                                
+                                
                                 VisualEffectBlur(blurStyle: .systemUltraThinMaterial)
-                                    .shadow(color: colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.4), radius: 10)
+                                    .background(
+                                        
+                                        TimelineView(.animation) { timeline in
+                                            let x = (sin(timeline.date.timeIntervalSince1970) + 1) / 2
+
+                                            MeshGradient(width: 3, height: 3, points: [
+                                                [0, 0], [0.5, 0], [1, 0],
+                                                [0, 0.7], [Float(x), 0.7], [1, 0.7],
+                                                [0, 1], [0.5, 1], [1, 1]
+                                            ], colors: [
+                                                .clear , .clear, .clear,
+                                                .blue, .blue, .blue,
+                                                .clear , .clear, .clear
+                                            ])
+                                        }
+                                        
+                                        )
+                                    .cornerRadius(12)
+                                    .shadow(color: colorScheme == .dark ? .white.opacity(0.2) : .black.opacity(0.2), radius: 2)
 
                                 VStack {
                                     RoundedRectangle(cornerRadius: 3.0)
@@ -766,11 +728,11 @@ let shareWorldsTip = ShareWorldsTip()
 
                                     
                                     HStack {
-                                        Text("Shared With You")
+                                        Text("Saved iCloud Links")
                                             .font(.system(.title2, design: .rounded))
                                             .bold()
                                         
-                                        Image(systemName: "shared.with.you")
+                                        Image(systemName: "link.icloud.fill")
                                             .font(.system(.title3, design: .rounded))
                                             .foregroundStyle(.blue)
                                             .bold()

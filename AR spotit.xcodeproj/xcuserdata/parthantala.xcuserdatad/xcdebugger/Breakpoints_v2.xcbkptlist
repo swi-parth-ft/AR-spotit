@@ -1314,50 +1314,6 @@
             endingLineNumber = "472"
             landmarkName = "session(_:didUpdate:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "7CAE0159-EEF9-4EB1-B74A-24410539AE8B - b635172d9f197076"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #4 @Swift.MainActor () -&gt; () in it_s_here_.ARViewContainer.Coordinator.session(_: __C.ARSession, didUpdate: __C.ARFrame) -&gt; ()"
-                  moduleName = "it&apos;s here..debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/parthantala/Desktop/Swift/spot%20it/AR%20spotit%20copy%202/AR%20spotit/Manager/ARManager/ARViewContainer.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "472"
-                  endingLineNumber = "472">
-               </Location>
-               <Location
-                  uuid = "7CAE0159-EEF9-4EB1-B74A-24410539AE8B - b635172d9f197076"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #4 @Swift.MainActor () -&gt; () in it_s_here_.ARViewContainer.Coordinator.session(_: __C.ARSession, didUpdate: __C.ARFrame) -&gt; ()"
-                  moduleName = "it&apos;s here..debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/parthantala/Desktop/Swift/spot%20it/AR%20spotit%20copy%202/AR%20spotit/Manager/ARManager/ARViewContainer.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "472"
-                  endingLineNumber = "472">
-               </Location>
-               <Location
-                  uuid = "7CAE0159-EEF9-4EB1-B74A-24410539AE8B - 21512445cfa53512"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 (__C.ARAnchor) -&gt; Swift.Optional&lt;Swift.String&gt; in closure #4 @Swift.MainActor () -&gt; () in it_s_here_.ARViewContainer.Coordinator.session(_: __C.ARSession, didUpdate: __C.ARFrame) -&gt; ()"
-                  moduleName = "it&apos;s here..debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/parthantala/Desktop/Swift/spot%20it/AR%20spotit%20copy%202/AR%20spotit/Manager/ARManager/ARViewContainer.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "472"
-                  endingLineNumber = "472">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>
