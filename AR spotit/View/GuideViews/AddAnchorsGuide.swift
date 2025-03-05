@@ -77,6 +77,7 @@ var onTap: () -> Void = { }
                     .cornerRadius(10)
             }
             .padding(.horizontal)
+            .padding(.bottom)
         }
     }
 }

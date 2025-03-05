@@ -114,7 +114,8 @@ struct ARViewContainer: UIViewRepresentable {
         var publicRecord: CKRecord? = nil
         var relocalizationCount = 0
         private var PublicAnchors: [String] = []
-        
+        var accumulatedFeaturePoints: [SIMD3<Float>] = []
+
         init(_ parent: ARViewContainer, worldManager: WorldManager) {
             self.parent = parent
             self.worldManager = worldManager
@@ -155,9 +156,90 @@ struct ARViewContainer: UIViewRepresentable {
             }
         }
         
+       
+        func createCrossGridNode(for planeAnchor: ARPlaneAnchor,
+                                 gridCount: Int = 10,
+                                 lineThickness: CGFloat = 0.005,
+                                 crossArmLengthFactor: CGFloat = 0.5) -> SCNNode {
+            let gridNode = SCNNode()
+            
+            // Get the plane's dimensions in meters.
+            let planeWidth = CGFloat(planeAnchor.extent.x)
+            let planeHeight = CGFloat(planeAnchor.extent.z)
+            
+            // We'll draw crosses at interior points only (avoiding boundaries).
+            // For example, if gridCount is 10, we create crosses for i and j from 1 to 9.
+            for i in 1..<gridCount {
+                for j in 1..<gridCount {
+                    // Calculate the intersection point inside the plane.
+                    let x = -planeWidth / 2 + (CGFloat(i) / CGFloat(gridCount)) * planeWidth
+                    let z = -planeHeight / 2 + (CGFloat(j) / CGFloat(gridCount)) * planeHeight
+                    
+                    let crossNode = SCNNode()
+                    // Calculate spacing to determine a suitable arm length.
+                    let xSpacing = planeWidth / CGFloat(gridCount)
+                    let zSpacing = planeHeight / CGFloat(gridCount)
+                    let armLength = min(xSpacing, zSpacing) * crossArmLengthFactor
+                    
+                    // Horizontal arm (extends along x).
+                    let horizontalArm = SCNBox(width: armLength, height: 0.001, length: lineThickness, chamferRadius: 0)
+                    horizontalArm.firstMaterial?.diffuse.contents = UIColor.white
+                    let horizontalNode = SCNNode(geometry: horizontalArm)
+                    
+                    // Vertical arm (extends along z).
+                    let verticalArm = SCNBox(width: lineThickness, height: 0.001, length: armLength, chamferRadius: 0)
+                    verticalArm.firstMaterial?.diffuse.contents = UIColor.white
+                    let verticalNode = SCNNode(geometry: verticalArm)
+                    
+                    // Both arms are centered by default, so adding them to a common parent yields a cross.
+                    crossNode.addChildNode(horizontalNode)
+                    crossNode.addChildNode(verticalNode)
+                    
+                    // Place the cross at the computed intersection.
+                    crossNode.position = SCNVector3(x, 0, z)
+                    gridNode.addChildNode(crossNode)
+                }
+            }
+            
+            return gridNode
+        }
         //MARK: Did add anchor
          func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+             if !isLoading && !ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
+                 
+//                 if let planeAnchor = anchor as? ARPlaneAnchor {
+//                             // Create the grid node using the helper function
+//                     // Create a cross grid without the outer rectangle.
+//                           let crossGridNode = createCrossGridNode(for: planeAnchor, gridCount: 20, lineThickness: 0.0002)
+//                           
+//                           // Position the grid node relative to the plane anchor's center.
+//                           crossGridNode.position = SCNVector3(planeAnchor.center.x, 0, planeAnchor.center.z)
+//                           node.addChildNode(crossGridNode)
+//                         }
+//                 
+                 
+                 if let planeAnchor = anchor as? ARPlaneAnchor {
+                     // Create a plane with the detected extent
+                     let plane = SCNPlane(width: CGFloat(planeAnchor.extent.x),
+                                          height: CGFloat(planeAnchor.extent.z))
+                     // Use a white, semi-transparent material
+                     let material = SCNMaterial()
+                     material.diffuse.contents = UIColor.white.withAlphaComponent(1)
+                     material.isDoubleSided = true
+                     material.fillMode = .lines
 
+                     plane.materials = [material]
+                     
+                     // Create a node for the plane and rotate it to horizontal
+                     let planeNode = SCNNode(geometry: plane)
+                     planeNode.eulerAngles.x = -.pi / 2
+                     
+                     // Position the plane at the anchor's center
+                     planeNode.position = SCNVector3(planeAnchor.center.x, 0, planeAnchor.center.z)
+                     
+                     node.addChildNode(planeNode)
+                 }
+             }
             node.name = anchor.name
             anchorNodes[anchor.name ?? ""] = node
             
@@ -284,6 +366,19 @@ struct ARViewContainer: UIViewRepresentable {
         
         //MARK: Did Update Node
         func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
+            if !isLoading && !ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
+                if let planeAnchor = anchor as? ARPlaneAnchor {
+                    // Find the plane node you added earlier
+                    if let planeNode = node.childNodes.first(where: { $0.geometry is SCNPlane }),
+                       let plane = planeNode.geometry as? SCNPlane {
+                        // Update the geometry's width and height to match the updated plane extent
+                        plane.width = CGFloat(planeAnchor.extent.x)
+                        plane.height = CGFloat(planeAnchor.extent.z)
+                        // Update the plane node's position to the new center of the plane
+                        planeNode.position = SCNVector3(planeAnchor.center.x, 0, planeAnchor.center.z)
+                    }
+                }
+            }
             guard let meshAnchor = anchor as? ARMeshAnchor else { return }
             
             
@@ -377,6 +472,7 @@ struct ARViewContainer: UIViewRepresentable {
                      }
                  }
              }
+       
             
             if let lightEstimate = frame.lightEstimate {
                 if lightEstimate.ambientIntensity < 100.0 { // Example threshold for low light
@@ -420,7 +516,6 @@ struct ARViewContainer: UIViewRepresentable {
             let clampedDistance = max(0.1, min(distance, 5.0)) // Clamp distance
             let direction = anchorPosition - cameraPosition
             
-            let horizontalDirection = SIMD3<Float>(direction.x, 0, direction.z)
             
             let smoothedAngle = calculateAngleBetweenVectors(cameraTransform: cameraTransform, anchorPosition: anchorPosition)
             

@@ -98,7 +98,7 @@ struct ARViewGuideView: View {
                     .background(Color.primary.opacity(1))
                     .cornerRadius(10)
             }
-            .padding(.horizontal)
+            .padding()
         }
     }
 }
