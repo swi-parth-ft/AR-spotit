@@ -32,6 +32,13 @@ struct AnchorsListView: View {
         GridItem(.flexible(), spacing: 10),
         GridItem(.flexible(), spacing: 10)
     ] // Two flexible columns
+    
+    let iPadCollumns = [
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10)
+    ]
     @State private var showPinPopover = false
     @State private var selectedPin: String = ""
 @State private var isShowingPIN = false
@@ -87,7 +94,7 @@ struct AnchorsListView: View {
                             Image(uiImage: uiImage)
                             .resizable()
                             .scaledToFill()
-                            .frame(height: 400)
+                            .frame(height: 800)
                             .clipped()
                             .cornerRadius(15)
                             .overlay(
@@ -129,7 +136,7 @@ struct AnchorsListView: View {
                     }
                 
                     
-                    LazyVGrid(columns: columns, spacing: 10) {
+                    LazyVGrid(columns: UIDevice.isIpad ? iPadCollumns : columns, spacing: 10) {
                         if let anchors = anchorsByWorld[worldName], !anchors.isEmpty {
 //                            // Filter out "guide" anchors
 //                            

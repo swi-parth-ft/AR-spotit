@@ -39,7 +39,7 @@ struct WorldCellView: View {
                     Image(uiImage: uiImage)
                         .resizable()
                         .scaledToFill()
-                        .frame(height: 200)
+                        .frame(height: UIDevice.isIpad ? 300 : 200)
                         .clipped()
                         .cornerRadius(15)
                         .overlay(
@@ -88,7 +88,7 @@ struct WorldCellView: View {
                 }
                 .padding()
             }
-            .frame(height: 200)
+            .frame(height: UIDevice.isIpad ? 300 : 200)
             .padding(.vertical, 10)
             .matchedTransitionSource(id: "zoom-\(world.name)", in: animationNamespace)
             .contentShape(Rectangle())

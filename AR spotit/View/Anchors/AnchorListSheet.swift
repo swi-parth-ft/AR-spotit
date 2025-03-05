@@ -14,25 +14,41 @@ struct AnchorListSheet: View {
     let onSelectAnchor: (String) -> Void  // A closure to handle the user’s choice
     @Environment(\.colorScheme) var colorScheme
     // We'll compute the anchor names in a computed property
-    @State private var anchorNames: [String] = []
+    @State private var anchorNames: [String] = ["test", "test2", "test", "test2"]
+    @State private var searchText: String = ""
 
+    var filteredAnchors: [String] {
+           if searchText.isEmpty {
+               return anchorNames
+           } else {
+               return anchorNames.filter { $0.localizedCaseInsensitiveContains(searchText) }
+           }
+       }
     
     var body: some View {
         NavigationStack {
-            
-            List(anchorNames, id: \.self) { anchorName in
-                Button {
-                    onSelectAnchor(anchorName)
-                } label: {
-                    Text(anchorName)
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
+            VStack {
+                Text("Search items in this map, Tap on an item find it in real world using AR.")
+                    .font(.system(.headline, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal)
+                List(filteredAnchors, id: \.self) { anchorName in
+                    Button {
+                        onSelectAnchor(anchorName)
+                    } label: {
+                        Text(anchorName)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
+                    }
+                }
+                .scrollContentBackground(.hidden)
+                .navigationTitle("Items")
+                .searchable(text: $searchText, prompt: "Search anchors")
+                .onAppear {
+                    UISearchBar.appearance().tintColor = colorScheme == .dark ? .white : .black
+                      reloadAnchorNames()
+                    
                 }
             }
-            .navigationTitle("Items")
-            .onAppear {
-                            reloadAnchorNames()
-                
-                        }
         }
     }
     
@@ -46,4 +62,10 @@ struct AnchorListSheet: View {
                 .compactMap { $0.name }
                 .filter { $0 != "guide" }
         }
+}
+
+#Preview {
+    AnchorListSheet(sceneView: ARSCNView(), onSelectAnchor: { _ in
+        
+    })
 }

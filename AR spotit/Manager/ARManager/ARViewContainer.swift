@@ -460,6 +460,10 @@ struct ARViewContainer: UIViewRepresentable {
                  }
 //
             
+                
+             }
+       
+             if AppState.shared.isViewOnly {
                  if self.worldManager.isRelocalizationComplete == true {
                      DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                          
@@ -472,7 +476,6 @@ struct ARViewContainer: UIViewRepresentable {
                      }
                  }
              }
-       
             
             if let lightEstimate = frame.lightEstimate {
                 if lightEstimate.ambientIntensity < 100.0 { // Example threshold for low light

@@ -153,78 +153,222 @@ let shareWorldsTip = ShareWorldsTip()
                                 .padding(.horizontal)
                                 .tint(colorScheme == .dark ? .white : .black)
                         }
-                        
-                        ForEach(filteredWorlds) { world in
-                            VStack(alignment: .leading) {
-                                WorldCellView(
-                                    world: world,
-                                    anchors: anchorsByWorld[world.name] ?? [],
-                                    searchText: searchText,
-                                    colorScheme: colorScheme,
-                                    animationNamespace: animationNamespace,
-                                    onTap: {
-                                        
-                                        worldsViewTip.invalidate(reason: .actionPerformed)
-
-                                        HapticManager.shared.impact(style: .medium)
-                                        worldForAnchors = world
-                                        isShowingAnchors = true
-                                    },
-                                    onARKitTap: {
-                                        updateRoomName = world.name
-                                        worldManager.isShowingAll = true
-                                        selectedWorld = world
-                                    },
-                                    onRename: {
-                                        HapticManager.shared.impact(style: .medium)
-                                        DispatchQueue.main.async { worldForRename = world }
-                                        withAnimation { isRenaming = true }
-                                    },
-                                    onShare: {
-                                        worldManager.shareWorld(currentRoomName: world.name)
-                                        HapticManager.shared.impact(style: .medium)
-                                    },
-                                    onShareQR: {
-                                        DispatchQueue.main.async { worldForQR = world }
-                                        isShowingQR = true
-                                    },
-                                    onShowPIN: {
-                                        DispatchQueue.main.async { worldForPin = world }
-                                        selectedPin = world.pin ?? ""
-                                        showPinPopover = true
-                                    },
-                                    onDelete: {
-                                        DispatchQueue.main.async { worldForDelete = world }
-                                        isDeleting = true
-                                    },
-                                    onAnchorTap: { anchorName in
-                                        worldManager.isShowingAll = false
-                                        isFindingAnchor = true
-                                        findingAnchorName = anchorName
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                            selectedWorld = world
-                                        }
-                                    },
-                                    filteredAnchors: filteredAnchors(for: world.name)
-                                )
-                                .onAppear {
-                                    if anchorsByWorld[world.name] == nil ||
-                                        anchorsByWorld[world.name]?.isEmpty == true {
-                                        worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
-                                            DispatchQueue.main.async {
-                                                anchorsByWorld[world.name] = fetchedAnchors
-                                                
-                                            
-                                                let tupleAnchors = fetchedAnchors
-                                                    .filter { $0 != "guide" }
-                                                    .map { (anchorName: $0, worldName: world.name) }
-                                                worldManager.indexItems(anchors: tupleAnchors)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        if UIDevice.current.userInterfaceIdiom == .pad {
+                                                    let gridColumns = [
+                                                        GridItem(.flexible(), spacing: 10),
+                                                        GridItem(.flexible(), spacing: 10)
+                                                    ]
+                                                    LazyVGrid(columns: gridColumns, spacing: 10) {
+                                                        ForEach(filteredWorlds) { world in
+                                                            VStack(alignment: .leading) {
+                                                                WorldCellView(
+                                                                    world: world,
+                                                                    anchors: anchorsByWorld[world.name] ?? [],
+                                                                    searchText: searchText,
+                                                                    colorScheme: colorScheme,
+                                                                    animationNamespace: animationNamespace,
+                                                                    onTap: {
+                                                                        worldsViewTip.invalidate(reason: .actionPerformed)
+                                                                        HapticManager.shared.impact(style: .medium)
+                                                                        worldForAnchors = world
+                                                                        isShowingAnchors = true
+                                                                    },
+                                                                    onARKitTap: {
+                                                                        updateRoomName = world.name
+                                                                        worldManager.isShowingAll = true
+                                                                        selectedWorld = world
+                                                                    },
+                                                                    onRename: {
+                                                                        HapticManager.shared.impact(style: .medium)
+                                                                        DispatchQueue.main.async { worldForRename = world }
+                                                                        withAnimation { isRenaming = true }
+                                                                    },
+                                                                    onShare: {
+                                                                        worldManager.shareWorld(currentRoomName: world.name)
+                                                                        HapticManager.shared.impact(style: .medium)
+                                                                    },
+                                                                    onShareQR: {
+                                                                        DispatchQueue.main.async { worldForQR = world }
+                                                                        isShowingQR = true
+                                                                    },
+                                                                    onShowPIN: {
+                                                                        DispatchQueue.main.async { worldForPin = world }
+                                                                        selectedPin = world.pin ?? ""
+                                                                        showPinPopover = true
+                                                                    },
+                                                                    onDelete: {
+                                                                        DispatchQueue.main.async { worldForDelete = world }
+                                                                        isDeleting = true
+                                                                    },
+                                                                    onAnchorTap: { anchorName in
+                                                                        worldManager.isShowingAll = false
+                                                                        isFindingAnchor = true
+                                                                        findingAnchorName = anchorName
+                                                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                                                            selectedWorld = world
+                                                                        }
+                                                                    },
+                                                                    filteredAnchors: filteredAnchors(for: world.name)
+                                                                )
+                                                                .onAppear {
+                                                                    if anchorsByWorld[world.name] == nil ||
+                                                                        anchorsByWorld[world.name]?.isEmpty == true {
+                                                                        worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
+                                                                            DispatchQueue.main.async {
+                                                                                anchorsByWorld[world.name] = fetchedAnchors
+                                                                                let tupleAnchors = fetchedAnchors
+                                                                                    .filter { $0 != "guide" }
+                                                                                    .map { (anchorName: $0, worldName: world.name) }
+                                                                                worldManager.indexItems(anchors: tupleAnchors)
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                } else {
+                                                    VStack(alignment: .leading) {
+                                                        ForEach(filteredWorlds) { world in
+                                                            VStack(alignment: .leading) {
+                                                                WorldCellView(
+                                                                    world: world,
+                                                                    anchors: anchorsByWorld[world.name] ?? [],
+                                                                    searchText: searchText,
+                                                                    colorScheme: colorScheme,
+                                                                    animationNamespace: animationNamespace,
+                                                                    onTap: {
+                                                                        worldsViewTip.invalidate(reason: .actionPerformed)
+                                                                        HapticManager.shared.impact(style: .medium)
+                                                                        worldForAnchors = world
+                                                                        isShowingAnchors = true
+                                                                    },
+                                                                    onARKitTap: {
+                                                                        updateRoomName = world.name
+                                                                        worldManager.isShowingAll = true
+                                                                        selectedWorld = world
+                                                                    },
+                                                                    onRename: {
+                                                                        HapticManager.shared.impact(style: .medium)
+                                                                        DispatchQueue.main.async { worldForRename = world }
+                                                                        withAnimation { isRenaming = true }
+                                                                    },
+                                                                    onShare: {
+                                                                        worldManager.shareWorld(currentRoomName: world.name)
+                                                                        HapticManager.shared.impact(style: .medium)
+                                                                    },
+                                                                    onShareQR: {
+                                                                        DispatchQueue.main.async { worldForQR = world }
+                                                                        isShowingQR = true
+                                                                    },
+                                                                    onShowPIN: {
+                                                                        DispatchQueue.main.async { worldForPin = world }
+                                                                        selectedPin = world.pin ?? ""
+                                                                        showPinPopover = true
+                                                                    },
+                                                                    onDelete: {
+                                                                        DispatchQueue.main.async { worldForDelete = world }
+                                                                        isDeleting = true
+                                                                    },
+                                                                    onAnchorTap: { anchorName in
+                                                                        worldManager.isShowingAll = false
+                                                                        isFindingAnchor = true
+                                                                        findingAnchorName = anchorName
+                                                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                                                            selectedWorld = world
+                                                                        }
+                                                                    },
+                                                                    filteredAnchors: filteredAnchors(for: world.name)
+                                                                )
+                                                                .onAppear {
+                                                                    if anchorsByWorld[world.name] == nil ||
+                                                                        anchorsByWorld[world.name]?.isEmpty == true {
+                                                                        worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
+                                                                            DispatchQueue.main.async {
+                                                                                anchorsByWorld[world.name] = fetchedAnchors
+                                                                                let tupleAnchors = fetchedAnchors
+                                                                                    .filter { $0 != "guide" }
+                                                                                    .map { (anchorName: $0, worldName: world.name) }
+                                                                                worldManager.indexItems(anchors: tupleAnchors)
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+//                        ForEach(filteredWorlds) { world in
+//                            VStack(alignment: .leading) {
+//                                WorldCellView(
+//                                    world: world,
+//                                    anchors: anchorsByWorld[world.name] ?? [],
+//                                    searchText: searchText,
+//                                    colorScheme: colorScheme,
+//                                    animationNamespace: animationNamespace,
+//                                    onTap: {
+//                                        
+//                                        worldsViewTip.invalidate(reason: .actionPerformed)
+//
+//                                        HapticManager.shared.impact(style: .medium)
+//                                        worldForAnchors = world
+//                                        isShowingAnchors = true
+//                                    },
+//                                    onARKitTap: {
+//                                        updateRoomName = world.name
+//                                        worldManager.isShowingAll = true
+//                                        selectedWorld = world
+//                                    },
+//                                    onRename: {
+//                                        HapticManager.shared.impact(style: .medium)
+//                                        DispatchQueue.main.async { worldForRename = world }
+//                                        withAnimation { isRenaming = true }
+//                                    },
+//                                    onShare: {
+//                                        worldManager.shareWorld(currentRoomName: world.name)
+//                                        HapticManager.shared.impact(style: .medium)
+//                                    },
+//                                    onShareQR: {
+//                                        DispatchQueue.main.async { worldForQR = world }
+//                                        isShowingQR = true
+//                                    },
+//                                    onShowPIN: {
+//                                        DispatchQueue.main.async { worldForPin = world }
+//                                        selectedPin = world.pin ?? ""
+//                                        showPinPopover = true
+//                                    },
+//                                    onDelete: {
+//                                        DispatchQueue.main.async { worldForDelete = world }
+//                                        isDeleting = true
+//                                    },
+//                                    onAnchorTap: { anchorName in
+//                                        worldManager.isShowingAll = false
+//                                        isFindingAnchor = true
+//                                        findingAnchorName = anchorName
+//                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+//                                            selectedWorld = world
+//                                        }
+//                                    },
+//                                    filteredAnchors: filteredAnchors(for: world.name)
+//                                )
+//                                .onAppear {
+//                                    if anchorsByWorld[world.name] == nil ||
+//                                        anchorsByWorld[world.name]?.isEmpty == true {
+//                                        worldManager.getAnchorNames(for: world.name) { fetchedAnchors in
+//                                            DispatchQueue.main.async {
+//                                                anchorsByWorld[world.name] = fetchedAnchors
+//                                                
+//                                            
+//                                                let tupleAnchors = fetchedAnchors
+//                                                    .filter { $0 != "guide" }
+//                                                    .map { (anchorName: $0, worldName: world.name) }
+//                                                worldManager.indexItems(anchors: tupleAnchors)
+//                                            }
+//                                        }
+//                                    }
+//                                }
+//                            }
+//                        }
                     }
                     .onAppear {
                         
